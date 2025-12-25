@@ -366,12 +366,18 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
     
     // === ROOM TRANSITIONS (4 rooms total) ===
-    const triggerTransition = (fromRoom: number, toRoom: number, condition: boolean) => {
+    const r3x = 70;
+    const r4x = 105;
+    
+    const triggerTransition = (fromRoom: number, toRoom: number, condition: boolean, targetX: number, targetY: number, targetZ: number) => {
       if (!transitionTriggeredRef.current.has(fromRoom) && currentRoomRef.current === fromRoom && condition) {
         transitionTriggeredRef.current.add(fromRoom);
         setTransitionRoom(toRoom);
         setShowTransition(true);
         setTimeout(() => {
+          // Teleport player to new room
+          player.position.set(targetX, targetY, targetZ);
+          player.velocity.set(0, 0, 0);
           setCurrentRoom(toRoom);
           currentRoomRef.current = toRoom;
           setTimeout(() => setShowTransition(false), 800);
@@ -379,14 +385,14 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       }
     };
     
-    // Room 1 → 2: Cross bridge at x=25, y>20
-    triggerTransition(1, 2, player.position.x > 25 && player.position.y > 20);
+    // Room 1 → 2: Cross bridge at x=25, y>20 → teleport to room 2 entrance
+    triggerTransition(1, 2, player.position.x > 28 && player.position.y > 20, 35, 2, 0);
     
-    // Room 2 → 3: Reach far right of room 2 at x=48
-    triggerTransition(2, 3, player.position.x > 48 && player.position.y > 18);
+    // Room 2 → 3: Reach far right of room 2 at x=52 → teleport to room 3 (Pillar Chamber)
+    triggerTransition(2, 3, player.position.x > 52 && player.position.y > 18, r3x, 2, 0);
     
-    // Room 3 → 4: Reach top of room 3 at y>35
-    triggerTransition(3, 4, player.position.y > 35 && player.position.x > 60);
+    // Room 3 → 4: Reach top of room 3 at y>36 → teleport to room 4 (Final Arena)
+    triggerTransition(3, 4, player.position.y > 36 && player.position.x > 75, r4x, 2, 0);
     
     // === CAMERA ===
     camera.position.copy(player.position);
@@ -419,6 +425,198 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       if (blade?.material) {
         const color = portalModeRef.current === 'green' ? 0x00ff88 : 0x00ffff;
         (blade.material as THREE.MeshStandardMaterial).emissive.setHex(color);
+      }
+    }
+    
+    // === MOVING PLATFORMS ===
+    const movingPlatforms = (window as any).wormholeMovingPlatforms as any[];
+    if (movingPlatforms) {
+      movingPlatforms.forEach(mp => {
+        const t = elapsed * mp.speed;
+        const offset = Math.sin(t);
+        mp.mesh.position.x = mp.startX + mp.moveX * offset * 0.5;
+        mp.mesh.position.y = mp.startY + mp.moveY * offset * 0.5;
+        mp.mesh.position.z = mp.startZ + mp.moveZ * offset * 0.5;
+      });
+    }
+    
+    // === POWER-UP COLLECTION ===
+    const powerUps = (window as any).wormholePowerUps as THREE.Group[];
+    if (powerUps) {
+      powerUps.forEach(pu => {
+        if (!pu.userData.collected && pu.visible) {
+          // Animate power-ups
+          pu.rotation.y = elapsed * 2;
+          pu.position.y = pu.userData.baseY || pu.position.y;
+          if (!pu.userData.baseY) pu.userData.baseY = pu.position.y;
+          pu.position.y = pu.userData.baseY + Math.sin(elapsed * 3) * 0.3;
+          
+          // Check collection
+          if (player.position.distanceTo(pu.position) < 2) {
+            pu.userData.collected = true;
+            pu.visible = false;
+            
+            switch (pu.userData.type) {
+              case 'speed':
+                setMessage('⚡ SPEED BOOST! 5s');
+                // Speed boost handled by ref
+                break;
+              case 'shield':
+                setMessage('🛡️ SHIELD! +1 Heart');
+                setPlayerHealth(h => Math.min(5, h + 1));
+                break;
+              case 'time':
+                setMessage('⏰ TIME BONUS! +15s');
+                timeRef.current += 15;
+                setTimeLeft(t => t + 15);
+                break;
+              case 'damage':
+                setMessage('💀 DAMAGE BOOST! 2x');
+                break;
+            }
+            setScore(s => s + 500);
+            setTimeout(() => setMessage(''), 1500);
+          }
+        }
+      });
+    }
+    
+    // === LAVA HAZARD DAMAGE ===
+    const lavaHazards = (window as any).wormholeLavaHazards as THREE.Mesh[];
+    if (lavaHazards && healthRef.current > 0) {
+      lavaHazards.forEach(lava => {
+        const dist = Math.sqrt(
+          Math.pow(player.position.x - lava.position.x, 2) +
+          Math.pow(player.position.z - lava.position.z, 2)
+        );
+        if (dist < 2.5 && player.position.y < 1.5) {
+          // Touching lava!
+          if (!lava.userData.lastDamageTime || elapsed - lava.userData.lastDamageTime > 1) {
+            lava.userData.lastDamageTime = elapsed;
+            setPlayerHealth(h => Math.max(0, h - 1));
+            setMessage('🔥 LAVA DAMAGE! -1 ❤️');
+            // Bounce player up
+            player.velocity.y = 8;
+            setTimeout(() => setMessage(''), 1000);
+          }
+        }
+      });
+    }
+    
+    // === BOSS AI (Room 4) ===
+    const boss = (window as any).wormholeBoss;
+    if (boss && boss.mesh.visible && currentRoomRef.current === 4) {
+      boss.isActive = true;
+      const bossPos = boss.position;
+      const distToBoss = player.position.distanceTo(bossPos);
+      
+      // Animate boss
+      boss.mesh.rotation.y = Math.atan2(
+        player.position.x - bossPos.x,
+        player.position.z - bossPos.z
+      );
+      
+      // Boss hover
+      boss.mesh.position.y = bossPos.y + Math.sin(elapsed * 1.5) * 0.3;
+      
+      const bladeMat = boss.sword?.userData?.bladeMat;
+      
+      // Boss attack pattern
+      if (distToBoss < 6 && healthRef.current > 0) {
+        if (boss.state === 'idle') {
+          boss.state = 'winding_up';
+          boss.attackTimer = 0;
+          if (bladeMat) {
+            bladeMat.color.setHex(0x4444ff);
+            bladeMat.emissive.setHex(0x0000ff);
+          }
+        }
+        
+        if (boss.state === 'winding_up') {
+          boss.attackTimer += delta;
+          if (boss.attackTimer > 1.2) {
+            boss.state = 'attacking';
+            boss.attackTimer = 0;
+            if (bladeMat) {
+              bladeMat.color.setHex(0xff0000);
+              bladeMat.emissive.setHex(0xff0000);
+            }
+            boss.sword.rotation.z = 0.8;
+          }
+        }
+        
+        if (boss.state === 'attacking') {
+          boss.attackTimer += delta;
+          if (boss.attackTimer > 0.3 && boss.attackTimer < 0.5) {
+            if (isParryingRef.current) {
+              boss.state = 'stunned';
+              boss.attackTimer = 0;
+              boss.health -= 1;
+              setScore(s => s + 300);
+              setMessage('BOSS PARRY! +300');
+              if (bladeMat) {
+                bladeMat.color.setHex(0xffff00);
+                bladeMat.emissive.setHex(0x888800);
+              }
+              setTimeout(() => setMessage(''), 1000);
+            } else if (!boss.hasHitPlayer) {
+              boss.hasHitPlayer = true;
+              setPlayerHealth(h => Math.max(0, h - 2));
+              setMessage('💀 BOSS HIT! -2 ❤️');
+              setTimeout(() => setMessage(''), 1000);
+            }
+          }
+          if (boss.attackTimer > 1) {
+            boss.state = 'idle';
+            boss.hasHitPlayer = false;
+            boss.sword.rotation.z = -0.3;
+            if (bladeMat) {
+              bladeMat.color.setHex(0xffcc00);
+              bladeMat.emissive.setHex(0xff6600);
+            }
+          }
+        }
+        
+        if (boss.state === 'stunned') {
+          boss.attackTimer += delta;
+          if (boss.attackTimer > 2) {
+            boss.state = 'idle';
+            boss.sword.rotation.z = -0.3;
+            if (bladeMat) {
+              bladeMat.color.setHex(0xffcc00);
+              bladeMat.emissive.setHex(0xff6600);
+            }
+          }
+        }
+      }
+      
+      // Boss defeated
+      if (boss.health <= 0 && boss.mesh.visible) {
+        boss.mesh.visible = false;
+        setScore(s => s + 2000);
+        setMessage('🏆 BOSS DEFEATED! +2000');
+        setTimeout(() => setMessage(''), 2000);
+      }
+    }
+    
+    // === VICTORY PORTAL (Room 4) ===
+    const victoryPortal = (window as any).wormholeVictoryPortal;
+    if (victoryPortal && currentRoomRef.current === 4) {
+      victoryPortal.rotation.z = elapsed;
+      
+      const boss2 = (window as any).wormholeBoss;
+      const bossDefeated = !boss2 || !boss2.mesh.visible || boss2.health <= 0;
+      
+      if (bossDefeated && player.position.distanceTo(victoryPortal.position) < 3) {
+        // Victory!
+        const completedTime = Math.round((Date.now() - gameStartTimeRef.current) / 1000);
+        setCompletionTime(completedTime);
+        setScore(s => s + 5000); // Victory bonus
+        setMessage('🎉 VICTORY! +5000');
+        setTimeout(() => {
+          setGameState('gameover');
+          if (onGameEnd) onGameEnd(scoreRef.current);
+        }, 2000);
       }
     }
     
@@ -807,8 +1005,142 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     p6.position.set(r3x, 20, 0);
     scene.add(p6);
     
-    // === ROOM 4 (Golden/Final) ===
+    // Define Room 4 position early for power-ups
     const r4x = 105;
+    
+    // === ROOM 3 PILLARS (The Pillar Chamber) ===
+    const pillarMat = new THREE.MeshStandardMaterial({ 
+      color: 0x8844aa, 
+      emissive: 0x220044, 
+      emissiveIntensity: 0.3,
+      roughness: 0.3, 
+      metalness: 0.7 
+    });
+    
+    // Create 12 massive pillars in Room 3
+    const pillarPositions = [
+      { x: r3x - 10, z: -10 }, { x: r3x - 10, z: 0 }, { x: r3x - 10, z: 10 },
+      { x: r3x - 5, z: -8 }, { x: r3x - 5, z: 8 },
+      { x: r3x, z: -12 }, { x: r3x, z: 12 },
+      { x: r3x + 5, z: -8 }, { x: r3x + 5, z: 8 },
+      { x: r3x + 10, z: -10 }, { x: r3x + 10, z: 0 }, { x: r3x + 10, z: 10 },
+    ];
+    
+    pillarPositions.forEach((pos, i) => {
+      // Main pillar shaft
+      const pillar = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.2, 1.5, 35, 12),
+        pillarMat.clone()
+      );
+      pillar.position.set(pos.x, 17.5, pos.z);
+      pillar.castShadow = true;
+      pillar.receiveShadow = true;
+      scene.add(pillar);
+      
+      // Pillar base
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(2, 2.2, 1.5, 12),
+        new THREE.MeshStandardMaterial({ color: 0x553377, metalness: 0.8 })
+      );
+      base.position.set(pos.x, 0.75, pos.z);
+      scene.add(base);
+      
+      // Pillar capital (top decoration)
+      const capital = new THREE.Mesh(
+        new THREE.CylinderGeometry(2, 1.2, 1.5, 12),
+        new THREE.MeshStandardMaterial({ color: 0x553377, metalness: 0.8 })
+      );
+      capital.position.set(pos.x, 34.25, pos.z);
+      scene.add(capital);
+      
+      // Glowing rings on pillars
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.8 });
+      [8, 18, 28].forEach(h => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.08, 8, 24), ringMat);
+        ring.position.set(pos.x, h, pos.z);
+        ring.rotation.x = Math.PI / 2;
+        scene.add(ring);
+      });
+      
+      // Add point light to some pillars
+      if (i % 3 === 0) {
+        const pillarLight = new THREE.PointLight(0xff00ff, 0.5, 8);
+        pillarLight.position.set(pos.x, 10, pos.z);
+        scene.add(pillarLight);
+      }
+    });
+    
+    // === LAVA HAZARDS IN ROOM 3 ===
+    const lavaMat = new THREE.MeshStandardMaterial({ 
+      color: 0xff3300, 
+      emissive: 0xff2200, 
+      emissiveIntensity: 1.5 
+    });
+    const lavaPositions = [
+      { x: r3x - 8, z: -3, w: 4, d: 4 },
+      { x: r3x + 8, z: 3, w: 4, d: 4 },
+      { x: r3x, z: -6, w: 3, d: 3 },
+    ];
+    const lavaHazards: THREE.Mesh[] = [];
+    lavaPositions.forEach(pos => {
+      const lava = new THREE.Mesh(new THREE.BoxGeometry(pos.w, 0.3, pos.d), lavaMat.clone());
+      lava.position.set(pos.x, 0.15, pos.z);
+      lava.userData.isHazard = true;
+      lava.userData.damage = 1;
+      scene.add(lava);
+      lavaHazards.push(lava);
+      
+      // Lava glow light
+      const lavaLight = new THREE.PointLight(0xff3300, 1, 6);
+      lavaLight.position.set(pos.x, 1, pos.z);
+      scene.add(lavaLight);
+    });
+    (window as any).wormholeLavaHazards = lavaHazards;
+    
+    // === POWER-UPS ===
+    const powerUpData = [
+      { x: 0, y: 15, z: 0, type: 'speed', color: 0x00ffff },      // Room 1 - Speed
+      { x: r2x, y: 15, z: 5, type: 'shield', color: 0xffff00 },   // Room 2 - Shield  
+      { x: r3x, y: 20, z: 0, type: 'time', color: 0x00ff00 },     // Room 3 - Time
+      { x: r4x, y: 12, z: 0, type: 'damage', color: 0xff0000 },   // Room 4 - Damage
+    ];
+    const powerUps: THREE.Group[] = [];
+    powerUpData.forEach(pu => {
+      const group = new THREE.Group();
+      
+      // Outer shell
+      const shell = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.6, 1),
+        new THREE.MeshStandardMaterial({ 
+          color: pu.color, 
+          emissive: pu.color, 
+          emissiveIntensity: 0.8,
+          transparent: true,
+          opacity: 0.6
+        })
+      );
+      group.add(shell);
+      
+      // Inner core
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+      );
+      group.add(core);
+      
+      // Light
+      const puLight = new THREE.PointLight(pu.color, 1, 5);
+      group.add(puLight);
+      
+      group.position.set(pu.x, pu.y, pu.z);
+      group.userData.type = pu.type;
+      group.userData.collected = false;
+      scene.add(group);
+      powerUps.push(group);
+    });
+    (window as any).wormholePowerUps = powerUps;
+    
+    // === ROOM 4 (Golden/Final Arena) ===
     const wallMat4 = new THREE.MeshStandardMaterial({ color: 0xaa8833, roughness: 0.4, side: THREE.DoubleSide });
     
     const floor4 = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x554422 }));
@@ -843,6 +1175,155 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     const p7 = new THREE.PointLight(0xffaa00, 2, 50);
     p7.position.set(r4x, 15, 0);
     scene.add(p7);
+    
+    // === ROOM 4 BOSS (The Golden Guardian) ===
+    const bossGroup = new THREE.Group();
+    
+    // Boss body (large armored demon)
+    const bossMat = new THREE.MeshStandardMaterial({ 
+      color: 0xff4400, 
+      emissive: 0x440000, 
+      roughness: 0.3, 
+      metalness: 0.6 
+    });
+    const bossBody = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 2.5, 12, 24), bossMat);
+    bossBody.position.y = 2.5;
+    bossGroup.add(bossBody);
+    
+    // Boss shoulders
+    const shoulderMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.9 });
+    [[-1.5, 3.5, 0], [1.5, 3.5, 0]].forEach(([x, y, z]) => {
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.6), shoulderMat);
+      shoulder.position.set(x, y, z);
+      shoulder.scale.set(1.3, 0.9, 1);
+      bossGroup.add(shoulder);
+    });
+    
+    // Boss horns
+    const hornMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9 });
+    [[-0.5, 4.5, 0.2, -0.3], [0.5, 4.5, 0.2, 0.3]].forEach(([x, y, z, rot]) => {
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1, 8), hornMat);
+      horn.position.set(x, y, z);
+      horn.rotation.z = rot;
+      bossGroup.add(horn);
+    });
+    
+    // Boss glowing crown
+    const crownMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 1.5 });
+    const crown = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.15, 8, 16), crownMat);
+    crown.position.y = 4.3;
+    crown.rotation.x = Math.PI / 2;
+    bossGroup.add(crown);
+    
+    // Boss eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    [[-0.4, 3.8, 0.8], [0.4, 3.8, 0.8]].forEach(([x, y, z]) => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.2), eyeMat);
+      eye.position.set(x, y, z);
+      bossGroup.add(eye);
+    });
+    
+    // Boss sword (giant golden blade)
+    const bossSwordGroup = new THREE.Group();
+    const bossBladeMat = new THREE.MeshStandardMaterial({ 
+      color: 0xffcc00, 
+      emissive: 0xff6600, 
+      emissiveIntensity: 0.8,
+      metalness: 0.95 
+    });
+    const bossBlade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 0.1), bossBladeMat);
+    bossBlade.position.y = 1.5;
+    bossSwordGroup.add(bossBlade);
+    const bossHandle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, 0.8),
+      new THREE.MeshStandardMaterial({ color: 0x442200 })
+    );
+    bossHandle.position.y = -0.2;
+    bossSwordGroup.add(bossHandle);
+    bossSwordGroup.position.set(2, 2.5, 0.5);
+    bossSwordGroup.rotation.z = -0.3;
+    bossSwordGroup.userData.bladeMat = bossBladeMat;
+    bossGroup.add(bossSwordGroup);
+    
+    // Boss position
+    bossGroup.position.set(r4x, 0, 0);
+    scene.add(bossGroup);
+    
+    // Store boss reference
+    (window as any).wormholeBoss = {
+      mesh: bossGroup,
+      position: new THREE.Vector3(r4x, 0, 0),
+      health: 10,
+      maxHealth: 10,
+      state: 'idle',
+      attackTimer: 0,
+      sword: bossSwordGroup,
+      isActive: false
+    };
+    
+    // === MOVING PLATFORMS ===
+    const movingPlatforms: { mesh: THREE.Mesh; startX: number; startY: number; startZ: number; moveX: number; moveY: number; moveZ: number; speed: number }[] = [];
+    
+    const movingPlatData = [
+      // Room 1 - horizontal mover
+      { x: -5, y: 6, z: 0, moveX: 10, moveY: 0, moveZ: 0, speed: 1.5 },
+      // Room 2 - vertical mover
+      { x: r2x, y: 5, z: -5, moveX: 0, moveY: 6, moveZ: 0, speed: 1.2 },
+      // Room 3 - diagonal mover
+      { x: r3x - 5, y: 12, z: 0, moveX: 10, moveY: 8, moveZ: 0, speed: 1 },
+      { x: r3x + 5, y: 25, z: 5, moveX: 0, moveY: 0, moveZ: -10, speed: 1.5 },
+      // Room 4 - arena platforms
+      { x: r4x - 8, y: 8, z: 0, moveX: 16, moveY: 0, moveZ: 0, speed: 2 },
+      { x: r4x, y: 4, z: -8, moveX: 0, moveY: 0, moveZ: 16, speed: 1.8 },
+    ];
+    
+    const movePlatMat = new THREE.MeshStandardMaterial({ 
+      color: 0x00aaff, 
+      emissive: 0x0044aa, 
+      emissiveIntensity: 0.5,
+      roughness: 0.2 
+    });
+    
+    movingPlatData.forEach(mp => {
+      const plat = new THREE.Mesh(new THREE.BoxGeometry(4, 0.6, 4), movePlatMat.clone());
+      plat.position.set(mp.x, mp.y, mp.z);
+      plat.userData.width = 4;
+      plat.userData.depth = 4;
+      plat.castShadow = true;
+      scene.add(plat);
+      
+      movingPlatforms.push({
+        mesh: plat,
+        startX: mp.x,
+        startY: mp.y,
+        startZ: mp.z,
+        moveX: mp.moveX,
+        moveY: mp.moveY,
+        moveZ: mp.moveZ,
+        speed: mp.speed
+      });
+    });
+    (window as any).wormholeMovingPlatforms = movingPlatforms;
+    
+    // === VICTORY PORTAL (Room 4) ===
+    const victoryPortal = new THREE.Group();
+    const vPortalRing = new THREE.Mesh(
+      new THREE.TorusGeometry(2, 0.3, 16, 32),
+      new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0xffaa00, emissiveIntensity: 2 })
+    );
+    victoryPortal.add(vPortalRing);
+    const vPortalCore = new THREE.Mesh(
+      new THREE.CircleGeometry(1.8, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 })
+    );
+    victoryPortal.add(vPortalCore);
+    const vPortalLight = new THREE.PointLight(0xffff00, 3, 15);
+    victoryPortal.add(vPortalLight);
+    victoryPortal.position.set(r4x, 20, 0);
+    victoryPortal.rotation.x = -Math.PI / 2;
+    victoryPortal.userData.isVictoryPortal = true;
+    scene.add(victoryPortal);
+    (window as any).wormholeVictoryPortal = victoryPortal;
     
     // === BRIDGES ===
     const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0x442200, roughness: 0.3 });
@@ -1350,8 +1831,42 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             </div>
             
             <div className="bg-gray-700/50 rounded-lg p-3 mb-4 text-sm">
-              <h3 className="font-bold text-yellow-400 mb-1">🎯 Goals</h3>
-              <p className="text-gray-300">Collect crystals (+200), link portals (+50), teleport (+100). Climb platforms to reach the bridge and Chamber 2!</p>
+              <h3 className="font-bold text-yellow-400 mb-1">🎯 Objective</h3>
+              <p className="text-gray-300 text-xs">Navigate through 4 chambers, collect crystals, defeat enemies, and reach the Victory Portal in Chamber 4!</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+              <div className="bg-gradient-to-br from-cyan-900/50 to-cyan-800/30 rounded-lg p-2">
+                <div className="font-bold text-cyan-400">🏛️ Chamber 1</div>
+                <div className="text-gray-400">Starting Area</div>
+              </div>
+              <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 rounded-lg p-2">
+                <div className="font-bold text-purple-400">🔮 Chamber 2</div>
+                <div className="text-gray-400">The Void</div>
+              </div>
+              <div className="bg-gradient-to-br from-pink-900/50 to-pink-800/30 rounded-lg p-2">
+                <div className="font-bold text-pink-400">🏛️ Chamber 3</div>
+                <div className="text-gray-400">Pillar Chamber</div>
+              </div>
+              <div className="bg-gradient-to-br from-yellow-900/50 to-yellow-800/30 rounded-lg p-2">
+                <div className="font-bold text-yellow-400">👑 Chamber 4</div>
+                <div className="text-gray-400">Boss Arena</div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-700/50 rounded-lg p-2 mb-4 text-xs">
+              <h3 className="font-bold text-green-400 mb-1">🎁 Power-Ups</h3>
+              <div className="grid grid-cols-2 gap-1 text-gray-300">
+                <div>⚡ Speed Boost</div>
+                <div>🛡️ Shield (+1❤️)</div>
+                <div>⏰ Time (+15s)</div>
+                <div>💀 Damage (2x)</div>
+              </div>
+            </div>
+            
+            <div className="bg-red-900/30 border border-red-500/30 rounded-lg p-2 mb-4 text-xs">
+              <h3 className="font-bold text-red-400 mb-1">⚠️ Hazards</h3>
+              <div className="text-gray-300">🔥 Lava in Chamber 3 • 👹 Boss in Chamber 4</div>
             </div>
             
             {isMobile && <p className="text-yellow-400 text-sm mb-4 text-center">⚠️ Best played on desktop with keyboard/mouse</p>}
@@ -1376,9 +1891,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               Entering Chamber {transitionRoom}...
             </h2>
             <div className="text-white/60 text-sm mb-4">
-              {transitionRoom === 2 ? '🔮 The Purple Void' :
-               transitionRoom === 3 ? '💜 The Magenta Spire' :
-               transitionRoom === 4 ? '👑 The Golden Chamber' : 'Unknown'}
+              {transitionRoom === 2 ? '🔮 The Purple Void - More enemies await!' :
+               transitionRoom === 3 ? '🏛️ The Pillar Chamber - Watch for lava!' :
+               transitionRoom === 4 ? '👑 The Golden Arena - Face the Boss!' : 'Unknown'}
             </div>
             <div className="w-48 h-2 bg-gray-700 rounded-full mx-auto overflow-hidden">
               <div className={`h-full animate-pulse ${
@@ -1429,6 +1944,22 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               {portalMode === 'green' ? '🟢 GREEN [Q]' : '🔵 CYAN [E]'}
             </div>
           </div>
+          
+          {/* Boss Health (Room 4) */}
+          {currentRoom === 4 && (
+            <div className="absolute top-28 left-1/2 -translate-x-1/2 z-40 w-64">
+              <div className="text-center text-yellow-400 font-bold mb-1">👹 GOLDEN GUARDIAN</div>
+              <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-red-600 to-yellow-500 transition-all duration-300"
+                  style={{ width: `${((window as any).wormholeBoss?.health || 0) / 10 * 100}%` }}
+                />
+              </div>
+              <div className="text-center text-xs text-gray-400 mt-1">
+                {((window as any).wormholeBoss?.health || 0) > 0 ? 'Defeat the boss to unlock the Victory Portal!' : '✨ Defeated! Enter the portal!'}
+              </div>
+            </div>
+          )}
           
           {/* Crosshair */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
