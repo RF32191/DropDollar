@@ -24,6 +24,12 @@ CREATE INDEX IF NOT EXISTS idx_friendships_status ON public.friendships(status);
 -- =====================================================
 ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their friendships" ON public.friendships;
+DROP POLICY IF EXISTS "Users can send friend requests" ON public.friendships;
+DROP POLICY IF EXISTS "Users can update friendships" ON public.friendships;
+DROP POLICY IF EXISTS "Users can delete friendships" ON public.friendships;
+
 -- Users can see their own friendships
 CREATE POLICY "Users can view their friendships" ON public.friendships
     FOR SELECT USING (auth.uid() = user_id OR auth.uid() = friend_id);

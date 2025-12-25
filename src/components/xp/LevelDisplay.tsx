@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { UserXPData } from '@/lib/supabase/xpService';
 import { XPService } from '@/lib/supabase/xpService';
 import { StarIcon, TrophyIcon, SparklesIcon, FireIcon } from '@heroicons/react/24/solid';
-import { SparklesIcon as SparklesOutline } from '@heroicons/react/24/outline';
+import { SparklesIcon as SparklesOutline, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 interface LevelDisplayProps {
   xpData: UserXPData;
@@ -253,6 +254,34 @@ export default function LevelDisplay({ xpData, showFullDetails = true, size = 'm
                 </span>
               </div>
             </div>
+
+            {/* Trophy Room Link */}
+            <Link 
+              href="/awards"
+              className={`
+                flex items-center justify-between gap-3 mt-3
+                bg-gradient-to-r from-yellow-600/20 to-amber-600/10
+                hover:from-yellow-500/30 hover:to-amber-500/20
+                rounded-lg p-3
+                border border-yellow-500/30
+                backdrop-blur-sm
+                transition-all duration-300
+                group
+              `}
+            >
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <TrophyIcon className="w-5 h-5 text-yellow-400" />
+                </div>
+                <span className={`
+                  text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-300
+                  ${classes.title} font-bold
+                `}>
+                  🏆 TROPHY ROOM
+                </span>
+              </div>
+              <ArrowRightIcon className="w-4 h-4 text-yellow-400 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </>
         )}
       </div>

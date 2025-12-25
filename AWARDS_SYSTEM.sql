@@ -47,6 +47,12 @@ CREATE INDEX IF NOT EXISTS idx_user_awards_new ON public.user_awards(user_id, is
 ALTER TABLE public.award_definitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_awards ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Anyone can view award definitions" ON public.award_definitions;
+DROP POLICY IF EXISTS "Users can view their awards" ON public.user_awards;
+DROP POLICY IF EXISTS "Service can insert awards" ON public.user_awards;
+DROP POLICY IF EXISTS "Users can update their awards" ON public.user_awards;
+
 -- Everyone can view award definitions
 CREATE POLICY "Anyone can view award definitions" ON public.award_definitions
     FOR SELECT USING (true);

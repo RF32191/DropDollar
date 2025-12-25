@@ -12,6 +12,7 @@ import { useTokenSync } from '@/hooks/useTokenSync';
 import LevelDisplay from '@/components/xp/LevelDisplay';
 import DailyChallenges from '@/components/xp/DailyChallenges';
 import LevelUpAnimation from '@/components/xp/LevelUpAnimation';
+import RecentAwardsBanner from '@/components/awards/RecentAwardsBanner';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
@@ -1104,6 +1105,11 @@ export default function TriumphStyleDashboard() {
           <div className="mb-8 bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-xl p-6 border border-gray-700/50 animate-pulse">
             <div className="h-32 bg-gray-700/30 rounded-lg"></div>
           </div>
+        )}
+
+        {/* Recent Awards Banner */}
+        {!isLoading && (
+          <RecentAwardsBanner />
         )}
 
         {/* RP Wallet Display */}
