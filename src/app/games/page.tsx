@@ -101,6 +101,11 @@ const WormholeGame = dynamic(() => import('@/components/games/WormholeGame'), {
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Wormhole" color="orange" />
 });
+
+const TowerTapGame = dynamic(() => import('@/components/games/TowerTapGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Tower Tap" color="green" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -142,7 +147,8 @@ import {
   BanknotesIcon,
   CurrencyDollarIcon,
   SparklesIcon,
-  FireIcon
+  FireIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -305,6 +311,16 @@ const GAMES = [
     avgTime: '120s',
     skills: ['FPS Combat', 'Puzzle Solving', 'Portal Strategy', 'Spatial Awareness'],
     component: WormholeGame
+  },
+  {
+    id: 'tower-tap',
+    name: 'Tower Tap: Collapse',
+    description: 'Strategic 3D tower destruction! Tap glowing weak points to score. Miss and the tower crumbles!',
+    icon: CubeIcon,
+    difficulty: 'Medium',
+    avgTime: '90s',
+    skills: ['Precision', 'Timing', 'Strategy', 'Structural Awareness'],
+    component: TowerTapGame
   }
 ];
 
