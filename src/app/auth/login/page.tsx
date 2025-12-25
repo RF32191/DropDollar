@@ -445,6 +445,20 @@ export default function SimpleLoginPage() {
                 )}
               </button>
             </div>
+
+            {/* Legal Links */}
+            <div className="pt-4 border-t border-gray-700 mt-4">
+              <p className="text-xs text-gray-500 text-center">
+                By signing in, you agree to our{' '}
+                <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline">
+                  Terms of Service
+                </Link>
+                {' '}and{' '}
+                <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline">
+                  Privacy Policy
+                </Link>
+              </p>
+            </div>
           </form>
         </div>
       </div>

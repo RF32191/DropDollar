@@ -710,8 +710,15 @@ export default function SimpleRegisterPage() {
               </label>
             </div>
 
-            {/* Terms and Privacy Policy Checkboxes */}
+            {/* Legal Agreement Section */}
             <div className="space-y-4">
+              {/* Binding Agreement Notice */}
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                <p className="text-yellow-400 text-xs font-medium text-center">
+                  ⚠️ By creating an account, you enter into a legally binding agreement
+                </p>
+              </div>
+
               {/* Terms of Service */}
               <div className="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
                 <div className="flex items-start space-x-3">
@@ -722,33 +729,35 @@ export default function SimpleRegisterPage() {
                     checked={formData.agreeToTerms}
                     onChange={handleInputChange}
                     className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 mt-1 flex-shrink-0"
-                    style={{ minWidth: '20px', minHeight: '20px' }} // Mobile touch target
+                    style={{ minWidth: '20px', minHeight: '20px' }}
                     disabled={isSubmitting}
                     required
                   />
                   <div className="flex-1">
                     <label htmlFor="agreeToTerms" className="text-sm font-medium text-gray-300">
-                      I agree to the Terms of Service *
+                      I agree to the <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline" target="_blank">Terms of Service</Link> *
                     </label>
-                    <div className="mt-2 max-h-32 overflow-y-auto bg-gray-900/50 rounded p-3 text-xs text-gray-400 border border-gray-700">
-                      <p className="mb-2">
-                        <strong>Key Terms:</strong>
-                      </p>
+                    <div className="mt-2 max-h-40 overflow-y-auto bg-gray-900/50 rounded p-3 text-xs text-gray-400 border border-gray-700">
+                      <p className="mb-2 text-white font-semibold">Summary of Key Terms:</p>
                       <ul className="list-disc list-inside space-y-1">
-                        <li>You must be 18+ and reside in a legal jurisdiction</li>
-                        <li>Skill-based gaming platform with real money prizes</li>
-                        <li>1 Token = $1 USD, tokens are non-refundable</li>
-                        <li>Location verification required for legal compliance</li>
-                        <li>Prohibited states: AL, AK, AZ, AR, CT, DE, HI, ID, LA, MT, NV, SC, SD, TN, UT, VT, WA, WI</li>
-                        <li>No cheating, bots, or multiple accounts</li>
-                        <li>Minimum withdrawal: $10, 3% transaction fee</li>
-                        <li>Governing law: California, arbitration in Riverside County</li>
+                        <li><strong>Eligibility:</strong> 18+ years old, US resident in eligible state</li>
+                        <li><strong>Skill-Based Gaming:</strong> Outcomes determined by player skill, not chance</li>
+                        <li><strong>Token Economy:</strong> Purchased Tokens (non-refundable, non-cashable) vs Won Tokens (withdrawable)</li>
+                        <li><strong>Platform Fee:</strong> 15% on all prize pools</li>
+                        <li><strong>Withdrawals:</strong> Only Won Tokens, minimum $10, ID verification required for $100+</li>
+                        <li><strong>Blocked States:</strong> AZ, AR, CT, HI, ID, IA, LA, MT, NV, SC, TN, UT, WA</li>
+                        <li><strong>Fair Play:</strong> No bots, scripts, collusion, or multiple accounts</li>
+                        <li><strong>Disputes:</strong> Binding arbitration, class action waiver (Delaware law)</li>
                       </ul>
-                      <p className="mt-2">
-                        <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline">
-                          Read full Terms of Service
+                      <div className="mt-3 flex gap-2">
+                        <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline text-xs" target="_blank">
+                          📄 Full Terms of Service
                         </Link>
-                      </p>
+                        <span className="text-gray-600">|</span>
+                        <Link href="/legal/terms-of-service-full.md" className="text-purple-400 hover:text-purple-300 underline text-xs" target="_blank">
+                          📋 Printable Version
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -764,36 +773,46 @@ export default function SimpleRegisterPage() {
                     checked={formData.agreeToPrivacy}
                     onChange={handleInputChange}
                     className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 mt-1 flex-shrink-0"
-                    style={{ minWidth: '20px', minHeight: '20px' }} // Mobile touch target
+                    style={{ minWidth: '20px', minHeight: '20px' }}
                     disabled={isSubmitting}
                     required
                   />
                   <div className="flex-1">
                     <label htmlFor="agreeToPrivacy" className="text-sm font-medium text-gray-300">
-                      I agree to the Privacy Policy *
+                      I agree to the <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline" target="_blank">Privacy Policy</Link> *
                     </label>
-                    <div className="mt-2 max-h-32 overflow-y-auto bg-gray-900/50 rounded p-3 text-xs text-gray-400 border border-gray-700">
-                      <p className="mb-2">
-                        <strong>Data Collection:</strong>
-                      </p>
+                    <div className="mt-2 max-h-40 overflow-y-auto bg-gray-900/50 rounded p-3 text-xs text-gray-400 border border-gray-700">
+                      <p className="mb-2 text-white font-semibold">Summary of Privacy Practices:</p>
                       <ul className="list-disc list-inside space-y-1">
-                        <li>Personal info: name, email, username, age verification</li>
-                        <li>Payment info: processed securely through Stripe</li>
-                        <li>Location data: for legal compliance verification</li>
-                        <li>Gameplay data: scores, performance, transaction history</li>
-                        <li>Technical data: device info, IP addresses, cookies</li>
-                        <li>Data shared with: Stripe, Supabase, Vercel, analytics providers</li>
-                        <li>Data retention: 7 years after account closure</li>
-                        <li>Your rights: access, correction, deletion, portability</li>
+                        <li><strong>Data Collected:</strong> Account info, payment details (via Stripe), location, gameplay data</li>
+                        <li><strong>Purpose:</strong> Account management, legal compliance, fraud prevention, service improvement</li>
+                        <li><strong>Service Providers:</strong> Stripe (payments), Twilio (SMS), Supabase (database), Vercel (hosting)</li>
+                        <li><strong>Security:</strong> TLS encryption, secure storage, fraud detection</li>
+                        <li><strong>Retention:</strong> Account data until deletion, transactions 7 years</li>
+                        <li><strong>Your Rights:</strong> Access, correct, delete, port your data</li>
+                        <li><strong>CCPA/GDPR:</strong> Full compliance with California and EU privacy laws</li>
+                        <li><strong>We Do NOT Sell:</strong> Your personal data is never sold to third parties</li>
                       </ul>
-                      <p className="mt-2">
-                        <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline">
-                          Read full Privacy Policy
+                      <div className="mt-3 flex gap-2">
+                        <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline text-xs" target="_blank">
+                          🔒 Full Privacy Policy
                         </Link>
-                      </p>
+                        <span className="text-gray-600">|</span>
+                        <Link href="/legal/privacy-policy-full.md" className="text-purple-400 hover:text-purple-300 underline text-xs" target="_blank">
+                          📋 Printable Version
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Arbitration Notice */}
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+                <p className="text-purple-300 text-xs text-center">
+                  <strong>Notice:</strong> This agreement includes binding arbitration and class action waiver. 
+                  <Link href="/terms#section-13-dispute-resolution-and-arbitration" className="underline ml-1" target="_blank">Learn more</Link>
+                </p>
               </div>
             </div>
 
