@@ -176,49 +176,48 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     setTimeout(() => { isAttackingRef.current = false; }, 300);
   }, []);
 
-  // Parry function (C key)
+  // Parry function (C key) - blocks enemy attacks when their sword is RED
   const performParry = useCallback(() => {
     if (isParryingRef.current || parryCooldownRef.current > 0) return;
     
     isParryingRef.current = true;
-    parryCooldownRef.current = 0.8; // 0.8 second cooldown
+    parryCooldownRef.current = 0.6; // 0.6 second cooldown
     
-    // Sword parry animation - raise sword
+    // Sword parry animation - raise sword to block
     if (swordRef.current) {
-      swordRef.current.rotation.z -= 0.5;
-      swordRef.current.position.y += 0.2;
+      swordRef.current.rotation.z -= 0.6;
+      swordRef.current.rotation.x += 0.3;
+      swordRef.current.position.y += 0.25;
+      
+      // Flash sword blue during parry
+      const blade = swordRef.current.children[0] as THREE.Mesh;
+      if (blade?.material) {
+        const mat = blade.material as THREE.MeshStandardMaterial;
+        const origEmissive = mat.emissive.getHex();
+        mat.emissive.setHex(0x4444ff);
+        mat.emissiveIntensity = 2.0;
+        
+        setTimeout(() => { 
+          if (blade?.material) {
+            mat.emissive.setHex(origEmissive);
+            mat.emissiveIntensity = 0.6;
+          }
+        }, 400);
+      }
+      
       setTimeout(() => { 
         if (swordRef.current) {
-          swordRef.current.rotation.z += 0.5;
-          swordRef.current.position.y -= 0.2;
+          swordRef.current.rotation.z += 0.6;
+          swordRef.current.rotation.x -= 0.3;
+          swordRef.current.position.y -= 0.25;
         }
       }, 400);
     }
     
-    // Check if parrying an attack
-    const player = playerRef.current;
+    // Parry detection is now handled in the game loop
+    // isParryingRef.current being true will block attacks
     
-    enemiesRef.current.forEach(enemy => {
-      if (!enemy.mesh.visible) return;
-      const dist = player.position.distanceTo(enemy.position);
-      
-      // If enemy is close and attacking, perfect parry!
-      if (dist < 2 && enemy.attackTimer > 1) {
-        enemy.attackTimer = 0; // Reset their attack
-        setScore(s => s + 200);
-        setMessage('PERFECT PARRY! +200');
-        
-        // Stun enemy briefly
-        const origPos = enemy.position.clone();
-        const pushDir = new THREE.Vector3().subVectors(enemy.position, player.position).normalize();
-        enemy.position.add(pushDir.multiplyScalar(2));
-        enemy.mesh.position.copy(enemy.position);
-        
-        setTimeout(() => setMessage(''), 1000);
-      }
-    });
-    
-    setTimeout(() => { isParryingRef.current = false; }, 500);
+    setTimeout(() => { isParryingRef.current = false; }, 450);
   }, []);
 
   // Main game loop - defined as callback
@@ -436,13 +435,16 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       }
     }
     
-    // === ENEMIES ===
+    // === ENEMIES WITH ATTACK STATES ===
     enemiesRef.current.forEach((enemy) => {
       if (!enemy.mesh.visible) return;
       const dist = player.position.distanceTo(enemy.position);
       
-      // Chase player
-      if (dist < 25 && dist > 2) {
+      // Get sword material for color changes
+      const bladeMat = enemy.sword?.userData?.bladeMat as THREE.MeshStandardMaterial | undefined;
+      
+      // Chase player when not attacking
+      if (dist < 25 && dist > 2 && enemy.state === 'idle') {
         const dir = new THREE.Vector3().subVectors(player.position, enemy.position).normalize();
         dir.y = 0;
         enemy.position.add(dir.multiplyScalar(3 * delta));
@@ -450,14 +452,124 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         enemy.mesh.lookAt(player.position.x, enemy.position.y, player.position.z);
       }
       
-      // Attack
-      if (dist < 1.5 && healthRef.current > 0) {
-        enemy.attackTimer = (enemy.attackTimer || 0) + delta;
-        if (enemy.attackTimer > 1.5) {
+      // Attack state machine
+      if (dist < 2.5 && healthRef.current > 0) {
+        if (enemy.state === 'idle') {
+          // Start winding up attack
+          enemy.state = 'winding_up';
+          enemy.windupTimer = 0;
+          
+          // Blue glow - attack is coming!
+          if (bladeMat) {
+            bladeMat.color.setHex(0x4444ff);
+            bladeMat.emissive.setHex(0x0000ff);
+            bladeMat.emissiveIntensity = 1.5;
+          }
+          
+          // Raise sword
+          if (enemy.sword) {
+            enemy.sword.rotation.z = -1.2;
+            enemy.sword.position.y = 1.5;
+          }
+        }
+        
+        if (enemy.state === 'winding_up') {
+          enemy.windupTimer = (enemy.windupTimer || 0) + delta;
+          
+          // After 0.8 seconds, start attacking
+          if (enemy.windupTimer > 0.8) {
+            enemy.state = 'attacking';
+            enemy.attackTimer = 0;
+            
+            // Red glow - PARRY NOW!
+            if (bladeMat) {
+              bladeMat.color.setHex(0xff2222);
+              bladeMat.emissive.setHex(0xff0000);
+              bladeMat.emissiveIntensity = 2.0;
+            }
+            
+            // Swing sword down
+            if (enemy.sword) {
+              enemy.sword.rotation.z = 0.5;
+              enemy.sword.position.y = 0.8;
+            }
+          }
+        }
+        
+        if (enemy.state === 'attacking') {
+          enemy.attackTimer = (enemy.attackTimer || 0) + delta;
+          
+          // Attack hits after 0.3 seconds if not parried
+          if (enemy.attackTimer > 0.3 && enemy.attackTimer < 0.5) {
+            // Check if player is parrying
+            if (isParryingRef.current) {
+              // Perfect parry!
+              enemy.state = 'idle';
+              enemy.attackTimer = 0;
+              
+              // Reset sword
+              if (bladeMat) {
+                bladeMat.color.setHex(0x888888);
+                bladeMat.emissive.setHex(0x222222);
+                bladeMat.emissiveIntensity = 0.5;
+              }
+              if (enemy.sword) {
+                enemy.sword.rotation.z = -0.3;
+                enemy.sword.position.y = 1.0;
+              }
+              
+              // Push enemy back
+              const pushDir = new THREE.Vector3().subVectors(enemy.position, player.position).normalize();
+              enemy.position.add(pushDir.multiplyScalar(3));
+              enemy.mesh.position.copy(enemy.position);
+              
+              setScore(s => s + 200);
+              setMessage('PERFECT PARRY! +200');
+              setTimeout(() => setMessage(''), 1000);
+            } else if (!enemy.hasHitPlayer) {
+              // Hit the player!
+              enemy.hasHitPlayer = true;
+              setPlayerHealth(h => Math.max(0, h - 1));
+              setMessage('OUCH! -1 ❤️');
+              setTimeout(() => setMessage(''), 1000);
+            }
+          }
+          
+          // Reset after attack
+          if (enemy.attackTimer > 1.0) {
+            enemy.state = 'idle';
+            enemy.attackTimer = 0;
+            enemy.hasHitPlayer = false;
+            
+            // Reset sword to idle
+            if (bladeMat) {
+              bladeMat.color.setHex(0x888888);
+              bladeMat.emissive.setHex(0x222222);
+              bladeMat.emissiveIntensity = 0.5;
+            }
+            if (enemy.sword) {
+              enemy.sword.rotation.z = -0.3;
+              enemy.sword.position.y = 1.0;
+            }
+          }
+        }
+      } else {
+        // Reset to idle if player moves away
+        if (enemy.state !== 'idle') {
+          enemy.state = 'idle';
           enemy.attackTimer = 0;
-          setPlayerHealth(h => Math.max(0, h - 1));
-          setMessage('OUCH! -1 ❤️');
-          setTimeout(() => setMessage(''), 1000);
+          enemy.windupTimer = 0;
+          enemy.hasHitPlayer = false;
+          
+          if (bladeMat) {
+            bladeMat.color.setHex(0x888888);
+            bladeMat.emissive.setHex(0x222222);
+            bladeMat.emissiveIntensity = 0.5;
+          }
+          if (enemy.sword) {
+            enemy.sword.rotation.z = -0.3;
+            enemy.sword.position.y = 1.0;
+          }
         }
       }
     });
@@ -648,10 +760,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
     setTotalTargets(crystalPositions.length);
     
-    // === ENEMIES ===
+    // === ENEMIES WITH SWORDS ===
     enemiesRef.current = [];
     [{ x: -5, z: 0 }, { x: 5, z: -5 }, { x: 0, z: -10 }, { x: 10, z: 5 }, { x: r2x - 5, z: 0 }, { x: r2x + 5, z: -5 }].forEach(pos => {
       const g = new THREE.Group();
+      
+      // Body
       const body = new THREE.Mesh(
         new THREE.CapsuleGeometry(0.4, 0.8, 8, 16),
         new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0x440000, roughness: 0.5 })
@@ -659,6 +773,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       body.position.y = 1;
       g.add(body);
       
+      // Eyes
       const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
       [[-0.15, 1.3, 0.3], [0.15, 1.3, 0.3]].forEach(([x, y, z]) => {
         const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1), eyeMat);
@@ -666,9 +781,43 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         g.add(eye);
       });
       
+      // Enemy Sword (glows based on attack state)
+      const swordGroup = new THREE.Group();
+      const bladeMat = new THREE.MeshStandardMaterial({ 
+        color: 0x888888, 
+        emissive: 0x222222, 
+        emissiveIntensity: 0.5, 
+        metalness: 0.9, 
+        roughness: 0.1 
+      });
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, 0.02), bladeMat);
+      blade.position.y = 0.35;
+      swordGroup.add(blade);
+      
+      const handle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8),
+        new THREE.MeshStandardMaterial({ color: 0x553311 })
+      );
+      handle.position.y = -0.05;
+      swordGroup.add(handle);
+      
+      swordGroup.position.set(0.5, 1.0, 0.2);
+      swordGroup.rotation.set(0, 0, -0.3);
+      swordGroup.userData.bladeMat = bladeMat;
+      g.add(swordGroup);
+      
       g.position.set(pos.x, 0, pos.z);
       scene.add(g);
-      enemiesRef.current.push({ mesh: g, health: 3, position: new THREE.Vector3(pos.x, 0, pos.z), state: 'idle', attackTimer: 0 });
+      
+      enemiesRef.current.push({ 
+        mesh: g, 
+        health: 3, 
+        position: new THREE.Vector3(pos.x, 0, pos.z), 
+        state: 'idle', // idle, winding_up, attacking
+        attackTimer: 0,
+        windupTimer: 0,
+        sword: swordGroup
+      });
     });
     
     // === SWORD ===
@@ -889,7 +1038,14 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
                 <div><span className="text-red-300">V</span> Attack (+100)</div>
                 <div><span className="text-blue-300">C</span> Parry (+200)</div>
               </div>
-              <div className="text-gray-400 text-xs mt-1">3 hits to kill enemies!</div>
+              <div className="text-gray-400 text-xs mt-2">3 hits to kill enemies!</div>
+              <div className="mt-2 p-2 bg-gray-600/50 rounded">
+                <div className="text-xs font-bold mb-1">Enemy Sword Colors:</div>
+                <div className="flex gap-3 text-xs">
+                  <span><span className="text-blue-400">🔵 BLUE</span> = Winding up</span>
+                  <span><span className="text-red-400">🔴 RED</span> = PARRY NOW!</span>
+                </div>
+              </div>
             </div>
             
             <div className="bg-gray-700/50 rounded-lg p-3 mb-4 text-sm">
