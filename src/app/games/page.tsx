@@ -126,6 +126,11 @@ const OneShotArenaGame = dynamic(() => import('@/components/games/OneShotArenaGa
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="One Shot Arena" color="pink" />
 });
+
+const MomentumFallGame = dynamic(() => import('@/components/games/MomentumFallGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Momentum Fall" color="purple" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -172,7 +177,8 @@ import {
   ArrowPathIcon,
   ViewfinderCircleIcon,
   RocketLaunchIcon,
-  AdjustmentsHorizontalIcon
+  AdjustmentsHorizontalIcon,
+  ArrowDownCircleIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -385,6 +391,16 @@ const GAMES = [
     avgTime: '90s',
     skills: ['Precision', 'Physics', 'Strategy', 'Spatial Reasoning'],
     component: OneShotArenaGame
+  },
+  {
+    id: 'momentum-fall',
+    name: 'Momentum Fall',
+    description: 'Fall through an infinite shaft! Master momentum, dodge obstacles, collect gems. How deep can you go?',
+    icon: ArrowDownCircleIcon,
+    difficulty: 'Medium',
+    avgTime: 'Endless',
+    skills: ['Momentum', 'Micro-Adjustments', 'Anticipation', 'Flow State'],
+    component: MomentumFallGame
   }
 ];
 
