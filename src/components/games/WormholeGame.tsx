@@ -40,10 +40,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const portalModeRef = useRef<'green' | 'cyan'>('green');
   const scoreRef = useRef(0);
   const healthRef = useRef(3);
-  const timeRef = useRef(90);
+  const timeRef = useRef(120); // 2 minutes
   const currentRoomRef = useRef(1);
-  const transitionTriggeredRef = useRef(false);
+  const transitionTriggeredRef = useRef<Set<number>>(new Set());
   const targetsCollectedRef = useRef(0);
+  const gameStartTimeRef = useRef(0);
   
   const [gameState, setGameState] = useState<'loading' | 'instructions' | 'playing' | 'gameover'>('loading');
   const [score, setScore] = useState(0);
@@ -52,11 +53,13 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const [isMobile, setIsMobile] = useState(false);
   const [targetsCollected, setTargetsCollected] = useState(0);
   const [totalTargets, setTotalTargets] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(90);
+  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes
   const [playerHealth, setPlayerHealth] = useState(3);
   const [enemiesKilled, setEnemiesKilled] = useState(0);
   const [currentRoom, setCurrentRoom] = useState(1);
   const [showTransition, setShowTransition] = useState(false);
+  const [transitionRoom, setTransitionRoom] = useState(1);
+  const [completionTime, setCompletionTime] = useState(0);
   
   // Sync refs with state
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -166,7 +169,16 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           enemy.mesh.visible = false;
           setScore(s => s + 300);
           setEnemiesKilled(k => k + 1);
-          setMessage('ENEMY KILLED! +300');
+          // Give heart on kill (max 5)
+          setPlayerHealth(h => {
+            const newHealth = Math.min(5, h + 1);
+            if (newHealth > h) {
+              setMessage('ENEMY KILLED! +300 +❤️');
+            } else {
+              setMessage('ENEMY KILLED! +300');
+            }
+            return newHealth;
+          });
         }
         
         setTimeout(() => setMessage(''), 1000);
@@ -353,15 +365,28 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       }
     });
     
-    // === ROOM TRANSITION ===
-    if (!transitionTriggeredRef.current && currentRoomRef.current === 1 && player.position.x > 25 && player.position.y > 20) {
-      transitionTriggeredRef.current = true;
-      setShowTransition(true);
-      setTimeout(() => {
-        setCurrentRoom(2);
-        setTimeout(() => setShowTransition(false), 800);
-      }, 1200);
-    }
+    // === ROOM TRANSITIONS (4 rooms total) ===
+    const triggerTransition = (fromRoom: number, toRoom: number, condition: boolean) => {
+      if (!transitionTriggeredRef.current.has(fromRoom) && currentRoomRef.current === fromRoom && condition) {
+        transitionTriggeredRef.current.add(fromRoom);
+        setTransitionRoom(toRoom);
+        setShowTransition(true);
+        setTimeout(() => {
+          setCurrentRoom(toRoom);
+          currentRoomRef.current = toRoom;
+          setTimeout(() => setShowTransition(false), 800);
+        }, 1200);
+      }
+    };
+    
+    // Room 1 → 2: Cross bridge at x=25, y>20
+    triggerTransition(1, 2, player.position.x > 25 && player.position.y > 20);
+    
+    // Room 2 → 3: Reach far right of room 2 at x=48
+    triggerTransition(2, 3, player.position.x > 48 && player.position.y > 18);
+    
+    // Room 3 → 4: Reach top of room 3 at y>35
+    triggerTransition(3, 4, player.position.y > 35 && player.position.x > 60);
     
     // === CAMERA ===
     camera.position.copy(player.position);
@@ -443,11 +468,63 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       // Get sword material for color changes
       const bladeMat = enemy.sword?.userData?.bladeMat as THREE.MeshStandardMaterial | undefined;
       
+      // Enemy physics - gravity and platform collision
+      enemy.velocity = enemy.velocity || new THREE.Vector3();
+      enemy.velocity.y -= 20 * delta; // Gravity
+      
+      // Platform collision for enemies
+      const platforms = (window as any).wormholePlatforms || [];
+      let onPlatform = false;
+      platforms.forEach((plat: THREE.Mesh) => {
+        const hw = (plat.userData.width || 4) / 2;
+        const hd = (plat.userData.depth || 4) / 2;
+        const py = plat.position.y + 0.25;
+        
+        if (Math.abs(enemy.position.x - plat.position.x) < hw + 0.4 &&
+            Math.abs(enemy.position.z - plat.position.z) < hd + 0.4 &&
+            enemy.position.y > py && enemy.position.y < py + 1.5 &&
+            enemy.velocity.y <= 0) {
+          enemy.position.y = py + 0.5;
+          enemy.velocity.y = 0;
+          onPlatform = true;
+          enemy.onGround = true;
+        }
+      });
+      
+      // Floor collision
+      if (enemy.position.y < 0.5 && enemy.velocity.y < 0) {
+        enemy.position.y = 0.5;
+        enemy.velocity.y = 0;
+        enemy.onGround = true;
+      }
+      
+      // Apply velocity
+      enemy.position.add(enemy.velocity.clone().multiplyScalar(delta));
+      
       // Chase player when not attacking
-      if (dist < 25 && dist > 2 && enemy.state === 'idle') {
+      if (dist < 30 && dist > 2 && enemy.state === 'idle') {
         const dir = new THREE.Vector3().subVectors(player.position, enemy.position).normalize();
-        dir.y = 0;
-        enemy.position.add(dir.multiplyScalar(3 * delta));
+        
+        // Horizontal movement
+        const moveSpeed = 4;
+        enemy.position.x += dir.x * moveSpeed * delta;
+        enemy.position.z += dir.z * moveSpeed * delta;
+        
+        // Jump towards player if they're above us and we're on ground
+        enemy.jumpCooldown = (enemy.jumpCooldown || 0) - delta;
+        if (player.position.y > enemy.position.y + 2 && enemy.onGround && enemy.jumpCooldown <= 0) {
+          enemy.velocity.y = 12; // Jump!
+          enemy.onGround = false;
+          enemy.jumpCooldown = 2; // 2 second cooldown between jumps
+        }
+        
+        // Random jump if on ground
+        if (enemy.onGround && Math.random() < 0.01 && enemy.jumpCooldown <= 0) {
+          enemy.velocity.y = 10;
+          enemy.onGround = false;
+          enemy.jumpCooldown = 3;
+        }
+        
         enemy.mesh.position.copy(enemy.position);
         enemy.mesh.lookAt(player.position.x, enemy.position.y, player.position.z);
       }
@@ -693,15 +770,99 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     ceil2.rotation.x = Math.PI / 2;
     scene.add(ceil2);
     
-    // === BRIDGE ===
+    // === ROOM 3 (Purple/Magenta) ===
+    const r3x = 70;
+    const wallMat3 = new THREE.MeshStandardMaterial({ color: 0x663388, roughness: 0.5, side: THREE.DoubleSide });
+    
+    const floor3 = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), floorMat.clone());
+    floor3.rotation.x = -Math.PI / 2;
+    floor3.position.set(r3x, 0, 0);
+    scene.add(floor3);
+    const grid3 = new THREE.GridHelper(30, 30, 0xff00ff, 0x440044);
+    grid3.position.set(r3x, 0, 0);
+    scene.add(grid3);
+    
+    [[r3x, wh/2, -15, 0], [r3x, wh/2, 15, Math.PI]].forEach(([x, y, z, ry]) => {
+      const w = new THREE.Mesh(new THREE.PlaneGeometry(30, wh), wallMat3.clone());
+      w.position.set(x, y, z);
+      w.rotation.y = ry;
+      w.userData.portalable = true;
+      scene.add(w);
+    });
+    const lw3 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 18, 30), wallMat3.clone());
+    lw3.position.set(r3x - 15, 9, 0);
+    lw3.userData.portalable = true;
+    scene.add(lw3);
+    const rw3 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 18, 30), wallMat3.clone());
+    rw3.position.set(r3x + 15, 9, 0);
+    rw3.userData.portalable = true;
+    scene.add(rw3);
+    const ceil3 = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x332244 }));
+    ceil3.position.set(r3x, 40, 0); // Higher ceiling
+    ceil3.rotation.x = Math.PI / 2;
+    scene.add(ceil3);
+    
+    // Room 3 light
+    const p6 = new THREE.PointLight(0xff00ff, 2, 50);
+    p6.position.set(r3x, 20, 0);
+    scene.add(p6);
+    
+    // === ROOM 4 (Golden/Final) ===
+    const r4x = 105;
+    const wallMat4 = new THREE.MeshStandardMaterial({ color: 0xaa8833, roughness: 0.4, side: THREE.DoubleSide });
+    
+    const floor4 = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x554422 }));
+    floor4.rotation.x = -Math.PI / 2;
+    floor4.position.set(r4x, 0, 0);
+    scene.add(floor4);
+    const grid4 = new THREE.GridHelper(30, 30, 0xffaa00, 0x442200);
+    grid4.position.set(r4x, 0, 0);
+    scene.add(grid4);
+    
+    [[r4x, wh/2, -15, 0], [r4x, wh/2, 15, Math.PI]].forEach(([x, y, z, ry]) => {
+      const w = new THREE.Mesh(new THREE.PlaneGeometry(30, wh), wallMat4.clone());
+      w.position.set(x, y, z);
+      w.rotation.y = ry;
+      w.userData.portalable = true;
+      scene.add(w);
+    });
+    const lw4 = new THREE.Mesh(new THREE.BoxGeometry(0.5, wh, 30), wallMat4.clone());
+    lw4.position.set(r4x - 15, wh/2, 0);
+    lw4.userData.portalable = true;
+    scene.add(lw4);
+    const rw4 = new THREE.Mesh(new THREE.BoxGeometry(0.5, wh, 30), wallMat4.clone());
+    rw4.position.set(r4x + 15, wh/2, 0);
+    rw4.userData.portalable = true;
+    scene.add(rw4);
+    const ceil4 = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x443322 }));
+    ceil4.position.set(r4x, wh, 0);
+    ceil4.rotation.x = Math.PI / 2;
+    scene.add(ceil4);
+    
+    // Room 4 light
+    const p7 = new THREE.PointLight(0xffaa00, 2, 50);
+    p7.position.set(r4x, 15, 0);
+    scene.add(p7);
+    
+    // === BRIDGES ===
     const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0x442200, roughness: 0.3 });
-    const bridge = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 6), bridgeMat);
-    bridge.position.set(20, 22, 0);
-    scene.add(bridge);
+    const bridge1 = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 6), bridgeMat);
+    bridge1.position.set(20, 22, 0);
+    scene.add(bridge1);
+    
+    const bridge2 = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 6), bridgeMat.clone());
+    bridge2.position.set(r2x + 12, 20, 0);
+    scene.add(bridge2);
+    
+    const bridge3 = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 6), new THREE.MeshStandardMaterial({ color: 0xff00ff, emissive: 0x440044, roughness: 0.3 }));
+    bridge3.position.set(r3x + 12, 38, 0);
+    scene.add(bridge3);
     
     // === PLATFORMS ===
     const platMat = new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x004422, roughness: 0.3 });
     const platMat2 = new THREE.MeshStandardMaterial({ color: 0x8866ff, emissive: 0x221144, roughness: 0.3 });
+    const platMat3 = new THREE.MeshStandardMaterial({ color: 0xff00ff, emissive: 0x440044, roughness: 0.3 });
+    const platMat4 = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0x442200, roughness: 0.3 });
     
     const platformData = [
       // Room 1
@@ -717,27 +878,63 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       { x: r2x - 10, y: 6, z: 0, w: 4, d: 4 }, { x: r2x + 10, y: 6, z: 0, w: 4, d: 4 },
       { x: r2x - 6, y: 10, z: -6, w: 4, d: 4 }, { x: r2x + 6, y: 10, z: 6, w: 4, d: 4 }, { x: r2x, y: 10, z: 0, w: 5, d: 5 },
       { x: r2x - 4, y: 14, z: 4, w: 3, d: 3 }, { x: r2x + 4, y: 14, z: -4, w: 3, d: 3 },
-      { x: r2x, y: 18, z: 0, w: 6, d: 6 },
-      { x: r2x - 8, y: 22, z: 0, w: 4, d: 4 },
+      { x: r2x, y: 18, z: 0, w: 6, d: 6 }, { x: r2x + 10, y: 20, z: 0, w: 4, d: 4 },
+      // Room 3 (Taller room, platforms go higher)
+      { x: r3x - 8, y: 2, z: -8, w: 5, d: 5 }, { x: r3x + 8, y: 2, z: -8, w: 5, d: 5 }, { x: r3x, y: 2, z: 8, w: 6, d: 6 },
+      { x: r3x - 10, y: 8, z: 0, w: 4, d: 4 }, { x: r3x + 10, y: 8, z: 0, w: 4, d: 4 },
+      { x: r3x - 6, y: 14, z: -6, w: 4, d: 4 }, { x: r3x + 6, y: 14, z: 6, w: 4, d: 4 }, { x: r3x, y: 14, z: 0, w: 5, d: 5 },
+      { x: r3x - 4, y: 20, z: 4, w: 3, d: 3 }, { x: r3x + 4, y: 20, z: -4, w: 3, d: 3 },
+      { x: r3x, y: 26, z: 0, w: 6, d: 6 }, { x: r3x - 6, y: 32, z: 0, w: 4, d: 4 }, { x: r3x + 6, y: 32, z: 0, w: 4, d: 4 },
+      { x: r3x, y: 36, z: 0, w: 5, d: 5 }, { x: r3x + 10, y: 38, z: 0, w: 4, d: 4 },
+      // Room 4 (Final room)
+      { x: r4x - 8, y: 2, z: -8, w: 5, d: 5 }, { x: r4x + 8, y: 2, z: -8, w: 5, d: 5 }, { x: r4x, y: 2, z: 8, w: 6, d: 6 },
+      { x: r4x - 10, y: 6, z: 0, w: 4, d: 4 }, { x: r4x + 10, y: 6, z: 0, w: 4, d: 4 },
+      { x: r4x, y: 10, z: 0, w: 6, d: 6 }, { x: r4x - 6, y: 14, z: -6, w: 4, d: 4 }, { x: r4x + 6, y: 14, z: 6, w: 4, d: 4 },
+      { x: r4x, y: 18, z: 0, w: 8, d: 8 }, // Victory platform
     ];
     
+    // Store platforms for enemy jumping
+    const platformMeshes: THREE.Mesh[] = [];
+    
     platformData.forEach((p, i) => {
-      const mat = i < 17 ? platMat.clone() : platMat2.clone();
+      let mat;
+      if (i < 17) mat = platMat.clone(); // Room 1
+      else if (i < 29) mat = platMat2.clone(); // Room 2
+      else if (i < 44) mat = platMat3.clone(); // Room 3
+      else mat = platMat4.clone(); // Room 4
+      
       const plat = new THREE.Mesh(new THREE.BoxGeometry(p.w, 0.5, p.d), mat);
       plat.position.set(p.x, p.y, p.z);
+      plat.userData.width = p.w;
+      plat.userData.depth = p.d;
       plat.castShadow = true;
       plat.receiveShadow = true;
       scene.add(plat);
+      platformMeshes.push(plat);
     });
     
-    // === CRYSTALS ===
+    // Store platforms ref for enemy AI
+    (window as any).wormholePlatforms = platformMeshes;
+    
+    // === CRYSTALS (All 4 Rooms) ===
     const crystalColors = [0x00ffff, 0xff00ff, 0x00ff88, 0xff6600, 0x6666ff, 0xffff00];
     const crystalPositions = [
+      // Room 1
       { x: -8, y: 3.5, z: -8 }, { x: 8, y: 3.5, z: -8 }, { x: 0, y: 3.5, z: 8 },
       { x: 0, y: 6.5, z: 0 }, { x: -6, y: 9.5, z: -6 }, { x: 0, y: 12.5, z: 0 },
       { x: 0, y: 18.5, z: 0 }, { x: 0, y: 21.5, z: 0 },
+      // Room 2
       { x: r2x - 8, y: 3.5, z: -8 }, { x: r2x + 8, y: 3.5, z: -8 }, { x: r2x, y: 3.5, z: 8 },
       { x: r2x, y: 11.5, z: 0 }, { x: r2x, y: 19.5, z: 0 },
+      // Room 3 (taller)
+      { x: r3x - 8, y: 3.5, z: -8 }, { x: r3x + 8, y: 3.5, z: -8 }, { x: r3x, y: 3.5, z: 8 },
+      { x: r3x - 10, y: 9.5, z: 0 }, { x: r3x + 10, y: 9.5, z: 0 },
+      { x: r3x, y: 15.5, z: 0 }, { x: r3x - 4, y: 21.5, z: 4 }, { x: r3x + 4, y: 21.5, z: -4 },
+      { x: r3x, y: 27.5, z: 0 }, { x: r3x, y: 37.5, z: 0 },
+      // Room 4 (final)
+      { x: r4x - 8, y: 3.5, z: -8 }, { x: r4x + 8, y: 3.5, z: -8 }, { x: r4x, y: 3.5, z: 8 },
+      { x: r4x - 10, y: 7.5, z: 0 }, { x: r4x + 10, y: 7.5, z: 0 },
+      { x: r4x, y: 11.5, z: 0 }, { x: r4x, y: 15.5, z: 0 }, { x: r4x, y: 19.5, z: 0 }, // Victory crystals
     ];
     
     targetsRef.current = [];
@@ -760,23 +957,67 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
     setTotalTargets(crystalPositions.length);
     
-    // === ENEMIES WITH SWORDS ===
+    // === DETAILED ENEMIES WITH SWORDS ===
+    // Room 3 and 4 offsets
+    const r3x = 70;
+    const r4x = 105;
+    
     enemiesRef.current = [];
-    [{ x: -5, z: 0 }, { x: 5, z: -5 }, { x: 0, z: -10 }, { x: 10, z: 5 }, { x: r2x - 5, z: 0 }, { x: r2x + 5, z: -5 }].forEach(pos => {
+    const enemyPositions = [
+      // Room 1
+      { x: -5, z: 0, y: 0 }, { x: 5, z: -5, y: 0 }, { x: 0, z: -10, y: 0 },
+      // Room 2
+      { x: r2x - 5, z: 0, y: 0 }, { x: r2x + 5, z: -5, y: 0 }, { x: r2x, z: 8, y: 0 },
+      // Room 3
+      { x: r3x - 5, z: 0, y: 0 }, { x: r3x + 5, z: -5, y: 0 }, { x: r3x, z: -10, y: 0 }, { x: r3x - 8, z: 5, y: 0 },
+      // Room 4
+      { x: r4x - 5, z: 0, y: 0 }, { x: r4x + 5, z: -5, y: 0 }, { x: r4x, z: 8, y: 0 }, { x: r4x - 8, z: -8, y: 0 },
+    ];
+    
+    enemyPositions.forEach((pos, idx) => {
       const g = new THREE.Group();
       
-      // Body
-      const body = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.4, 0.8, 8, 16),
-        new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0x440000, roughness: 0.5 })
-      );
+      // Armored body with segments
+      const bodyMat = new THREE.MeshStandardMaterial({ 
+        color: idx < 3 ? 0xff3333 : idx < 6 ? 0xff6600 : idx < 10 ? 0x9933ff : 0xff0066,
+        emissive: idx < 3 ? 0x440000 : idx < 6 ? 0x442200 : idx < 10 ? 0x220044 : 0x440022,
+        roughness: 0.3,
+        metalness: 0.6
+      });
+      
+      // Main body
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.7, 12, 24), bodyMat);
       body.position.y = 1;
       g.add(body);
       
-      // Eyes
+      // Armored shoulders
+      const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.2 });
+      const lShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.15), shoulderMat);
+      lShoulder.position.set(-0.4, 1.2, 0);
+      lShoulder.scale.set(1.2, 0.8, 1);
+      g.add(lShoulder);
+      const rShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.15), shoulderMat);
+      rShoulder.position.set(0.4, 1.2, 0);
+      rShoulder.scale.set(1.2, 0.8, 1);
+      g.add(rShoulder);
+      
+      // Helmet
+      const helmetMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.95, roughness: 0.1 });
+      const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 12), helmetMat);
+      helmet.position.y = 1.55;
+      helmet.scale.set(1, 1.1, 0.9);
+      g.add(helmet);
+      
+      // Glowing visor
+      const visorMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.1), visorMat);
+      visor.position.set(0, 1.55, 0.2);
+      g.add(visor);
+      
+      // Glowing eyes behind visor
       const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-      [[-0.15, 1.3, 0.3], [0.15, 1.3, 0.3]].forEach(([x, y, z]) => {
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1), eyeMat);
+      [[-0.08, 1.55, 0.22], [0.08, 1.55, 0.22]].forEach(([x, y, z]) => {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04), eyeMat);
         eye.position.set(x, y, z);
         g.add(eye);
       });
@@ -785,57 +1026,109 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       const swordGroup = new THREE.Group();
       const bladeMat = new THREE.MeshStandardMaterial({ 
         color: 0x888888, 
-        emissive: 0x222222, 
+        emissive: 0x333333, 
         emissiveIntensity: 0.5, 
-        metalness: 0.9, 
-        roughness: 0.1 
+        metalness: 0.95, 
+        roughness: 0.05 
       });
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, 0.02), bladeMat);
-      blade.position.y = 0.35;
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.8, 0.015), bladeMat);
+      blade.position.y = 0.4;
       swordGroup.add(blade);
       
       const handle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8),
-        new THREE.MeshStandardMaterial({ color: 0x553311 })
+        new THREE.CylinderGeometry(0.025, 0.025, 0.18, 8),
+        new THREE.MeshStandardMaterial({ color: 0x442211 })
       );
       handle.position.y = -0.05;
       swordGroup.add(handle);
+      
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.03), shoulderMat);
+      swordGroup.add(guard);
       
       swordGroup.position.set(0.5, 1.0, 0.2);
       swordGroup.rotation.set(0, 0, -0.3);
       swordGroup.userData.bladeMat = bladeMat;
       g.add(swordGroup);
       
-      g.position.set(pos.x, 0, pos.z);
+      g.position.set(pos.x, pos.y, pos.z);
       scene.add(g);
       
       enemiesRef.current.push({ 
         mesh: g, 
         health: 3, 
-        position: new THREE.Vector3(pos.x, 0, pos.z), 
-        state: 'idle', // idle, winding_up, attacking
+        position: new THREE.Vector3(pos.x, pos.y, pos.z),
+        velocity: new THREE.Vector3(),
+        state: 'idle',
         attackTimer: 0,
         windupTimer: 0,
-        sword: swordGroup
+        sword: swordGroup,
+        jumpCooldown: 0,
+        targetPlatform: null
       });
     });
     
-    // === SWORD ===
+    // === PLAYER SWORD (Neon Energy Blade) ===
     const swordGroup = new THREE.Group();
-    const bladeMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x00ff88, emissiveIntensity: 0.6, metalness: 0.9, roughness: 0.1 });
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1, 0.02), bladeMat);
-    blade.position.y = 0.5;
+    
+    // Main blade - sharp tapered design
+    const bladeShape = new THREE.Shape();
+    bladeShape.moveTo(0, 0);
+    bladeShape.lineTo(0.04, 0);
+    bladeShape.lineTo(0.02, 1.2); // Tapered tip
+    bladeShape.lineTo(-0.02, 1.2);
+    bladeShape.lineTo(-0.04, 0);
+    bladeShape.closePath();
+    
+    const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.015, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005 });
+    const bladeMat = new THREE.MeshStandardMaterial({ 
+      color: 0x00ffff, 
+      emissive: 0x00ffff, 
+      emissiveIntensity: 2.0, 
+      metalness: 1.0, 
+      roughness: 0.0,
+      transparent: true,
+      opacity: 0.9
+    });
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.position.set(0, 0.1, -0.007);
     swordGroup.add(blade);
     
-    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.25, 8), new THREE.MeshStandardMaterial({ color: 0x553311 }));
-    handle.position.y = -0.12;
+    // Inner glow core
+    const coreGeo = new THREE.BoxGeometry(0.02, 1.1, 0.005);
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    core.position.set(0, 0.55, 0);
+    swordGroup.add(core);
+    
+    // Handle with grip texture
+    const handleGeo = new THREE.CylinderGeometry(0.025, 0.03, 0.3, 12);
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.8 });
+    const handle = new THREE.Mesh(handleGeo, handleMat);
+    handle.position.y = -0.15;
     swordGroup.add(handle);
     
-    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.04), bladeMat);
+    // Ornate crossguard
+    const guardMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff6600, emissiveIntensity: 0.5, metalness: 0.9 });
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.06), guardMat);
+    guard.position.y = 0;
     swordGroup.add(guard);
     
-    swordGroup.position.set(0.45, -0.35, -0.55);
-    swordGroup.rotation.set(0.15, -0.35, 0.12);
+    // Guard gems
+    const gemMat = new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 2.0 });
+    const gem1 = new THREE.Mesh(new THREE.SphereGeometry(0.02), gemMat);
+    gem1.position.set(-0.09, 0, 0);
+    swordGroup.add(gem1);
+    const gem2 = new THREE.Mesh(new THREE.SphereGeometry(0.02), gemMat);
+    gem2.position.set(0.09, 0, 0);
+    swordGroup.add(gem2);
+    
+    // Pommel
+    const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.035), guardMat);
+    pommel.position.y = -0.3;
+    swordGroup.add(pommel);
+    
+    swordGroup.position.set(0.5, -0.3, -0.6);
+    swordGroup.rotation.set(0.1, -0.3, 0.1);
     camera.add(swordGroup);
     swordRef.current = swordGroup;
     
@@ -886,6 +1179,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       timeRef.current -= 1;
       setTimeLeft(timeRef.current);
       if (timeRef.current <= 0) {
+        // Calculate completion time
+        const elapsed = Math.round((Date.now() - gameStartTimeRef.current) / 1000);
+        setCompletionTime(elapsed);
         setGameState('gameover');
         if (onGameEnd) onGameEnd(scoreRef.current);
       }
@@ -970,19 +1266,28 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     playerRef.current.yaw = 0;
     playerRef.current.pitch = 0;
     playerRef.current.onGround = true;
-    transitionTriggeredRef.current = false;
+    transitionTriggeredRef.current = new Set();
     scoreRef.current = 0;
-    timeRef.current = 90;
+    timeRef.current = 120; // 2 minutes
     healthRef.current = 3;
     targetsCollectedRef.current = 0;
+    gameStartTimeRef.current = Date.now();
     setScore(0);
-    setTimeLeft(90);
+    setTimeLeft(120); // 2 minutes
     setTargetsCollected(0);
     setPlayerHealth(3);
     setCurrentRoom(1);
     setEnemiesKilled(0);
+    setCompletionTime(0);
     targetsRef.current.forEach(t => { if (t) t.visible = true; });
-    enemiesRef.current.forEach(e => { e.mesh.visible = true; e.health = 3; e.attackTimer = 0; });
+    enemiesRef.current.forEach(e => { 
+      e.mesh.visible = true; 
+      e.health = 3; 
+      e.attackTimer = 0;
+      e.state = 'idle';
+      e.velocity = new THREE.Vector3();
+      e.onGround = true;
+    });
     if (portalsRef.current.green?.mesh && sceneRef.current) sceneRef.current.remove(portalsRef.current.green.mesh);
     if (portalsRef.current.cyan?.mesh && sceneRef.current) sceneRef.current.remove(portalsRef.current.cyan.mesh);
     portalsRef.current = { green: null, cyan: null };
@@ -1067,9 +1372,25 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90">
           <div className="text-center">
             <div className="text-6xl animate-spin mb-4">🌀</div>
-            <h2 className="text-3xl font-bold text-white mb-2">Entering Chamber 2...</h2>
+            <h2 className={`text-3xl font-bold mb-2 ${
+              transitionRoom === 2 ? 'text-purple-400' :
+              transitionRoom === 3 ? 'text-pink-400' :
+              transitionRoom === 4 ? 'text-yellow-400' : 'text-cyan-400'
+            }`}>
+              Entering Chamber {transitionRoom}...
+            </h2>
+            <div className="text-white/60 text-sm mb-4">
+              {transitionRoom === 2 ? '🔮 The Purple Void' :
+               transitionRoom === 3 ? '💜 The Magenta Spire' :
+               transitionRoom === 4 ? '👑 The Golden Chamber' : 'Unknown'}
+            </div>
             <div className="w-48 h-2 bg-gray-700 rounded-full mx-auto overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-green-500 to-cyan-500 animate-pulse" style={{ width: '100%' }} />
+              <div className={`h-full animate-pulse ${
+                transitionRoom === 2 ? 'bg-gradient-to-r from-green-500 to-purple-500' :
+                transitionRoom === 3 ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
+                transitionRoom === 4 ? 'bg-gradient-to-r from-pink-500 to-yellow-500' :
+                'bg-gradient-to-r from-green-500 to-cyan-500'
+              }`} style={{ width: '100%' }} />
             </div>
           </div>
         </div>
@@ -1082,7 +1403,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           <div className="absolute top-4 left-4 z-40 bg-black/70 rounded-lg px-4 py-2">
             <div className="text-white text-xl font-bold">Score: {score}</div>
             <div className="text-gray-300 text-sm">🎯 Crystals: {targetsCollected}/{totalTargets}</div>
-            <div className={`text-sm font-bold ${currentRoom === 1 ? 'text-blue-400' : 'text-purple-400'}`}>🏠 Chamber {currentRoom}</div>
+            <div className={`text-sm font-bold ${
+              currentRoom === 1 ? 'text-cyan-400' :
+              currentRoom === 2 ? 'text-purple-400' :
+              currentRoom === 3 ? 'text-pink-400' :
+              'text-yellow-400'
+            }`}>🏠 Chamber {currentRoom}/4</div>
           </div>
           
           {/* Health */}
@@ -1158,10 +1484,37 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       {gameState === 'gameover' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-50">
           <div className="bg-gray-800/95 rounded-2xl p-8 max-w-md text-center text-white">
-            <h2 className="text-4xl font-bold mb-4">🎮 Game Over!</h2>
+            <h2 className={`text-4xl font-bold mb-4 ${currentRoom === 4 ? 'text-yellow-400' : 'text-white'}`}>
+              {currentRoom === 4 ? '🏆 Victory!' : '🎮 Game Over!'}
+            </h2>
             <div className="text-6xl font-bold text-green-400 mb-4">{score}</div>
-            <div className="text-gray-400 mb-2">Crystals: {targetsCollected}/{totalTargets}</div>
-            <div className="text-gray-400 mb-6">Chamber Reached: {currentRoom}</div>
+            
+            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <div className="bg-gray-700/50 rounded-lg p-3">
+                <div className="text-gray-400">⏱️ Time</div>
+                <div className="text-xl font-bold text-cyan-400">
+                  {Math.floor(completionTime / 60)}:{(completionTime % 60).toString().padStart(2, '0')}
+                </div>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-3">
+                <div className="text-gray-400">🎯 Crystals</div>
+                <div className="text-xl font-bold text-purple-400">{targetsCollected}/{totalTargets}</div>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-3">
+                <div className="text-gray-400">💀 Enemies</div>
+                <div className="text-xl font-bold text-red-400">{enemiesKilled}</div>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-3">
+                <div className="text-gray-400">🏠 Chamber</div>
+                <div className={`text-xl font-bold ${
+                  currentRoom === 1 ? 'text-cyan-400' :
+                  currentRoom === 2 ? 'text-purple-400' :
+                  currentRoom === 3 ? 'text-pink-400' :
+                  'text-yellow-400'
+                }`}>{currentRoom}/4</div>
+              </div>
+            </div>
+            
             <button onClick={startGame} className="w-full py-4 bg-gradient-to-r from-green-600 to-cyan-600 text-white text-xl font-bold rounded-xl hover:from-green-500 hover:to-cyan-500 transition-all hover:scale-105">
               🔄 Play Again
             </button>
