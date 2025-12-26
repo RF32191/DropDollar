@@ -1538,9 +1538,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     // Listen for other players' position updates
     let receiveCount = 0;
+    console.log('[LaserDodge] Setting up onPlayerUpdate listener...');
+    
     lobby.onPlayerUpdate((updates) => {
       receiveCount++;
       const newOtherPlayers = new Map<string, { x: number; y: number; score: number; hearts: number; isAlive: boolean }>();
+      
+      // Log first few receives to debug
+      if (receiveCount <= 5) {
+        console.log(`[LaserDodge] onPlayerUpdate called #${receiveCount}, updates size:`, updates.size);
+        console.log(`[LaserDodge] Updates entries:`, Array.from(updates.entries()).map(([id, u]) => ({ id: id.substring(0, 8), x: u.x, y: u.y })));
+      }
+      
       updates.forEach((update, id) => {
         if (id !== user?.id) {
           newOtherPlayers.set(id, {
@@ -1555,7 +1564,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       
       // Log every 20th receive (once per second)
       if (receiveCount % 20 === 0) {
-        console.log(`[LaserDodge] Received position update #${receiveCount}, other players:`, newOtherPlayers.size);
+        console.log(`[LaserDodge] Position update #${receiveCount}, tracking ${newOtherPlayers.size} other players`);
+      }
+      
+      // Always log if we have other players (for first few times)
+      if (newOtherPlayers.size > 0 && receiveCount <= 10) {
+        console.log(`[LaserDodge] 🎯 Found ${newOtherPlayers.size} other player(s)!`, Array.from(newOtherPlayers.keys()).map(k => k.substring(0, 8)));
       }
       
       setOtherPlayers(newOtherPlayers);
@@ -2888,6 +2902,15 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 );
               })}
 
+              {/* Debug: Show multiplayer status */}
+              {gameMode === 'online' && (
+                <div className="absolute top-2 right-2 bg-purple-600/80 px-2 py-1 rounded text-xs text-white z-50 flex flex-col gap-1">
+                  <div>👥 Other Players: {otherPlayers.size}</div>
+                  <div>🎮 State: {gameState}</div>
+                  <div>🏠 Host: {lobby.isHost ? 'YES' : 'NO'}</div>
+                </div>
+              )}
+              
               {/* Other Players' Ships (Multiplayer) */}
               {gameMode === 'online' && Array.from(otherPlayers.entries()).map(([playerId, playerData], index) => {
                 const playerIndex = lobby.players.findIndex(p => p.id === playerId);
