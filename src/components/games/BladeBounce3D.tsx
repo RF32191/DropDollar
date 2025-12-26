@@ -1813,9 +1813,20 @@ export default function BladeBounce3D({
         if (nextCount > 0) {
           lobby.sendPlayerAction('sync_countdown_tick', { count: nextCount });
         } else {
-          // Broadcast GO signal
+          // Broadcast GO signal to others AND start for self
           console.log('[BladeBounce] Broadcasting game_go!');
           lobby.sendPlayerAction('game_go');
+          
+          // Host also needs to start the game!
+          setAllPlayersReady(true);
+          setWaitingForPlayers(false);
+          
+          // Brief delay to show "GO!" then start the game countdown
+          setTimeout(() => {
+            setSyncCountdown(null);
+            setGameState('countdown');
+            setCountdown(3);
+          }, 500);
         }
       }, 1000);
       return () => clearTimeout(timer);

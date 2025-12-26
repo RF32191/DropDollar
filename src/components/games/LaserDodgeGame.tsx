@@ -1637,9 +1637,20 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         if (nextCount > 0) {
           lobby.sendPlayerAction('sync_countdown_tick', { count: nextCount });
         } else {
-          // Broadcast GO signal
+          // Broadcast GO signal to others AND start for self
           console.log('[LaserDodge] Broadcasting game_go!');
           lobby.sendPlayerAction('game_go');
+          
+          // Host also needs to start the game!
+          setAllPlayersReady(true);
+          setWaitingForPlayers(false);
+          
+          // Brief delay to show "GO!" then start
+          setTimeout(() => {
+            setSyncCountdown(null);
+            setGameState('playing');
+            handleStartGame();
+          }, 500);
         }
       }, 1000);
       return () => clearTimeout(timer);
