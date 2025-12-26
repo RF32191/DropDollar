@@ -1551,53 +1551,66 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     });
     
     // Listen for player ready actions (tapped their ship)
-    lobby.onPlayerAction((playerId, action) => {
+    lobby.onPlayerAction((playerId, action, data) => {
       if (action === 'ready_to_start') {
         setPlayersReady(prev => {
           const newSet = new Set(prev);
           newSet.add(playerId);
           return newSet;
         });
-      } else if (action === 'sync_countdown') {
-        // All players ready - start synchronized countdown
-        setSyncCountdown(3);
+      } else if (action === 'sync_countdown_tick') {
+        // Host is broadcasting countdown - update display for all players
+        setSyncCountdown(data?.count ?? 3);
       } else if (action === 'game_go') {
         // Everyone start NOW
         setAllPlayersReady(true);
         setWaitingForPlayers(false);
-        setSyncCountdown(null);
-        setGameState('playing');
-        handleStartGame();
+        setSyncCountdown(0); // Show "GO!" briefly
+        
+        // Brief delay to show "GO!" then start
+        setTimeout(() => {
+          setSyncCountdown(null);
+          setGameState('playing');
+          handleStartGame();
+        }, 500);
       }
     });
   }, [gameMode, lobby, user?.id]);
   
-  // Check if all players are ready and start sync countdown
+  // Check if all players are ready and start sync countdown (HOST ONLY)
   useEffect(() => {
     if (!waitingForPlayers || gameMode !== 'online') return;
+    if (!lobby.isHost) return; // Only host manages countdown
     
     const totalPlayers = lobby.players.length;
     const readyCount = playersReady.size;
     
     // If all players are ready, host starts the synchronized countdown
-    if (readyCount >= totalPlayers && totalPlayers >= 2 && lobby.isHost) {
-      lobby.sendPlayerAction('sync_countdown');
+    if (readyCount >= totalPlayers && totalPlayers >= 2) {
+      // Start countdown - broadcast 3 first
+      lobby.sendPlayerAction('sync_countdown_tick', { count: 3 });
       setSyncCountdown(3);
     }
   }, [playersReady, waitingForPlayers, gameMode, lobby]);
   
-  // Synchronized countdown for all players
+  // Host runs the countdown and broadcasts each tick
   useEffect(() => {
     if (syncCountdown === null || gameMode !== 'online') return;
+    if (!lobby.isHost) return; // Only host manages countdown
     
     if (syncCountdown > 0) {
       const timer = setTimeout(() => {
-        setSyncCountdown(syncCountdown - 1);
+        const nextCount = syncCountdown - 1;
+        setSyncCountdown(nextCount);
+        // Broadcast to all players
+        if (nextCount > 0) {
+          lobby.sendPlayerAction('sync_countdown_tick', { count: nextCount });
+        } else {
+          // Broadcast GO signal
+          lobby.sendPlayerAction('game_go');
+        }
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (syncCountdown === 0 && lobby.isHost) {
-      // Host broadcasts GO signal
-      lobby.sendPlayerAction('game_go');
     }
   }, [syncCountdown, gameMode, lobby]);
   

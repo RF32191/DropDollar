@@ -287,7 +287,7 @@ export default function BladeBounce3D({
       }
       
       // Only play if not already playing
-      const audio = backgroundMusicRef.current;
+        const audio = backgroundMusicRef.current;
       
       if (audio.paused) {
         try {
@@ -295,47 +295,47 @@ export default function BladeBounce3D({
           if (gameState === 'countdown') {
             audio.currentTime = 0;
           }
-          
-          // Ensure audio is loaded
-          if (audio.readyState < 2) {
-            try {
-              audio.load();
-            } catch (e) {
-              // Ignore load errors
-            }
+        
+        // Ensure audio is loaded
+        if (audio.readyState < 2) {
+          try {
+            audio.load();
+          } catch (e) {
+            // Ignore load errors
           }
-          
+        }
+        
           // Play music immediately
           console.log(`🎵 [BladeBounce3D] Starting ${currentTheme} theme music during ${gameState}...`);
-          const playPromise = audio.play();
-          
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
                 console.log(`✅ [BladeBounce3D] ${currentTheme} background music playing!`);
-                audioUnlockedRef.current = true;
-              })
-              .catch((err) => {
-                console.warn('⚠️ [BladeBounce3D] Audio play failed, will retry:', err);
-                // Try again after a short delay
-                setTimeout(() => {
+              audioUnlockedRef.current = true;
+            })
+            .catch((err) => {
+              console.warn('⚠️ [BladeBounce3D] Audio play failed, will retry:', err);
+              // Try again after a short delay
+              setTimeout(() => {
                   if (backgroundMusicRef.current && (gameState === 'countdown' || gameState === 'playing')) {
-                    backgroundMusicRef.current.play()
-                      .then(() => {
-                        audioUnlockedRef.current = true;
+                  backgroundMusicRef.current.play()
+                    .then(() => {
+                      audioUnlockedRef.current = true;
                         console.log(`✅ [BladeBounce3D] ${currentTheme} background music started on retry`);
-                      })
-                      .catch(() => {
-                        // Final attempt failed - that's okay
-                      });
-                  }
-                }, 500);
-              });
-          }
-        } catch (err) {
-          // Audio failed - game continues normally
-          console.warn('⚠️ [BladeBounce3D] Audio play failed (non-critical)');
+                    })
+                    .catch(() => {
+                      // Final attempt failed - that's okay
+                    });
+                }
+              }, 500);
+            });
         }
+      } catch (err) {
+        // Audio failed - game continues normally
+        console.warn('⚠️ [BladeBounce3D] Audio play failed (non-critical)');
+      }
       }
     } else if (gameState !== 'countdown' && gameState !== 'playing' && backgroundMusicRef.current) {
       // Stop music only when game is ended or in ready/waiting states
@@ -964,7 +964,7 @@ export default function BladeBounce3D({
         // Main snowball - slightly imperfect sphere
         const snowGeo = new THREE.SphereGeometry(projectileSize * 0.6, 20, 20);
         const snowMat = new THREE.MeshStandardMaterial({ 
-          color: 0xffffff, 
+          color: 0xffffff,
           roughness: 0.95,
           metalness: 0.0,
         });
@@ -1084,7 +1084,7 @@ export default function BladeBounce3D({
             const flameGeo = new THREE.ConeGeometry(0.08 + Math.random() * 0.04, 0.25 + Math.random() * 0.15, 8);
             const flameMat = new THREE.MeshBasicMaterial({ 
               color: i % 2 === 0 ? 0x00ff00 : 0x44ff44, 
-              transparent: true, 
+          transparent: true,
               opacity: 0.85 
             });
             const flame = new THREE.Mesh(flameGeo, flameMat);
@@ -1727,53 +1727,66 @@ export default function BladeBounce3D({
     });
     
     // Listen for player ready actions (tapped their sword)
-    lobby.onPlayerAction((playerId, action) => {
+    lobby.onPlayerAction((playerId, action, data) => {
       if (action === 'ready_to_start') {
         setPlayersReady(prev => {
           const newSet = new Set(prev);
           newSet.add(playerId);
           return newSet;
         });
-      } else if (action === 'sync_countdown') {
-        // All players ready - start synchronized countdown
-        setSyncCountdown(3);
+      } else if (action === 'sync_countdown_tick') {
+        // Host is broadcasting countdown - update display for all players
+        setSyncCountdown(data?.count ?? 3);
       } else if (action === 'game_go') {
         // Everyone start NOW
         setAllPlayersReady(true);
         setWaitingForPlayers(false);
-        setSyncCountdown(null);
-        setGameState('countdown');
-        setCountdown(3);
+        setSyncCountdown(0); // Show "GO!" briefly
+        
+        // Brief delay to show "GO!" then start the game countdown
+        setTimeout(() => {
+          setSyncCountdown(null);
+          setGameState('countdown');
+          setCountdown(3);
+        }, 500);
       }
     });
   }, [gameMode, lobby, user?.id]);
   
-  // Check if all players are ready and start sync countdown
+  // Check if all players are ready and start sync countdown (HOST ONLY)
   useEffect(() => {
     if (!waitingForPlayers || gameMode !== 'online') return;
+    if (!lobby.isHost) return; // Only host manages countdown
     
     const totalPlayers = lobby.players.length;
     const readyCount = playersReady.size;
     
     // If all players are ready, host starts the synchronized countdown
-    if (readyCount >= totalPlayers && totalPlayers >= 2 && lobby.isHost) {
-      lobby.sendPlayerAction('sync_countdown');
+    if (readyCount >= totalPlayers && totalPlayers >= 2) {
+      // Start countdown - broadcast 3 first
+      lobby.sendPlayerAction('sync_countdown_tick', { count: 3 });
       setSyncCountdown(3);
     }
   }, [playersReady, waitingForPlayers, gameMode, lobby]);
   
-  // Synchronized countdown for all players
+  // Host runs the countdown and broadcasts each tick
   useEffect(() => {
     if (syncCountdown === null || gameMode !== 'online') return;
+    if (!lobby.isHost) return; // Only host manages countdown
     
     if (syncCountdown > 0) {
       const timer = setTimeout(() => {
-        setSyncCountdown(syncCountdown - 1);
+        const nextCount = syncCountdown - 1;
+        setSyncCountdown(nextCount);
+        // Broadcast to all players
+        if (nextCount > 0) {
+          lobby.sendPlayerAction('sync_countdown_tick', { count: nextCount });
+        } else {
+          // Broadcast GO signal
+          lobby.sendPlayerAction('game_go');
+        }
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (syncCountdown === 0 && lobby.isHost) {
-      // Host broadcasts GO signal
-      lobby.sendPlayerAction('game_go');
     }
   }, [syncCountdown, gameMode, lobby]);
   
