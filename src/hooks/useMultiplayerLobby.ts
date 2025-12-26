@@ -43,7 +43,7 @@ const MAX_PLAYERS = 4;
 const COUNTDOWN_SECONDS = 5;
 
 export function useMultiplayerLobby(
-  gameType: 'hex-arena' | 'laser-battle',
+  gameType: string, // Any game type - 'hex-arena', 'laser-battle', 'laser-dodge', 'quick-click', 'phase-shifter', 'blade-bounce', etc.
   userId: string | undefined,
   username: string | undefined
 ) {
@@ -72,45 +72,30 @@ export function useMultiplayerLobby(
     }
 
     try {
-      // Look for existing lobbies with space
-      const { data: existingLobbies } = await supabase
-        .from('game_lobbies')
-        .select('*')
-        .eq('game_type', gameType)
-        .eq('status', 'waiting')
-        .lt('player_count', MAX_PLAYERS)
-        .order('created_at', { ascending: true })
-        .limit(1);
+      // Use RPC function to safely join or create lobby (bypasses RLS issues)
+      const { data: lobbyId, error: rpcError } = await supabase
+        .rpc('join_or_create_lobby', {
+          p_game_type: gameType,
+          p_user_id: userId
+        });
 
-      let lobbyId: string;
-      let isHost = false;
-
-      if (existingLobbies && existingLobbies.length > 0) {
-        // Join existing lobby
-        lobbyId = existingLobbies[0].id;
-        
-        await supabase
-          .from('game_lobbies')
-          .update({ player_count: existingLobbies[0].player_count + 1 })
-          .eq('id', lobbyId);
-      } else {
-        // Create new lobby
-        const { data: newLobby, error } = await supabase
-          .from('game_lobbies')
-          .insert({
-            game_type: gameType,
-            host_id: userId,
-            status: 'waiting',
-            player_count: 1,
-            created_at: new Date().toISOString()
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        lobbyId = newLobby.id;
-        isHost = true;
+      if (rpcError) {
+        console.error('RPC error:', rpcError);
+        throw rpcError;
       }
+
+      if (!lobbyId) {
+        throw new Error('Failed to get lobby ID');
+      }
+
+      // Check if we're the host of this lobby
+      const { data: lobbyData } = await supabase
+        .from('game_lobbies')
+        .select('host_id, player_count')
+        .eq('id', lobbyId)
+        .single();
+
+      const isHost = lobbyData?.host_id === userId;
 
       // Subscribe to lobby channel
       const channel = supabase.channel(`lobby:${lobbyId}`, {

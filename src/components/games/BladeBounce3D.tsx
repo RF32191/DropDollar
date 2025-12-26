@@ -8,6 +8,16 @@ import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
 import GameThemeSelector from './GameThemeSelector';
 import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
+import { useMultiplayerLobby } from '@/hooks/useMultiplayerLobby';
+import { useAuth } from '@/contexts/AuthContext';
+
+// Player colors for multiplayer
+const PLAYER_SWORD_COLORS = [
+  { blade: 0x00ffff, glow: 0x00ccff, name: 'Cyan' },    // Player 1
+  { blade: 0xff00ff, glow: 0xff44ff, name: 'Magenta' }, // Player 2
+  { blade: 0x00ff00, glow: 0x44ff44, name: 'Green' },   // Player 3
+  { blade: 0xffd700, glow: 0xffec8b, name: 'Gold' },    // Player 4
+];
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251220-XMAS-HALLOWEEN-THEMES 🔥🔥🔥
 console.log('');
