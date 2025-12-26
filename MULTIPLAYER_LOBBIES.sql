@@ -239,7 +239,32 @@ BEGIN
 END $$;
 
 -- ============================================================================
+-- NOTIFY SCHEMA CACHE TO REFRESH
+-- ============================================================================
+
+-- This tells PostgREST to reload the schema cache
+NOTIFY pgrst, 'reload schema';
+
+-- ============================================================================
 -- SUCCESS MESSAGE
 -- ============================================================================
 
 SELECT 'Multiplayer lobbies system created successfully with fixed RLS policies!' as result;
+
+-- ============================================================================
+-- VERIFY FUNCTIONS EXIST
+-- ============================================================================
+
+SELECT 
+  routine_name,
+  routine_type
+FROM information_schema.routines 
+WHERE routine_schema = 'public' 
+  AND routine_name IN (
+    'join_or_create_lobby',
+    'increment_lobby_count', 
+    'decrement_lobby_count',
+    'start_lobby_game',
+    'end_lobby_game',
+    'cleanup_old_lobbies'
+  );
