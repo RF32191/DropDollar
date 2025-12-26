@@ -55,22 +55,110 @@ class SeededRandom {
   }
 }
 
-// Beat pattern - fixed for all players
+// Multiple beat patterns/songs - fixed for all players
 // 1 = beat (platform disappears), 0 = silence (platform appears)
-// BPM: 120 (each beat is 500ms)
-const BEAT_PATTERN = [
-  1, 0, 1, 0, 1, 1, 0, 0, // Bar 1
-  1, 0, 1, 0, 1, 0, 1, 0, // Bar 2
-  1, 1, 0, 0, 1, 1, 0, 0, // Bar 3
-  1, 0, 1, 1, 0, 0, 1, 0, // Bar 4
-  1, 0, 0, 1, 1, 0, 0, 1, // Bar 5
-  0, 1, 1, 0, 1, 0, 1, 0, // Bar 6
-  1, 1, 1, 0, 0, 0, 1, 1, // Bar 7
-  0, 0, 1, 1, 1, 0, 0, 1, // Bar 8
-];
 
-const BPM = 120;
-const BEAT_DURATION = 60000 / BPM; // 500ms per beat
+// Song 1: "Neon Pulse" - 120 BPM, steady electronic
+const SONG_NEON_PULSE = {
+  name: "Neon Pulse",
+  bpm: 120,
+  pattern: [
+    1, 0, 1, 0, 1, 1, 0, 0, // Bar 1 - Intro
+    1, 0, 1, 0, 1, 0, 1, 0, // Bar 2 - Build
+    1, 1, 0, 0, 1, 1, 0, 0, // Bar 3 - Drop
+    1, 0, 1, 1, 0, 0, 1, 0, // Bar 4 - Groove
+    1, 0, 0, 1, 1, 0, 0, 1, // Bar 5 - Variation
+    0, 1, 1, 0, 1, 0, 1, 0, // Bar 6 - Bridge
+    1, 1, 1, 0, 0, 0, 1, 1, // Bar 7 - Climax
+    0, 0, 1, 1, 1, 0, 0, 1, // Bar 8 - Outro
+  ]
+};
+
+// Song 2: "Space Funk" - 110 BPM, funky groove
+const SONG_SPACE_FUNK = {
+  name: "Space Funk",
+  bpm: 110,
+  pattern: [
+    1, 0, 0, 1, 0, 1, 0, 0, // Bar 1 - Funky start
+    1, 0, 0, 1, 0, 0, 1, 0, // Bar 2 - Groove
+    0, 1, 0, 1, 1, 0, 0, 1, // Bar 3 - Syncopation
+    1, 0, 1, 0, 0, 1, 0, 1, // Bar 4 - Walk
+    0, 0, 1, 1, 0, 0, 1, 1, // Bar 5 - Double hits
+    1, 0, 0, 0, 1, 1, 0, 0, // Bar 6 - Pause groove
+    0, 1, 1, 0, 0, 1, 1, 0, // Bar 7 - Offbeat
+    1, 0, 1, 0, 1, 0, 1, 1, // Bar 8 - Finale
+  ]
+};
+
+// Song 3: "Cosmic Rush" - 140 BPM, fast and intense
+const SONG_COSMIC_RUSH = {
+  name: "Cosmic Rush",
+  bpm: 140,
+  pattern: [
+    1, 1, 0, 1, 1, 0, 1, 0, // Bar 1 - Fast start
+    1, 0, 1, 1, 0, 1, 0, 1, // Bar 2 - Intense
+    0, 1, 1, 1, 0, 0, 1, 1, // Bar 3 - Rush
+    1, 1, 0, 0, 1, 1, 1, 0, // Bar 4 - Builds
+    1, 0, 1, 0, 1, 1, 0, 1, // Bar 5 - Peak
+    0, 1, 0, 1, 1, 0, 1, 1, // Bar 6 - Sustain
+    1, 1, 1, 0, 1, 0, 0, 1, // Bar 7 - Chaos
+    0, 0, 1, 1, 0, 1, 1, 1, // Bar 8 - Grand finale
+  ]
+};
+
+// Song 4: "Lunar Chill" - 90 BPM, relaxed but tricky
+const SONG_LUNAR_CHILL = {
+  name: "Lunar Chill",
+  bpm: 90,
+  pattern: [
+    1, 0, 0, 0, 1, 0, 0, 0, // Bar 1 - Slow intro
+    0, 0, 1, 0, 0, 0, 1, 0, // Bar 2 - Minimal
+    1, 0, 0, 1, 0, 0, 0, 1, // Bar 3 - Sparse
+    0, 1, 0, 0, 1, 0, 1, 0, // Bar 4 - Building
+    1, 0, 1, 0, 0, 1, 0, 0, // Bar 5 - Groove
+    0, 0, 0, 1, 1, 0, 0, 1, // Bar 6 - Surprise
+    1, 0, 0, 0, 0, 1, 1, 0, // Bar 7 - Chill peak
+    0, 1, 0, 1, 0, 0, 0, 1, // Bar 8 - Fade
+  ]
+};
+
+// Song 5: "Asteroid Storm" - 130 BPM, chaotic
+const SONG_ASTEROID_STORM = {
+  name: "Asteroid Storm",
+  bpm: 130,
+  pattern: [
+    1, 1, 1, 0, 1, 0, 1, 1, // Bar 1 - Storm begins
+    0, 1, 1, 1, 0, 1, 0, 1, // Bar 2 - Chaos
+    1, 0, 1, 1, 1, 0, 1, 0, // Bar 3 - Dodge frenzy
+    1, 1, 0, 1, 0, 1, 1, 0, // Bar 4 - Intense
+    0, 1, 1, 0, 1, 1, 0, 1, // Bar 5 - Storm peak
+    1, 0, 0, 1, 1, 0, 1, 1, // Bar 6 - Relentless
+    0, 1, 1, 1, 0, 0, 1, 1, // Bar 7 - Almost over
+    1, 1, 0, 0, 1, 1, 1, 0, // Bar 8 - Storm ends
+  ]
+};
+
+// All songs array
+const ALL_SONGS = [SONG_NEON_PULSE, SONG_SPACE_FUNK, SONG_COSMIC_RUSH, SONG_LUNAR_CHILL, SONG_ASTEROID_STORM];
+
+// Note colors for different heights
+const NOTE_COLORS = {
+  low: { main: 0x00ff00, glow: 0x44ff44 },    // Green for low
+  mid: { main: 0xffff00, glow: 0xffff88 },    // Yellow for mid
+  high: { main: 0xff00ff, glow: 0xff88ff }    // Magenta for high
+};
+
+// Platform color palette for cycling
+const PLATFORM_COLORS = [
+  0x00ffff, // Cyan
+  0xff00ff, // Magenta
+  0x00ff00, // Green
+  0xff6600, // Orange
+  0xff0088, // Pink
+  0x00ff88, // Mint
+  0xffff00, // Yellow
+  0x8800ff, // Purple
+];
 
 export default function PhaseShifterGame({ 
   isPractice = true, 
@@ -93,6 +181,8 @@ export default function PhaseShifterGame({
   const [platformVisible, setPlatformVisible] = useState(true);
   const [currentBeat, setCurrentBeat] = useState(0);
   const [floatingScores, setFloatingScores] = useState<FloatingScore[]>([]);
+  const [currentSong, setCurrentSong] = useState(ALL_SONGS[0]);
+  const [landings, setLandings] = useState(0);
   
   // Refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -118,6 +208,10 @@ export default function PhaseShifterGame({
   const isJumpingRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const beatTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const wasOnPlatformRef = useRef(false);
+  const platformColorIndexRef = useRef(0);
+  const currentSongRef = useRef(ALL_SONGS[0]);
+  const landingsRef = useRef(0);
   
   // Constants
   const PLATFORM_Y = -2;
@@ -231,67 +325,90 @@ export default function PhaseShifterGame({
     }
   }, []);
 
-  // Create 3D astronaut
+  // Create 3D astronaut - ALL BLACK with WHITE GLASS HELMET
   const createAstronaut = useCallback((scene: THREE.Scene) => {
-    const colors = getThemeColors();
     const astronaut = new THREE.Group();
     
-    // Helmet (main sphere)
+    // Helmet (white glass sphere)
     const helmetGeometry = new THREE.SphereGeometry(0.5, 32, 32);
     const helmetMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      metalness: 0.3,
-      roughness: 0.2,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.3,
+      metalness: 0.1,
+      roughness: 0.1,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.85
     });
     const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
     helmet.position.y = 0.8;
     astronaut.add(helmet);
     
-    // Visor (reflective)
-    const visorGeometry = new THREE.SphereGeometry(0.35, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+    // Visor (reflective glass front)
+    const visorGeometry = new THREE.SphereGeometry(0.4, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
     const visorMaterial = new THREE.MeshStandardMaterial({
-      color: colors.astronautGlow,
-      emissive: colors.astronautGlow,
-      emissiveIntensity: 0.5,
+      color: 0xaaccff,
+      emissive: 0x88aaff,
+      emissiveIntensity: 0.3,
       metalness: 0.9,
-      roughness: 0.1
+      roughness: 0.05,
+      transparent: true,
+      opacity: 0.7
     });
     const visor = new THREE.Mesh(visorGeometry, visorMaterial);
-    visor.position.set(0, 0.85, 0.2);
+    visor.position.set(0, 0.85, 0.15);
     visor.rotation.x = -0.3;
     astronaut.add(visor);
     
-    // Body (capsule-like)
+    // Helmet ring (white rim)
+    const ringGeometry = new THREE.TorusGeometry(0.45, 0.05, 8, 32);
+    const ringMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.2
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.position.y = 0.5;
+    ring.rotation.x = Math.PI / 2;
+    astronaut.add(ring);
+    
+    // Body (ALL BLACK capsule)
     const bodyGeometry = new THREE.CapsuleGeometry(0.4, 0.6, 8, 16);
     const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: colors.astronaut,
-      emissive: colors.astronaut,
-      emissiveIntensity: 0.2,
-      metalness: 0.4,
-      roughness: 0.5
+      color: 0x0a0a0a,
+      emissive: 0x000000,
+      metalness: 0.3,
+      roughness: 0.7
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     astronaut.add(body);
     
-    // Backpack
+    // Backpack (black)
     const backpackGeometry = new THREE.BoxGeometry(0.5, 0.6, 0.3);
     const backpackMaterial = new THREE.MeshStandardMaterial({
-      color: 0x444444,
-      metalness: 0.6,
-      roughness: 0.4
+      color: 0x111111,
+      metalness: 0.4,
+      roughness: 0.6
     });
     const backpack = new THREE.Mesh(backpackGeometry, backpackMaterial);
     backpack.position.set(0, 0.1, -0.35);
     astronaut.add(backpack);
     
-    // Arms
+    // Backpack lights (small colored dots)
+    const lightGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+    const redLight = new THREE.Mesh(lightGeometry, new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    redLight.position.set(-0.15, 0.3, -0.5);
+    astronaut.add(redLight);
+    const greenLight = new THREE.Mesh(lightGeometry, new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+    greenLight.position.set(0.15, 0.3, -0.5);
+    astronaut.add(greenLight);
+    
+    // Arms (black)
     const armGeometry = new THREE.CapsuleGeometry(0.12, 0.4, 4, 8);
     const armMaterial = new THREE.MeshStandardMaterial({
-      color: colors.astronaut,
-      emissive: colors.astronaut,
-      emissiveIntensity: 0.2
+      color: 0x0a0a0a,
+      metalness: 0.3,
+      roughness: 0.7
     });
     
     const leftArm = new THREE.Mesh(armGeometry, armMaterial);
@@ -304,7 +421,17 @@ export default function PhaseShifterGame({
     rightArm.rotation.z = -0.3;
     astronaut.add(rightArm);
     
-    // Legs
+    // Gloves (white)
+    const gloveGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+    const gloveMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const leftGlove = new THREE.Mesh(gloveGeometry, gloveMaterial);
+    leftGlove.position.set(-0.7, -0.15, 0);
+    astronaut.add(leftGlove);
+    const rightGlove = new THREE.Mesh(gloveGeometry, gloveMaterial);
+    rightGlove.position.set(0.7, -0.15, 0);
+    astronaut.add(rightGlove);
+    
+    // Legs (black)
     const legGeometry = new THREE.CapsuleGeometry(0.15, 0.5, 4, 8);
     
     const leftLeg = new THREE.Mesh(legGeometry, armMaterial);
@@ -315,21 +442,32 @@ export default function PhaseShifterGame({
     rightLeg.position.set(0.2, -0.7, 0);
     astronaut.add(rightLeg);
     
-    // Glow effect
-    const glowGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+    // Boots (white)
+    const bootGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.25);
+    const bootMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const leftBoot = new THREE.Mesh(bootGeometry, bootMaterial);
+    leftBoot.position.set(-0.2, -1.1, 0.05);
+    astronaut.add(leftBoot);
+    const rightBoot = new THREE.Mesh(bootGeometry, bootMaterial);
+    rightBoot.position.set(0.2, -1.1, 0.05);
+    astronaut.add(rightBoot);
+    
+    // Subtle white glow around helmet
+    const glowGeometry = new THREE.SphereGeometry(0.6, 16, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: colors.astronautGlow,
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.15
+      opacity: 0.1
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    glow.position.y = 0.8;
     astronaut.add(glow);
     
     astronaut.position.set(0, PLATFORM_Y + 1.5, 0);
     scene.add(astronaut);
     
     return astronaut;
-  }, [getThemeColors]);
+  }, []);
 
   // Create platform (hexagonal neon shape)
   const createPlatform = useCallback((scene: THREE.Scene) => {
@@ -410,17 +548,19 @@ export default function PhaseShifterGame({
     return platform;
   }, [getThemeColors]);
 
-  // Create music note projectile
+  // Create music note projectile - DIFFERENT COLORS FOR EACH HEIGHT
   const createMusicNote = useCallback((height: number, scene: THREE.Scene): MusicNote => {
-    const colors = getThemeColors();
     const note = new THREE.Group();
+    
+    // Get colors based on height: 0=low(green), 1=mid(yellow), 2=high(magenta)
+    const noteColor = height === 0 ? NOTE_COLORS.low : height === 1 ? NOTE_COLORS.mid : NOTE_COLORS.high;
     
     // Note head (oval)
     const headGeometry = new THREE.SphereGeometry(0.3, 16, 16);
     headGeometry.scale(1.3, 1, 0.8);
     const headMaterial = new THREE.MeshStandardMaterial({
-      color: colors.note,
-      emissive: colors.noteGlow,
+      color: noteColor.main,
+      emissive: noteColor.glow,
       emissiveIntensity: 0.8,
       metalness: 0.5,
       roughness: 0.3
@@ -432,8 +572,8 @@ export default function PhaseShifterGame({
     // Note stem
     const stemGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 8);
     const stemMaterial = new THREE.MeshStandardMaterial({
-      color: colors.note,
-      emissive: colors.noteGlow,
+      color: noteColor.main,
+      emissive: noteColor.glow,
       emissiveIntensity: 0.5
     });
     const stem = new THREE.Mesh(stemGeometry, stemMaterial);
@@ -449,7 +589,7 @@ export default function PhaseShifterGame({
     
     const flagGeometry = new THREE.ShapeGeometry(flagShape);
     const flagMaterial = new THREE.MeshBasicMaterial({
-      color: colors.noteGlow,
+      color: noteColor.glow,
       side: THREE.DoubleSide
     });
     const flag = new THREE.Mesh(flagGeometry, flagMaterial);
@@ -459,12 +599,23 @@ export default function PhaseShifterGame({
     // Glow
     const glowGeometry = new THREE.SphereGeometry(0.6, 16, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: colors.noteGlow,
+      color: noteColor.glow,
       transparent: true,
-      opacity: 0.2
+      opacity: 0.25
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
     note.add(glow);
+    
+    // Height indicator ring
+    const ringGeometry = new THREE.TorusGeometry(0.5, 0.03, 8, 16);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: noteColor.main,
+      transparent: true,
+      opacity: 0.5
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.rotation.x = Math.PI / 2;
+    note.add(ring);
     
     // Position from right side
     note.position.set(12, NOTE_HEIGHTS[height], 0);
@@ -475,10 +626,10 @@ export default function PhaseShifterGame({
       mesh: note,
       x: 12,
       y: height,
-      speed: 0.12,
+      speed: 0.1 + currentSongRef.current.bpm * 0.0005, // Speed scales with BPM
       hit: false
     };
-  }, [getThemeColors]);
+  }, []);
 
   // Initialize scene
   const initScene = useCallback(() => {
@@ -565,8 +716,10 @@ export default function PhaseShifterGame({
   const processBeat = useCallback(() => {
     if (!gameActiveRef.current) return;
     
-    const beatIndex = beatIndexRef.current % BEAT_PATTERN.length;
-    const isBeat = BEAT_PATTERN[beatIndex] === 1;
+    const song = currentSongRef.current;
+    const beatIndex = beatIndexRef.current % song.pattern.length;
+    const isBeat = song.pattern[beatIndex] === 1;
+    const beatDuration = 60000 / song.bpm;
     
     // Update platform visibility
     platformVisibleRef.current = !isBeat;
@@ -611,8 +764,8 @@ export default function PhaseShifterGame({
     beatIndexRef.current++;
     setCurrentBeat(beatIndexRef.current);
     
-    // Schedule next beat
-    beatTimerRef.current = setTimeout(processBeat, BEAT_DURATION);
+    // Schedule next beat using song's BPM
+    beatTimerRef.current = setTimeout(processBeat, beatDuration);
   }, [playBeatSound, createMusicNote, getThemeColors]);
 
   // Handle jump
@@ -660,6 +813,8 @@ export default function PhaseShifterGame({
             beatsHit,
             notesAvoided,
             maxCombo,
+            landings: landingsRef.current,
+            song: currentSongRef.current.name,
             livesRemaining: livesRef.current,
             theme
           }
@@ -709,6 +864,7 @@ export default function PhaseShifterGame({
         
         if (currentY > groundY + 0.1) {
           astronautRef.current.position.y -= 0.12;
+          wasOnPlatformRef.current = false;
         } else {
           astronautRef.current.position.y = Math.max(currentY, groundY);
           
@@ -720,6 +876,7 @@ export default function PhaseShifterGame({
             playHitSound();
             comboRef.current = 0;
             setCombo(0);
+            wasOnPlatformRef.current = false;
             
             // Reset position
             astronautRef.current.position.y = PLATFORM_Y + 1.5;
@@ -727,6 +884,56 @@ export default function PhaseShifterGame({
             if (livesRef.current <= 0) {
               endGame();
               return;
+            }
+          } else if (platformVisibleRef.current && !wasOnPlatformRef.current) {
+            // LANDED ON PLATFORM! Award 100 points and change color
+            wasOnPlatformRef.current = true;
+            landingsRef.current++;
+            setLandings(landingsRef.current);
+            
+            // Award 100 points for landing
+            const landingPoints = 100;
+            scoreRef.current += landingPoints;
+            setScore(scoreRef.current);
+            
+            addFloatingScore(`LAND! +${landingPoints}`, window.innerWidth / 2, window.innerHeight / 2, '#00ffff');
+            
+            // Change platform color
+            platformColorIndexRef.current = (platformColorIndexRef.current + 1) % PLATFORM_COLORS.length;
+            const newColor = PLATFORM_COLORS[platformColorIndexRef.current];
+            
+            if (platformRef.current) {
+              platformRef.current.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                  const material = child.material as THREE.MeshStandardMaterial | THREE.MeshBasicMaterial;
+                  if (material.color) {
+                    material.color.setHex(newColor);
+                    if ('emissive' in material) {
+                      material.emissive.setHex(newColor);
+                    }
+                  }
+                }
+              });
+            }
+            
+            // Play landing sound
+            if (audioContextRef.current) {
+              const ctx = audioContextRef.current;
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.frequency.value = 600;
+              osc.type = 'sine';
+              gain.gain.setValueAtTime(0.15, ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+              osc.start(ctx.currentTime);
+              osc.stop(ctx.currentTime + 0.15);
+            }
+            
+            // Vibrate on landing
+            if ('vibrate' in navigator) {
+              navigator.vibrate(30);
             }
           }
         }
@@ -840,6 +1047,7 @@ export default function PhaseShifterGame({
     setTimeLeft(60);
     setPlatformVisible(true);
     setCurrentBeat(0);
+    setLandings(0);
     
     scoreRef.current = 0;
     comboRef.current = 0;
@@ -849,10 +1057,36 @@ export default function PhaseShifterGame({
     playerYRef.current = PLATFORM_Y + 1.5;
     playerTargetYRef.current = PLATFORM_Y + 1.5;
     isJumpingRef.current = false;
+    wasOnPlatformRef.current = true; // Start on platform
+    platformColorIndexRef.current = 0;
+    landingsRef.current = 0;
+    
+    // Pick a random song based on day (same song for everyone on same day)
+    const today = new Date();
+    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    const songIndex = seed % ALL_SONGS.length;
+    currentSongRef.current = ALL_SONGS[songIndex];
+    setCurrentSong(ALL_SONGS[songIndex]);
     
     // Reset astronaut position
     if (astronautRef.current) {
       astronautRef.current.position.y = PLATFORM_Y + 1.5;
+    }
+    
+    // Reset platform color to first color
+    if (platformRef.current) {
+      const initialColor = PLATFORM_COLORS[0];
+      platformRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const material = child.material as THREE.MeshStandardMaterial | THREE.MeshBasicMaterial;
+          if (material.color) {
+            material.color.setHex(initialColor);
+            if ('emissive' in material) {
+              material.emissive.setHex(initialColor);
+            }
+          }
+        }
+      });
     }
     
     // Clear notes
@@ -861,9 +1095,7 @@ export default function PhaseShifterGame({
     });
     notesRef.current = [];
     
-    // Reinitialize RNG
-    const today = new Date();
-    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    // Reinitialize RNG for projectiles
     rngRef.current = new SeededRandom(seed);
     
     gameActiveRef.current = true;
@@ -943,8 +1175,9 @@ export default function PhaseShifterGame({
               )}
             </div>
             
-            {/* Center: Timer & Beat */}
+            {/* Center: Timer & Beat & Song */}
             <div className="bg-black/50 backdrop-blur-sm rounded-xl px-6 py-2 border border-white/10 text-center">
+              <div className="text-xs text-purple-400 mb-1">🎵 {currentSong.name} ({currentSong.bpm} BPM)</div>
               <div className={`text-4xl font-mono font-bold ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                 {timeLeft}s
               </div>
@@ -953,12 +1186,13 @@ export default function PhaseShifterGame({
               </div>
             </div>
             
-            {/* Right: Lives */}
+            {/* Right: Lives & Landings */}
             <div className="bg-black/50 backdrop-blur-sm rounded-xl p-3 border border-white/10 text-right">
               <div className="text-2xl">
                 {'❤️'.repeat(lives)}{'🖤'.repeat(3 - lives)}
               </div>
               <div className="text-xs text-gray-400">LIVES</div>
+              <div className="text-sm text-cyan-400 mt-1">{landings} lands</div>
             </div>
           </div>
         </div>
@@ -1079,26 +1313,36 @@ export default function PhaseShifterGame({
               {lives > 0 ? '🎵 Time Up!' : '💔 Game Over!'}
             </h2>
             
+            <div className="text-sm text-purple-400 mb-2">🎵 {currentSong.name}</div>
+            
             <div className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400 my-6">
               {score.toLocaleString()}
             </div>
             
-            <div className="grid grid-cols-2 gap-4 text-left mb-6">
+            <div className="grid grid-cols-3 gap-3 text-left mb-6">
               <div className="bg-white/5 rounded-lg p-3">
-                <div className="text-gray-400 text-sm">Beats Hit</div>
-                <div className="text-2xl font-bold text-cyan-400">{beatsHit}</div>
+                <div className="text-gray-400 text-xs">Landings</div>
+                <div className="text-xl font-bold text-cyan-400">{landings}</div>
               </div>
               <div className="bg-white/5 rounded-lg p-3">
-                <div className="text-gray-400 text-sm">Notes Dodged</div>
-                <div className="text-2xl font-bold text-green-400">{notesAvoided}</div>
+                <div className="text-gray-400 text-xs">Beats Hit</div>
+                <div className="text-xl font-bold text-purple-400">{beatsHit}</div>
               </div>
               <div className="bg-white/5 rounded-lg p-3">
-                <div className="text-gray-400 text-sm">Max Combo</div>
-                <div className="text-2xl font-bold text-yellow-400">{maxCombo}x</div>
+                <div className="text-gray-400 text-xs">Notes Dodged</div>
+                <div className="text-xl font-bold text-green-400">{notesAvoided}</div>
               </div>
               <div className="bg-white/5 rounded-lg p-3">
-                <div className="text-gray-400 text-sm">Lives Left</div>
-                <div className="text-2xl font-bold text-red-400">{lives}</div>
+                <div className="text-gray-400 text-xs">Max Combo</div>
+                <div className="text-xl font-bold text-yellow-400">{maxCombo}x</div>
+              </div>
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-gray-400 text-xs">Lives Left</div>
+                <div className="text-xl font-bold text-red-400">{lives}</div>
+              </div>
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-gray-400 text-xs">Song BPM</div>
+                <div className="text-xl font-bold text-pink-400">{currentSong.bpm}</div>
               </div>
             </div>
             
