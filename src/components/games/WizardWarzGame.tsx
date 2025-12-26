@@ -34,13 +34,22 @@ const ELEMENTS: Record<Element, ElementData> = {
 
 const ELEMENT_ORDER: Element[] = ['fire', 'water', 'earth', 'electric', 'nature', 'dark', 'light'];
 
-const TELEPORT_ZONES = [
-  { id: 'north', position: new THREE.Vector3(0, 0, -10), color: 0x00ffff },
-  { id: 'south', position: new THREE.Vector3(0, 0, 10), color: 0xff00ff },
-  { id: 'east', position: new THREE.Vector3(10, 0, 0), color: 0xffff00 },
-  { id: 'west', position: new THREE.Vector3(-10, 0, 0), color: 0x00ff00 },
-  { id: 'center', position: new THREE.Vector3(0, 0, 0), color: 0xff8800 },
+// Element-based teleport platforms - 7 platforms for 7 elements
+const TELEPORT_ZONES: { id: string; position: THREE.Vector3; element: Element }[] = [
+  { id: 'fire', position: new THREE.Vector3(0, 0, -12), element: 'fire' },
+  { id: 'water', position: new THREE.Vector3(10, 0, -6), element: 'water' },
+  { id: 'earth', position: new THREE.Vector3(10, 0, 6), element: 'earth' },
+  { id: 'electric', position: new THREE.Vector3(0, 0, 12), element: 'electric' },
+  { id: 'nature', position: new THREE.Vector3(-10, 0, 6), element: 'nature' },
+  { id: 'dark', position: new THREE.Vector3(-10, 0, -6), element: 'dark' },
+  { id: 'light', position: new THREE.Vector3(0, 0, 0), element: 'light' },
 ];
+
+// Damage constants
+const DAMAGE_SAME_ELEMENT = 0;      // Same element = immune
+const DAMAGE_IMMUNE = 0;            // Immune to element = no damage
+const DAMAGE_WEAKNESS = 5;          // Weak to element = 5 hearts
+const DAMAGE_NEUTRAL = 1;           // Neutral = 1 heart
 
 interface Spell {
   id: string;
@@ -61,13 +70,10 @@ interface WizardWarzGameProps {
 
 const GAME_DURATION = 120;
 const SPELL_SPEED = 0.35;
-const SPELL_DAMAGE = 1; // 1 heart per hit
-const COUNTER_MULTIPLIER = 2; // 2 hearts for super effective
-const RESIST_MULTIPLIER = 0.5; // Half heart for resisted
 const PARRY_WINDOW = 350;
 const SHIELD_DURATION = 2000;
-const TELEPORT_COOLDOWN = 3000;
-const MAX_HEARTS = 10;
+const TELEPORT_COOLDOWN = 2000; // Faster teleport for dodging
+const MAX_HEARTS = 20;
 
 export default function WizardWarzGame({
   onGameEnd,
@@ -118,7 +124,10 @@ export default function WizardWarzGame({
   const shieldActiveRef = useRef(false);
   const shieldStartTimeRef = useRef(0);
   const teleportCooldownRef = useRef(0);
+  const teleportInvincibleRef = useRef(false);
+  const teleportInvincibleUntilRef = useRef(0);
   const currentElementRef = useRef<Element>('fire');
+  const playerGlowRef = useRef<THREE.Mesh | null>(null);
   const addPopupRef = useRef(addPopup);
   const userIdRef = useRef(user?.id);
   
@@ -127,6 +136,30 @@ export default function WizardWarzGame({
     addPopupRef.current = addPopup;
     userIdRef.current = user?.id;
   }, [addPopup, user?.id]);
+  
+  // Calculate damage based on elements
+  const calculateDamage = useCallback((spellElement: Element, defenderElement: Element): { damage: number; type: string } => {
+    const spellData = ELEMENTS[spellElement];
+    const defenderData = ELEMENTS[defenderElement];
+    
+    // Same element = immune
+    if (spellElement === defenderElement) {
+      return { damage: DAMAGE_SAME_ELEMENT, type: 'SAME ELEMENT!' };
+    }
+    
+    // Defender is immune to spell (spell is weak to defender)
+    if (spellData.weakTo.includes(defenderElement)) {
+      return { damage: DAMAGE_IMMUNE, type: 'IMMUNE!' };
+    }
+    
+    // Defender is weak to spell
+    if (defenderData.weakTo.includes(spellElement)) {
+      return { damage: DAMAGE_WEAKNESS, type: 'SUPER EFFECTIVE!' };
+    }
+    
+    // Neutral damage
+    return { damage: DAMAGE_NEUTRAL, type: '' };
+  }, []);
   
   // Create detailed wizard
   const createWizard = useCallback((scene: THREE.Scene, color: number, isPlayer: boolean) => {
@@ -283,7 +316,7 @@ export default function WizardWarzGame({
       playerStaffRef.current = staff;
     }
     
-    // Magical aura
+    // Magical aura (base)
     const auraGeo = new THREE.SphereGeometry(1.5, 24, 24);
     const auraMat = new THREE.MeshBasicMaterial({ 
       color, 
@@ -294,6 +327,22 @@ export default function WizardWarzGame({
     const aura = new THREE.Mesh(auraGeo, auraMat);
     aura.position.y = 2;
     wizard.add(aura);
+    
+    // Element glow (player only) - shows current element color
+    if (isPlayer) {
+      const elementGlowGeo = new THREE.SphereGeometry(2.2, 24, 24);
+      const elementGlowMat = new THREE.MeshBasicMaterial({ 
+        color: ELEMENTS[currentElementRef.current].glowColor, 
+        transparent: true, 
+        opacity: 0.15,
+        side: THREE.BackSide
+      });
+      const elementGlow = new THREE.Mesh(elementGlowGeo, elementGlowMat);
+      elementGlow.position.y = 2;
+      elementGlow.name = 'elementGlow';
+      wizard.add(elementGlow);
+      playerGlowRef.current = elementGlow;
+    }
     
     scene.add(wizard);
     return wizard;
@@ -513,57 +562,98 @@ export default function WizardWarzGame({
       scene.add(flame);
     }
     
-    // Teleport zones with magical circles
+    // Element teleport zones - 7 platforms for 7 elements
     TELEPORT_ZONES.forEach(zone => {
-      // Platform
-      const platformGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.3, 24);
+      const elementData = ELEMENTS[zone.element];
+      const elementColor = elementData.color;
+      const glowColor = elementData.glowColor;
+      
+      // Platform base - darker stone
+      const baseGeo = new THREE.CylinderGeometry(2.2, 2.4, 0.4, 24);
+      const baseMat = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a,
+        roughness: 0.9
+      });
+      const base = new THREE.Mesh(baseGeo, baseMat);
+      base.position.copy(zone.position);
+      base.position.y = 0.2;
+      scene.add(base);
+      
+      // Element platform
+      const platformGeo = new THREE.CylinderGeometry(1.8, 1.8, 0.3, 24);
       const platformMat = new THREE.MeshStandardMaterial({
-        color: zone.color,
-        emissive: zone.color,
-        emissiveIntensity: 0.4,
+        color: elementColor,
+        emissive: glowColor,
+        emissiveIntensity: 0.6,
         transparent: true,
-        opacity: 0.7
+        opacity: 0.8
       });
       const platform = new THREE.Mesh(platformGeo, platformMat);
       platform.position.copy(zone.position);
-      platform.position.y = 0.15;
+      platform.position.y = 0.45;
       scene.add(platform);
       
       // Magical ring
-      const ringGeo = new THREE.TorusGeometry(1.7, 0.08, 8, 32);
-      const ringMat = new THREE.MeshBasicMaterial({ color: zone.color });
+      const ringGeo = new THREE.TorusGeometry(2.0, 0.1, 8, 32);
+      const ringMat = new THREE.MeshBasicMaterial({ color: glowColor });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = Math.PI / 2;
       ring.position.copy(zone.position);
-      ring.position.y = 0.35;
+      ring.position.y = 0.55;
       scene.add(ring);
       
-      // Rune symbols
-      for (let r = 0; r < 6; r++) {
-        const runeAngle = (r / 6) * Math.PI * 2;
-        const runeGeo = new THREE.BoxGeometry(0.15, 0.02, 0.3);
-        const runeMat = new THREE.MeshBasicMaterial({ color: zone.color });
+      // Inner ring
+      const innerRingGeo = new THREE.TorusGeometry(1.2, 0.06, 8, 32);
+      const innerRing = new THREE.Mesh(innerRingGeo, ringMat);
+      innerRing.rotation.x = Math.PI / 2;
+      innerRing.position.copy(zone.position);
+      innerRing.position.y = 0.55;
+      scene.add(innerRing);
+      
+      // Element symbol in center (using emoji as 3D text placeholder - glowing orb)
+      const symbolGeo = new THREE.SphereGeometry(0.4, 16, 16);
+      const symbolMat = new THREE.MeshBasicMaterial({ 
+        color: glowColor,
+        transparent: true,
+        opacity: 0.9
+      });
+      const symbol = new THREE.Mesh(symbolGeo, symbolMat);
+      symbol.position.copy(zone.position);
+      symbol.position.y = 1.2;
+      scene.add(symbol);
+      
+      // Rune symbols around platform
+      for (let r = 0; r < 8; r++) {
+        const runeAngle = (r / 8) * Math.PI * 2;
+        const runeGeo = new THREE.BoxGeometry(0.2, 0.03, 0.4);
+        const runeMat = new THREE.MeshBasicMaterial({ color: glowColor });
         const rune = new THREE.Mesh(runeGeo, runeMat);
         rune.position.set(
-          zone.position.x + Math.cos(runeAngle) * 1.3,
-          0.35,
-          zone.position.z + Math.sin(runeAngle) * 1.3
+          zone.position.x + Math.cos(runeAngle) * 1.6,
+          0.55,
+          zone.position.z + Math.sin(runeAngle) * 1.6
         );
         rune.rotation.y = runeAngle;
         scene.add(rune);
       }
       
       // Vertical light beam
-      const beamGeo = new THREE.CylinderGeometry(0.1, 0.5, 4, 8);
+      const beamGeo = new THREE.CylinderGeometry(0.15, 0.8, 6, 8);
       const beamMat = new THREE.MeshBasicMaterial({ 
-        color: zone.color, 
+        color: glowColor, 
         transparent: true, 
-        opacity: 0.2 
+        opacity: 0.25 
       });
       const beam = new THREE.Mesh(beamGeo, beamMat);
       beam.position.copy(zone.position);
-      beam.position.y = 2;
+      beam.position.y = 3;
       scene.add(beam);
+      
+      // Platform light
+      const platformLight = new THREE.PointLight(elementColor, 0.8, 6);
+      platformLight.position.copy(zone.position);
+      platformLight.position.y = 2;
+      scene.add(platformLight);
     });
     
     // Chandelier in center
@@ -614,12 +704,12 @@ export default function WizardWarzGame({
     if (!containerRef.current || gameState !== 'playing') return;
     
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a15);
-    scene.fog = new THREE.Fog(0x0a0a15, 15, 50);
+    scene.background = new THREE.Color(0x050508); // Much darker
+    scene.fog = new THREE.Fog(0x050508, 12, 40);
     sceneRef.current = scene;
     
     const camera = new THREE.PerspectiveCamera(55, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
-    camera.position.set(0, 12, 18);
+    camera.position.set(0, 14, 20);
     camera.lookAt(0, 2, 0);
     cameraRef.current = camera;
     
@@ -630,11 +720,11 @@ export default function WizardWarzGame({
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x303050, 0.6);
+    // Darker lighting for dungeon atmosphere
+    const ambientLight = new THREE.AmbientLight(0x202030, 0.3);
     scene.add(ambientLight);
     
-    const mainLight = new THREE.DirectionalLight(0xffeedd, 0.8);
+    const mainLight = new THREE.DirectionalLight(0xaaaacc, 0.4); // Dimmer moonlight
     mainLight.position.set(10, 20, 10);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
@@ -742,8 +832,14 @@ export default function WizardWarzGame({
         
         if (dist < 1.8) {
           if (!isPlayerSpell) {
-            // Hit player
-            if (shieldActiveRef.current) {
+            // Check teleport invincibility
+            if (teleportInvincibleRef.current && currentTime < teleportInvincibleUntilRef.current) {
+              // Dodged by teleport!
+              addPopupRef.current(50, 50, 40, 'bonus', 'DODGED!');
+              scoreRef.current += 50;
+              setScore(scoreRef.current);
+              spellsToRemoveRef.current.push(spell.id);
+            } else if (shieldActiveRef.current) {
               const shieldTime = Date.now() - shieldStartTimeRef.current;
               if (shieldTime < PARRY_WINDOW) {
                 // Perfect parry
@@ -752,26 +848,32 @@ export default function WizardWarzGame({
                 setScore(scoreRef.current);
                 spell.velocity.multiplyScalar(-1.5);
                 spell.ownerId = userIdRef.current || '';
-                spell.damage *= 1.5;
               } else {
                 // Blocked
                 addPopupRef.current(0, 50, 40, 'bonus', 'BLOCKED!');
                 spellsToRemoveRef.current.push(spell.id);
               }
             } else {
-              // Hit player
-              let damage = spell.damage;
-              const spellData = ELEMENTS[spell.element];
-              if (spellData.beats.includes(currentElementRef.current)) {
-                damage *= COUNTER_MULTIPLIER;
-                addPopupRef.current(0, 50, 30, 'critical', 'SUPER EFFECTIVE!');
-              } else if (spellData.weakTo.includes(currentElementRef.current)) {
-                damage *= RESIST_MULTIPLIER;
-                addPopupRef.current(0, 50, 30, 'bonus', 'RESISTED!');
-              }
+              // Calculate damage based on elements
+              const { damage, type } = calculateDamage(spell.element, currentElementRef.current);
               
-              heartsRef.current = Math.max(0, heartsRef.current - damage);
-              setHearts(Math.ceil(heartsRef.current));
+              if (damage === 0) {
+                // Immune or same element
+                if (type === 'SAME ELEMENT!') {
+                  addPopupRef.current(0, 50, 30, 'bonus', 'SAME ELEMENT!');
+                } else {
+                  addPopupRef.current(0, 50, 30, 'bonus', 'IMMUNE!');
+                }
+              } else if (damage === DAMAGE_WEAKNESS) {
+                // Weakness - 5 hearts!
+                addPopupRef.current(0, 50, 30, 'critical', 'SUPER EFFECTIVE! -5❤️');
+                heartsRef.current = Math.max(0, heartsRef.current - damage);
+                setHearts(Math.ceil(heartsRef.current));
+              } else {
+                // Neutral - 1 heart
+                heartsRef.current = Math.max(0, heartsRef.current - damage);
+                setHearts(Math.ceil(heartsRef.current));
+              }
               
               if (heartsRef.current <= 0) {
                 gameActiveRef.current = false;
@@ -921,38 +1023,58 @@ export default function WizardWarzGame({
     setTimeout(() => setShieldCooldown(0), 1000);
   }, []);
   
-  // Teleport
+  // Teleport - also changes element and gives invincibility frames
   const teleportTo = useCallback((zoneId: string) => {
     if (!gameActiveRef.current || teleportCooldownRef.current > 0 || !playerWizardRef.current) return;
     
     const zone = TELEPORT_ZONES.find(z => z.id === zoneId);
     if (!zone) return;
     
+    // Move to zone
     playerPositionRef.current.copy(zone.position);
     playerWizardRef.current.position.copy(zone.position);
     teleportCooldownRef.current = TELEPORT_COOLDOWN;
     setTeleportCooldown(TELEPORT_COOLDOWN);
     
-    addPopup(0, 50, 50, 'bonus', 'TELEPORT!');
-  }, [addPopup]);
+    // Invincibility frames for dodging
+    teleportInvincibleRef.current = true;
+    teleportInvincibleUntilRef.current = Date.now() + 500; // 0.5 second invincibility
+    setTimeout(() => {
+      teleportInvincibleRef.current = false;
+    }, 500);
+    
+    // Change element to zone's element
+    changeElement(zone.element);
+    
+    addPopup(0, 50, 50, 'bonus', `${ELEMENTS[zone.element].emoji} ${ELEMENTS[zone.element].name.toUpperCase()}!`);
+  }, [addPopup, changeElement]);
   
-  // Change element
+  // Change element - also updates player glow
   const changeElement = useCallback((element: Element) => {
     currentElementRef.current = element;
     setCurrentElement(element);
     
+    const elementData = ELEMENTS[element];
+    
+    // Update staff orb
     if (playerStaffRef.current) {
       const orb = playerStaffRef.current.getObjectByName('staffOrb') as THREE.Mesh;
       const orbGlow = playerStaffRef.current.getObjectByName('staffOrbGlow') as THREE.Mesh;
       if (orb) {
         const mat = orb.material as THREE.MeshStandardMaterial;
-        mat.color.setHex(ELEMENTS[element].color);
-        mat.emissive.setHex(ELEMENTS[element].glowColor);
+        mat.color.setHex(elementData.color);
+        mat.emissive.setHex(elementData.glowColor);
       }
       if (orbGlow) {
         const mat = orbGlow.material as THREE.MeshBasicMaterial;
-        mat.color.setHex(ELEMENTS[element].glowColor);
+        mat.color.setHex(elementData.glowColor);
       }
+    }
+    
+    // Update player glow
+    if (playerGlowRef.current) {
+      const mat = playerGlowRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(elementData.glowColor);
     }
   }, []);
   
@@ -1159,62 +1281,83 @@ export default function WizardWarzGame({
             </button>
           </div>
           
-          {/* Teleport buttons */}
-          <div className="absolute bottom-4 right-4 flex flex-col gap-2">
-            <div className="text-xs text-gray-400 text-center mb-1">TELEPORT</div>
+          {/* Element Teleport buttons */}
+          <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-sm rounded-xl p-2">
+            <div className="text-xs text-gray-400 text-center mb-2">TELEPORT + EQUIP</div>
             <div className="grid grid-cols-3 gap-1">
+              {/* Row 1: Fire (north) */}
               <div></div>
               <button
-                onClick={() => teleportTo('north')}
+                onClick={() => teleportTo('fire')}
                 disabled={teleportCooldown > 0}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                  teleportCooldown > 0 ? 'bg-gray-700 text-gray-500' : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                }`}
+                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-orange-600/80 hover:bg-orange-500 hover:scale-105'
+                } ${currentElement === 'fire' ? 'ring-2 ring-white' : ''}`}
               >
-                ⬆️
+                🔥
               </button>
               <div></div>
+              
+              {/* Row 2: Dark (west), Light (center), Water (east) */}
               <button
-                onClick={() => teleportTo('west')}
+                onClick={() => teleportTo('dark')}
                 disabled={teleportCooldown > 0}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                  teleportCooldown > 0 ? 'bg-gray-700 text-gray-500' : 'bg-green-600 hover:bg-green-500 text-white'
-                }`}
+                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-purple-900/80 hover:bg-purple-800 hover:scale-105'
+                } ${currentElement === 'dark' ? 'ring-2 ring-white' : ''}`}
               >
-                ⬅️
+                🌑
               </button>
               <button
-                onClick={() => teleportTo('center')}
+                onClick={() => teleportTo('light')}
                 disabled={teleportCooldown > 0}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                  teleportCooldown > 0 ? 'bg-gray-700 text-gray-500' : 'bg-orange-600 hover:bg-orange-500 text-white'
-                }`}
+                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-yellow-100/80 hover:bg-yellow-50 hover:scale-105'
+                } ${currentElement === 'light' ? 'ring-2 ring-purple-500' : ''}`}
               >
-                ⭕
+                ✨
               </button>
               <button
-                onClick={() => teleportTo('east')}
+                onClick={() => teleportTo('water')}
                 disabled={teleportCooldown > 0}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                  teleportCooldown > 0 ? 'bg-gray-700 text-gray-500' : 'bg-yellow-600 hover:bg-yellow-500 text-white'
-                }`}
+                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-blue-600/80 hover:bg-blue-500 hover:scale-105'
+                } ${currentElement === 'water' ? 'ring-2 ring-white' : ''}`}
               >
-                ➡️
+                💧
               </button>
-              <div></div>
+              
+              {/* Row 3: Nature (southwest), Earth (south center), Electric (southeast) */}
               <button
-                onClick={() => teleportTo('south')}
+                onClick={() => teleportTo('nature')}
                 disabled={teleportCooldown > 0}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                  teleportCooldown > 0 ? 'bg-gray-700 text-gray-500' : 'bg-pink-600 hover:bg-pink-500 text-white'
-                }`}
+                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-green-600/80 hover:bg-green-500 hover:scale-105'
+                } ${currentElement === 'nature' ? 'ring-2 ring-white' : ''}`}
               >
-                ⬇️
+                🌿
               </button>
-              <div></div>
+              <button
+                onClick={() => teleportTo('electric')}
+                disabled={teleportCooldown > 0}
+                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-yellow-500/80 hover:bg-yellow-400 hover:scale-105'
+                } ${currentElement === 'electric' ? 'ring-2 ring-white' : ''}`}
+              >
+                ⚡
+              </button>
+              <button
+                onClick={() => teleportTo('earth')}
+                disabled={teleportCooldown > 0}
+                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-amber-700/80 hover:bg-amber-600 hover:scale-105'
+                } ${currentElement === 'earth' ? 'ring-2 ring-white' : ''}`}
+              >
+                🪨
+              </button>
             </div>
             {teleportCooldown > 0 && (
-              <div className="text-xs text-center text-gray-400">
+              <div className="text-xs text-center text-gray-400 mt-1">
                 {(teleportCooldown / 1000).toFixed(1)}s
               </div>
             )}
