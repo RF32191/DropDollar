@@ -91,6 +91,20 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     user?.id,
     user?.email?.split('@')[0] || 'Player'
   );
+  
+  // Multiplayer player colors (glowing ships)
+  const PLAYER_COLORS = [
+    { color: '#00ffff', glow: '0 0 20px #00ffff, 0 0 40px #00ffff', name: 'Cyan' },
+    { color: '#ff00ff', glow: '0 0 20px #ff00ff, 0 0 40px #ff00ff', name: 'Magenta' },
+    { color: '#00ff00', glow: '0 0 20px #00ff00, 0 0 40px #00ff00', name: 'Green' },
+    { color: '#ffd700', glow: '0 0 20px #ffd700, 0 0 40px #ffd700', name: 'Gold' },
+  ];
+  
+  // Other players' ships for multiplayer
+  const [otherPlayers, setOtherPlayers] = useState<Map<string, { x: number; y: number; score: number; hearts: number; isAlive: boolean }>>(new Map());
+  const myPlayerIndexRef = useRef(0);
+  const lastPositionSentRef = useRef(0);
+  
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
   const [enemyShips, setEnemyShips] = useState<EnemyShip[]>([]);
@@ -691,7 +705,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         }
         
         try {
-          playLaserWarn();
+          playLaserWarning();
         } catch (e) {
           console.error('LaserDodge: Audio error (non-critical):', e);
         }
@@ -1487,15 +1501,64 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setGameState('ready');
   }, []);
 
-  // Handle multiplayer game start
+  // Handle multiplayer game start and player sync
   useEffect(() => {
     if (gameMode !== 'online') return;
+    
+    // Find my player index for color assignment
+    const myIndex = lobby.players.findIndex(p => p.id === user?.id);
+    if (myIndex >= 0) {
+      myPlayerIndexRef.current = myIndex;
+    }
     
     lobby.onGameStart(() => {
       setGameState('playing');
       handleStartGame();
     });
-  }, [gameMode, lobby]);
+    
+    // Listen for other players' position updates
+    lobby.onPlayerUpdate((updates) => {
+      const newOtherPlayers = new Map<string, { x: number; y: number; score: number; hearts: number; isAlive: boolean }>();
+      updates.forEach((update, id) => {
+        if (id !== user?.id) {
+          newOtherPlayers.set(id, {
+            x: update.x,
+            y: update.y,
+            score: update.score,
+            hearts: update.hearts,
+            isAlive: update.isAlive
+          });
+        }
+      });
+      setOtherPlayers(newOtherPlayers);
+    });
+  }, [gameMode, lobby, user?.id]);
+  
+  // Send position updates during gameplay
+  useEffect(() => {
+    if (gameMode !== 'online' || gameState !== 'playing') return;
+    
+    const sendPositionUpdate = () => {
+      const now = Date.now();
+      // Send updates every 50ms (20 times per second)
+      if (now - lastPositionSentRef.current > 50) {
+        lastPositionSentRef.current = now;
+        lobby.sendPlayerUpdate({
+          id: user?.id || '',
+          x: shipRef.current.x,
+          y: shipRef.current.y,
+          z: 0,
+          rotationY: 0,
+          hearts: heartsRef.current,
+          score: currentScoreRef.current,
+          isAlive: heartsRef.current > 0
+        });
+      }
+    };
+    
+    const interval = setInterval(sendPositionUpdate, 50);
+    return () => clearInterval(interval);
+  }, [gameMode, gameState, lobby, user?.id]);
 
   // MENU SCREEN - Choose SOLO or ONLINE
   if (gameState === 'menu') {
@@ -2168,8 +2231,28 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       {/* HUD Overlay - Always visible at top */}
       <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4">
         <div className="flex justify-between items-center">
-          <div className="text-xl sm:text-2xl font-bold text-white">
-            🔥 Laser Dodge EXTREME
+          <div className="flex items-center gap-3">
+            <div className="text-xl sm:text-2xl font-bold text-white">
+              🔥 Laser Dodge EXTREME
+            </div>
+            {/* Player color indicator for multiplayer */}
+            {gameMode === 'online' && (
+              <div 
+                className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold"
+                style={{
+                  backgroundColor: PLAYER_COLORS[myPlayerIndexRef.current % PLAYER_COLORS.length].color + '33',
+                  border: `2px solid ${PLAYER_COLORS[myPlayerIndexRef.current % PLAYER_COLORS.length].color}`,
+                  color: PLAYER_COLORS[myPlayerIndexRef.current % PLAYER_COLORS.length].color,
+                  boxShadow: PLAYER_COLORS[myPlayerIndexRef.current % PLAYER_COLORS.length].glow,
+                }}
+              >
+                <div 
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: PLAYER_COLORS[myPlayerIndexRef.current % PLAYER_COLORS.length].color }}
+                />
+                YOU: {PLAYER_COLORS[myPlayerIndexRef.current % PLAYER_COLORS.length].name}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4 text-base sm:text-xl">
             <div className="flex items-center gap-1">
@@ -2536,7 +2619,72 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 );
               })}
 
-              {/* Ship - Themed based on current theme */}
+              {/* Other Players' Ships (Multiplayer) */}
+              {gameMode === 'online' && Array.from(otherPlayers.entries()).map(([playerId, playerData], index) => {
+                const playerIndex = lobby.players.findIndex(p => p.id === playerId);
+                const colorIndex = playerIndex >= 0 ? playerIndex : index + 1;
+                const playerColor = PLAYER_COLORS[colorIndex % PLAYER_COLORS.length];
+                
+                if (!playerData.isAlive) return null;
+                
+                return (
+                  <div
+                    key={playerId}
+                    className="absolute transition-all duration-75"
+                    style={{
+                      left: `${playerData.x}%`,
+                      top: `${playerData.y}%`,
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 8,
+                    }}
+                  >
+                    {/* Other player ship glow */}
+                    <div
+                      className="absolute rounded-full"
+                      style={{
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '36px',
+                        height: '36px',
+                        background: `radial-gradient(circle, ${playerColor.color}66 0%, transparent 70%)`,
+                        boxShadow: playerColor.glow,
+                        animation: 'pulse 1s ease-in-out infinite',
+                      }}
+                    />
+                    {/* Other player ship icon */}
+                    <div
+                      className="absolute w-8 h-8"
+                      style={{
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        backgroundImage: 'url("/SHIP.png")',
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center',
+                        filter: `drop-shadow(0 0 8px ${playerColor.color}) hue-rotate(${colorIndex * 90}deg)`,
+                      }}
+                    />
+                    {/* Player name tag */}
+                    <div
+                      className="absolute text-xs font-bold text-center whitespace-nowrap"
+                      style={{
+                        left: '50%',
+                        top: '-20px',
+                        transform: 'translateX(-50%)',
+                        color: playerColor.color,
+                        textShadow: `0 0 5px ${playerColor.color}`,
+                        fontSize: '10px',
+                      }}
+                    >
+                      {lobby.players.find(p => p.id === playerId)?.username || 'Player'}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* My Ship - Themed based on current theme */}
               <div
                 className="absolute"
                 style={{
