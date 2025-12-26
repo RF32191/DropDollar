@@ -129,8 +129,18 @@ export default function WizardWarzGame({
   const teleportInvincibleUntilRef = useRef(0);
   const currentElementRef = useRef<Element>('fire');
   const playerGlowRef = useRef<THREE.Mesh | null>(null);
+  const opponentGlowRef = useRef<THREE.Mesh | null>(null);
+  const opponentStaffRef = useRef<THREE.Group | null>(null);
+  const opponentShieldRef = useRef<THREE.Mesh | null>(null);
   const addPopupRef = useRef(addPopup);
   const userIdRef = useRef(user?.id);
+  
+  // Bot AI state
+  const botElementRef = useRef<Element>('fire');
+  const botShieldActiveRef = useRef(false);
+  const botShieldStartRef = useRef(0);
+  const botTeleportCooldownRef = useRef(0);
+  const botLastActionRef = useRef(0);
   
   // Keep refs updated
   useEffect(() => {
@@ -315,6 +325,8 @@ export default function WizardWarzGame({
     
     if (isPlayer) {
       playerStaffRef.current = staff;
+    } else {
+      opponentStaffRef.current = staff;
     }
     
     // Magical aura (base)
@@ -322,27 +334,31 @@ export default function WizardWarzGame({
     const auraMat = new THREE.MeshBasicMaterial({ 
       color, 
       transparent: true, 
-      opacity: 0.08,
+      opacity: 0.1,
       side: THREE.BackSide
     });
     const aura = new THREE.Mesh(auraGeo, auraMat);
     aura.position.y = 2;
     wizard.add(aura);
     
-    // Element glow (player only) - shows current element color
+    // Element glow - BOTH players get bright glow to show element
+    const startElement = isPlayer ? currentElementRef.current : botElementRef.current;
+    const elementGlowGeo = new THREE.SphereGeometry(2.5, 24, 24);
+    const elementGlowMat = new THREE.MeshBasicMaterial({ 
+      color: ELEMENTS[startElement].glowColor, 
+      transparent: true, 
+      opacity: 0.35, // Much brighter!
+      side: THREE.BackSide
+    });
+    const elementGlow = new THREE.Mesh(elementGlowGeo, elementGlowMat);
+    elementGlow.position.y = 2;
+    elementGlow.name = 'elementGlow';
+    wizard.add(elementGlow);
+    
     if (isPlayer) {
-      const elementGlowGeo = new THREE.SphereGeometry(2.2, 24, 24);
-      const elementGlowMat = new THREE.MeshBasicMaterial({ 
-        color: ELEMENTS[currentElementRef.current].glowColor, 
-        transparent: true, 
-        opacity: 0.15,
-        side: THREE.BackSide
-      });
-      const elementGlow = new THREE.Mesh(elementGlowGeo, elementGlowMat);
-      elementGlow.position.y = 2;
-      elementGlow.name = 'elementGlow';
-      wizard.add(elementGlow);
       playerGlowRef.current = elementGlow;
+    } else {
+      opponentGlowRef.current = elementGlow;
     }
     
     scene.add(wizard);
@@ -735,9 +751,19 @@ export default function WizardWarzGame({
     opponentWizard.position.copy(opponentPositionRef.current);
     opponentWizardRef.current = opponentWizard;
     
-    // Create shield
+    // Create player shield
     const shield = createShield(scene);
     shieldMeshRef.current = shield;
+    
+    // Create opponent shield (for bot)
+    const opponentShield = createShield(scene);
+    opponentShieldRef.current = opponentShield;
+    
+    // Initialize bot state
+    botElementRef.current = 'fire';
+    botShieldActiveRef.current = false;
+    botTeleportCooldownRef.current = 0;
+    botLastActionRef.current = 0;
     
     // Initialize game state
     gameActiveRef.current = true;
@@ -820,45 +846,47 @@ export default function WizardWarzGame({
         
         if (dist < 1.8) {
           if (!isPlayerSpell) {
+            // Spell hitting PLAYER
             // Check teleport invincibility
             if (teleportInvincibleRef.current && currentTime < teleportInvincibleUntilRef.current) {
-              // Dodged by teleport!
               addPopupRef.current(50, 50, 40, 'bonus', 'DODGED!');
               scoreRef.current += 50;
               setScore(scoreRef.current);
               spellsToRemoveRef.current.push(spell.id);
             } else if (shieldActiveRef.current) {
+              // Shield ALWAYS deflects spell toward opponent
               const shieldTime = Date.now() - shieldStartTimeRef.current;
-              if (shieldTime < PARRY_WINDOW) {
-                // Perfect parry
-                addPopupRef.current(200, 50, 40, 'perfect', 'PERFECT PARRY!');
+              const isPerfect = shieldTime < PARRY_WINDOW;
+              
+              // Redirect spell toward opponent
+              const toOpponent = opponentPositionRef.current.clone().sub(spell.position).normalize();
+              spell.velocity.copy(toOpponent.multiplyScalar(SPELL_SPEED * (isPerfect ? 1.8 : 1.2)));
+              spell.ownerId = userIdRef.current || '';
+              
+              if (isPerfect) {
+                addPopupRef.current(200, 50, 40, 'perfect', '⚔️ DEFLECT!');
                 scoreRef.current += 200;
                 setScore(scoreRef.current);
-                spell.velocity.multiplyScalar(-1.5);
-                spell.ownerId = userIdRef.current || '';
               } else {
-                // Blocked
-                addPopupRef.current(0, 50, 40, 'bonus', 'BLOCKED!');
-                spellsToRemoveRef.current.push(spell.id);
+                addPopupRef.current(50, 50, 40, 'bonus', '🛡️ DEFLECT!');
+                scoreRef.current += 50;
+                setScore(scoreRef.current);
               }
             } else {
-              // Calculate damage based on elements
+              // No shield - take damage based on elements
               const { damage, type } = calculateDamage(spell.element, currentElementRef.current);
               
               if (damage === 0) {
-                // Immune or same element
                 if (type === 'SAME ELEMENT!') {
                   addPopupRef.current(0, 50, 30, 'bonus', 'SAME ELEMENT!');
                 } else {
                   addPopupRef.current(0, 50, 30, 'bonus', 'IMMUNE!');
                 }
               } else if (damage === DAMAGE_WEAKNESS) {
-                // Weakness - 5 hearts!
                 addPopupRef.current(0, 50, 30, 'critical', 'SUPER EFFECTIVE! -5❤️');
                 heartsRef.current = Math.max(0, heartsRef.current - damage);
                 setHearts(Math.ceil(heartsRef.current));
               } else {
-                // Neutral - 1 heart
                 heartsRef.current = Math.max(0, heartsRef.current - damage);
                 setHearts(Math.ceil(heartsRef.current));
               }
@@ -871,21 +899,43 @@ export default function WizardWarzGame({
               spellsToRemoveRef.current.push(spell.id);
             }
           } else {
-            // Hit opponent
-            let damage = spell.damage;
-            opponentHeartsRef.current = Math.max(0, opponentHeartsRef.current - damage);
-            setOpponentHearts(Math.ceil(opponentHeartsRef.current));
-            scoreRef.current += Math.floor(damage * 100);
-            setScore(scoreRef.current);
-            
-            addPopupRef.current(Math.floor(damage * 100), 50, 50, 'normal');
-            
-            if (opponentHeartsRef.current <= 0) {
-              gameActiveRef.current = false;
-              setWinner('player');
-              setGameState('ended');
+            // Spell hitting OPPONENT (bot)
+            // Check if bot is shielding
+            if (botShieldActiveRef.current) {
+              // Bot deflects spell back to player!
+              const toPlayer = playerPositionRef.current.clone().sub(spell.position).normalize();
+              spell.velocity.copy(toPlayer.multiplyScalar(SPELL_SPEED * 1.2));
+              spell.ownerId = 'bot';
+              // Don't remove spell - it continues toward player
+            } else {
+              // Calculate damage to opponent based on elements
+              const { damage, type } = calculateDamage(spell.element, botElementRef.current);
+              
+              if (damage === 0) {
+                // Opponent immune
+                addPopupRef.current(0, 50, 50, 'bonus', `BOT ${type}`);
+              } else {
+                opponentHeartsRef.current = Math.max(0, opponentHeartsRef.current - damage);
+                setOpponentHearts(Math.ceil(opponentHeartsRef.current));
+                
+                const points = damage === DAMAGE_WEAKNESS ? 500 : 100;
+                scoreRef.current += points;
+                setScore(scoreRef.current);
+                
+                if (damage === DAMAGE_WEAKNESS) {
+                  addPopupRef.current(points, 50, 50, 'critical', 'SUPER EFFECTIVE!');
+                } else {
+                  addPopupRef.current(points, 50, 50, 'normal');
+                }
+              }
+              
+              if (opponentHeartsRef.current <= 0) {
+                gameActiveRef.current = false;
+                setWinner('player');
+                setGameState('ended');
+              }
+              spellsToRemoveRef.current.push(spell.id);
             }
-            spellsToRemoveRef.current.push(spell.id);
           }
         }
         
@@ -895,7 +945,7 @@ export default function WizardWarzGame({
         }
       }
       
-      // Update shield
+      // Update player shield
       if (shieldMeshRef.current && playerWizardRef.current) {
         shieldMeshRef.current.position.copy(playerWizardRef.current.position);
         shieldMeshRef.current.position.y += 2;
@@ -910,38 +960,119 @@ export default function WizardWarzGame({
         }
       }
       
+      // Update opponent shield position
+      if (opponentShieldRef.current && opponentWizardRef.current) {
+        opponentShieldRef.current.position.copy(opponentWizardRef.current.position);
+        opponentShieldRef.current.position.y += 2;
+        
+        // Visual feedback when bot is shielding
+        if (botShieldActiveRef.current) {
+          (opponentShieldRef.current.material as THREE.MeshBasicMaterial).color.setHex(
+            ELEMENTS[botElementRef.current].glowColor
+          );
+        }
+      }
+      
       // Update teleport cooldown
       if (teleportCooldownRef.current > 0) {
         teleportCooldownRef.current -= 16;
         setTeleportCooldown(Math.max(0, teleportCooldownRef.current));
       }
       
-      // Bot AI - wait for delay, then shoot every 2-3 seconds
+      // Update bot teleport cooldown
+      if (botTeleportCooldownRef.current > 0) {
+        botTeleportCooldownRef.current -= 16;
+      }
+      
+      // Update bot shield
+      if (botShieldActiveRef.current && Date.now() - botShieldStartRef.current > SHIELD_DURATION) {
+        botShieldActiveRef.current = false;
+        if (opponentShieldRef.current) {
+          opponentShieldRef.current.visible = false;
+        }
+      }
+      
+      // ============ SMART BOT AI ============
       const timeSinceStart = currentTime - gameStartTime;
-      if (gameMode === 'solo' && timeSinceStart > BOT_START_DELAY && currentTime - lastBotShot > 2000 + Math.random() * 1000) {
-        lastBotShot = currentTime;
+      if (gameMode === 'solo' && timeSinceStart > BOT_START_DELAY) {
+        const timeSinceLastAction = currentTime - botLastActionRef.current;
         
-        const randomElement = ELEMENT_ORDER[Math.floor(Math.random() * ELEMENT_ORDER.length)];
-        const spellMesh = createSpellMesh(randomElement);
-        const startPos = opponentPositionRef.current.clone();
-        startPos.y += 2.5;
+        // Check for incoming player spells - try to SHIELD or TELEPORT
+        const incomingSpells = spellsRef.current.filter(s => 
+          s.ownerId === userIdRef.current && 
+          s.position.distanceTo(opponentPositionRef.current) < 6
+        );
         
-        const direction = playerPositionRef.current.clone().sub(startPos).normalize();
+        if (incomingSpells.length > 0 && timeSinceLastAction > 500) {
+          // 50% chance to shield, 30% chance to teleport, 20% chance to do nothing
+          const action = Math.random();
+          
+          if (action < 0.5 && !botShieldActiveRef.current) {
+            // BOT SHIELD!
+            botShieldActiveRef.current = true;
+            botShieldStartRef.current = Date.now();
+            botLastActionRef.current = currentTime;
+            
+            // Show opponent shield
+            if (opponentShieldRef.current) {
+              opponentShieldRef.current.visible = true;
+              (opponentShieldRef.current.material as THREE.MeshBasicMaterial).opacity = 0.5;
+            }
+          } else if (action < 0.8 && botTeleportCooldownRef.current <= 0) {
+            // BOT TELEPORT!
+            const randomZone = TELEPORT_ZONES[Math.floor(Math.random() * TELEPORT_ZONES.length)];
+            opponentPositionRef.current.set(randomZone.x, 0, randomZone.z);
+            if (opponentWizardRef.current) {
+              opponentWizardRef.current.position.copy(opponentPositionRef.current);
+            }
+            
+            // Change element and update glow
+            botElementRef.current = randomZone.element;
+            if (opponentGlowRef.current) {
+              (opponentGlowRef.current.material as THREE.MeshBasicMaterial).color.setHex(
+                ELEMENTS[randomZone.element].glowColor
+              );
+            }
+            if (opponentStaffRef.current) {
+              const orbGlow = opponentStaffRef.current.getObjectByName('staffOrbGlow') as THREE.Mesh;
+              if (orbGlow) {
+                (orbGlow.material as THREE.MeshBasicMaterial).color.setHex(
+                  ELEMENTS[randomZone.element].glowColor
+                );
+              }
+            }
+            
+            botTeleportCooldownRef.current = TELEPORT_COOLDOWN;
+            botLastActionRef.current = currentTime;
+          }
+        }
         
-        const spell: Spell = {
-          id: `bot-${Date.now()}`,
-          mesh: spellMesh,
-          element: randomElement,
-          position: startPos,
-          velocity: direction.multiplyScalar(SPELL_SPEED * 0.85),
-          ownerId: 'bot',
-          damage: SPELL_DAMAGE,
-          createdAt: Date.now()
-        };
-        
-        spellMesh.position.copy(startPos);
-        scene.add(spellMesh);
-        spellsRef.current.push(spell);
+        // Shoot spell every 2-3 seconds
+        if (currentTime - lastBotShot > 2000 + Math.random() * 1000) {
+          lastBotShot = currentTime;
+          
+          // Bot shoots its current element
+          const spellMesh = createSpellMesh(botElementRef.current);
+          const startPos = opponentPositionRef.current.clone();
+          startPos.y += 2.5;
+          
+          const direction = playerPositionRef.current.clone().sub(startPos).normalize();
+          
+          const spell: Spell = {
+            id: `bot-${Date.now()}`,
+            mesh: spellMesh,
+            element: botElementRef.current,
+            position: startPos,
+            velocity: direction.multiplyScalar(SPELL_SPEED * 0.85),
+            ownerId: 'bot',
+            damage: SPELL_DAMAGE,
+            createdAt: Date.now()
+          };
+          
+          spellMesh.position.copy(startPos);
+          scene.add(spellMesh);
+          spellsRef.current.push(spell);
+        }
       }
       
       renderer.render(scene, camera);
