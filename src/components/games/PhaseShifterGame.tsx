@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { useMultiplayerLobby } from '@/hooks/useMultiplayerLobby';
 
 // ============================================================================
 // PHASE SHIFTER
@@ -170,7 +171,7 @@ export default function PhaseShifterGame({
   const { user } = useAuth();
   
   // Game state
-  const [gameState, setGameState] = useState<'instructions' | 'playing' | 'gameover'>('instructions');
+  const [gameState, setGameState] = useState<'menu' | 'matchmaking' | 'lobby' | 'playing' | 'gameover'>('menu');
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
@@ -183,6 +184,14 @@ export default function PhaseShifterGame({
   const [floatingScores, setFloatingScores] = useState<FloatingScore[]>([]);
   const [currentSong, setCurrentSong] = useState(ALL_SONGS[0]);
   const [landings, setLandings] = useState(0);
+  const [gameMode, setGameMode] = useState<'solo' | 'online'>('solo');
+  
+  // Multiplayer hook
+  const lobby = useMultiplayerLobby(
+    'hex-arena', // Use same lobby type for rhythm games
+    user?.id,
+    user?.email?.split('@')[0] || 'Player'
+  );
   
   // Refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -1121,7 +1130,7 @@ export default function PhaseShifterGame({
 
   // Initialize
   useEffect(() => {
-    if (gameState === 'instructions') {
+    if (gameState === 'menu') {
       initScene();
     }
     
@@ -1130,11 +1139,36 @@ export default function PhaseShifterGame({
       if (timerRef.current) clearInterval(timerRef.current);
       if (beatTimerRef.current) clearTimeout(beatTimerRef.current);
       if (rendererRef.current && containerRef.current) {
-        containerRef.current.removeChild(rendererRef.current.domElement);
+        try { containerRef.current.removeChild(rendererRef.current.domElement); } catch {}
         rendererRef.current.dispose();
       }
     };
   }, []);
+
+  // Find online match
+  const findMatch = useCallback(async () => {
+    setGameMode('online');
+    setGameState('matchmaking');
+    await lobby.findLobby();
+    setGameState('lobby');
+  }, [lobby]);
+
+  // Start solo game
+  const startSoloGame = useCallback(() => {
+    setGameMode('solo');
+    startGame();
+  }, [startGame]);
+
+  // Handle multiplayer game start
+  useEffect(() => {
+    if (gameMode !== 'online') return;
+    
+    lobby.onGameStart(() => {
+      setGameState('playing');
+      gameActiveRef.current = true;
+      startGame();
+    });
+  }, [gameMode, lobby, startGame]);
 
   // Handle resize
   useEffect(() => {
@@ -1249,16 +1283,17 @@ export default function PhaseShifterGame({
       ))}
       
       {/* Instructions */}
-      {gameState === 'instructions' && (
+      {/* Menu */}
+      {gameState === 'menu' && (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-gray-900/90 border border-white/20 rounded-2xl p-6 max-w-md w-full text-center">
             <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400 mb-4">
               🎵 Phase Shifter
             </h1>
             
-            <div className="space-y-4 text-left text-gray-300 mb-6">
+            <div className="space-y-3 text-left text-gray-300 mb-6">
               <div className="flex items-start gap-3">
-                <span className="text-2xl">🌟</span>
+                <span className="text-xl">🌟</span>
                 <div>
                   <div className="font-bold text-white">Feel the Beat</div>
                   <div className="text-sm">Platform disappears on beats - jump to survive!</div>
@@ -1266,41 +1301,132 @@ export default function PhaseShifterGame({
               </div>
               
               <div className="flex items-start gap-3">
-                <span className="text-2xl">🎹</span>
+                <span className="text-xl">🎹</span>
                 <div>
                   <div className="font-bold text-white">3 Jump Heights</div>
-                  <div className="text-sm">LOW to dodge low notes, MID for middle, HIGH for top!</div>
+                  <div className="text-sm">LOW / MID / HIGH to dodge notes!</div>
                 </div>
               </div>
               
               <div className="flex items-start gap-3">
-                <span className="text-2xl">🎵</span>
+                <span className="text-xl">🎵</span>
                 <div>
                   <div className="font-bold text-white">Dodge the Notes</div>
-                  <div className="text-sm">Music notes fly at different heights - pick your jump wisely!</div>
+                  <div className="text-sm">Music notes fly at different heights!</div>
                 </div>
               </div>
               
               <div className="flex items-start gap-3">
-                <span className="text-2xl">🚀</span>
+                <span className="text-xl">🚀</span>
                 <div>
                   <div className="font-bold text-white">Build Combos</div>
-                  <div className="text-sm">Jump at the right time for combo multipliers!</div>
+                  <div className="text-sm">Land on beats for multipliers!</div>
                 </div>
               </div>
             </div>
             
-            <div className="text-sm text-gray-500 mb-4">
+            {/* Game Mode Selection */}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <button
+                onClick={startSoloGame}
+                className="py-4 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 transition-all transform hover:scale-105"
+              >
+                <div className="text-xl">🎮</div>
+                <div>SOLO</div>
+                <div className="text-xs opacity-75">Practice Mode</div>
+              </button>
+              
+              <button
+                onClick={findMatch}
+                className="py-4 rounded-xl font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 transition-all transform hover:scale-105"
+              >
+                <div className="text-xl">🌐</div>
+                <div>ONLINE</div>
+                <div className="text-xs opacity-75">2-4 Players</div>
+              </button>
+            </div>
+            
+            <div className="text-xs text-gray-500">
               {isPractice ? '🎮 Practice Mode' : '🏆 Competitive Mode'}
               {theme !== 'default' && ` • ${theme.charAt(0).toUpperCase() + theme.slice(1)} Theme`}
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Matchmaking */}
+      {gameState === 'matchmaking' && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-4xl mb-4 animate-bounce">🎵</div>
+            <div className="text-xl text-white font-bold">Finding Match...</div>
+            <div className="text-gray-400 mt-2">Looking for rhythm warriors</div>
+          </div>
+        </div>
+      )}
+      
+      {/* Lobby */}
+      {gameState === 'lobby' && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gray-900/90 border border-white/20 rounded-2xl p-6 max-w-md w-full">
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400 text-center mb-4">
+              🎵 PHASE SHIFTER LOBBY
+            </h2>
             
-            <button
-              onClick={startGame}
-              className="w-full py-4 rounded-xl font-bold text-xl text-white bg-gradient-to-r from-cyan-600 via-purple-600 to-pink-600 hover:from-cyan-500 hover:via-purple-500 hover:to-pink-500 transition-all transform hover:scale-105 shadow-lg shadow-purple-500/25"
-            >
-              START SHIFTING
-            </button>
+            {lobby.countdown !== null && (
+              <div className="text-center mb-4">
+                <div className="text-5xl font-bold text-yellow-400 animate-pulse">{lobby.countdown}</div>
+                <div className="text-gray-400">Get ready to shift!</div>
+              </div>
+            )}
+            
+            <div className="space-y-2 mb-6">
+              {lobby.players.map((p, i) => (
+                <div key={p.id} className={`flex items-center gap-3 p-3 rounded-lg ${p.id === user?.id ? 'bg-purple-900/30 border border-purple-500/50' : 'bg-white/5'}`}>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-pink-500 flex items-center justify-center font-bold">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-white">{p.username}</div>
+                    <div className="text-xs text-gray-400">{p.isHost ? '👑 Host' : ''}</div>
+                  </div>
+                  <div className={`px-2 py-1 rounded text-xs font-bold ${p.isReady || p.isHost ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                    {p.isReady || p.isHost ? 'READY' : 'WAITING'}
+                  </div>
+                </div>
+              ))}
+              
+              {lobby.players.length < 4 && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-dashed border-white/20">
+                  <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">?</div>
+                  <div className="text-gray-500">Waiting for player...</div>
+                </div>
+              )}
+            </div>
+            
+            {lobby.error && (
+              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4 text-red-400 text-sm">
+                {lobby.error}
+              </div>
+            )}
+            
+            <div className="flex gap-3">
+              {lobby.isHost ? (
+                <button onClick={lobby.startGame} disabled={lobby.players.filter(p => p.isReady || p.isHost).length < 2}
+                  className="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                  START ({lobby.players.filter(p => p.isReady || p.isHost).length}/2 ready)
+                </button>
+              ) : (
+                <button onClick={lobby.toggleReady}
+                  className={`flex-1 py-3 rounded-xl font-bold text-white transition-all ${lobby.isReady ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-600 hover:bg-gray-500'}`}>
+                  {lobby.isReady ? '✓ READY' : 'READY UP'}
+                </button>
+              )}
+              <button onClick={() => { lobby.leaveLobby(); setGameState('menu'); }}
+                className="px-4 py-3 rounded-xl font-bold text-white bg-red-600/50 hover:bg-red-500/50 transition-all">
+                LEAVE
+              </button>
+            </div>
           </div>
         </div>
       )}
