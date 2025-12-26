@@ -1529,11 +1529,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     lobby.onGameStart(() => {
       console.log('[LaserDodge] onGameStart callback fired!');
-      // Don't start immediately - wait for all players to tap their ship
-      setWaitingForPlayers(true);
-      setPlayersReady(new Set());
-      setAllPlayersReady(false);
-      setGameState('waiting'); // Show "tap ship to start" screen
+      // Only transition to waiting if we're in lobby state (not already in waiting/playing)
+      if (gameStateRef.current === 'lobby' || gameStateRef.current === 'matchmaking') {
+        console.log('[LaserDodge] Transitioning to waiting state...');
+        // Don't start immediately - wait for all players to tap their ship
+        setWaitingForPlayers(true);
+        setPlayersReady(new Set());
+        setAllPlayersReady(false);
+        setGameState('waiting'); // Show "tap ship to start" screen
+        gameStateRef.current = 'waiting';
+      } else {
+        console.log(`[LaserDodge] onGameStart ignored - already in state: ${gameStateRef.current}`);
+      }
     });
     
     // Listen for other players' position updates
