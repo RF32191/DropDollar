@@ -693,11 +693,15 @@ export default function WizardWarzGame({
     }, 1000);
     
     // Animation loop
-    let lastBotShot = 0;
-    const animate = (time: number) => {
+    let lastBotShot = Date.now();
+    const gameStartTime = Date.now();
+    const BOT_START_DELAY = 3000; // 3 seconds before bot starts shooting
+    
+    const animate = () => {
       if (!gameActiveRef.current) return;
       
       animationRef.current = requestAnimationFrame(animate);
+      const currentTime = Date.now();
       
       // Process spells to remove
       if (spellsToRemoveRef.current.length > 0) {
@@ -822,9 +826,10 @@ export default function WizardWarzGame({
         setTeleportCooldown(Math.max(0, teleportCooldownRef.current));
       }
       
-      // Bot AI
-      if (gameMode === 'solo' && time - lastBotShot > 1500 + Math.random() * 1000) {
-        lastBotShot = time;
+      // Bot AI - wait for delay, then shoot every 2-3 seconds
+      const timeSinceStart = currentTime - gameStartTime;
+      if (gameMode === 'solo' && timeSinceStart > BOT_START_DELAY && currentTime - lastBotShot > 2000 + Math.random() * 1000) {
+        lastBotShot = currentTime;
         
         const randomElement = ELEMENT_ORDER[Math.floor(Math.random() * ELEMENT_ORDER.length)];
         const spellMesh = createSpellMesh(randomElement);
@@ -852,7 +857,7 @@ export default function WizardWarzGame({
       renderer.render(scene, camera);
     };
     
-    animate(0);
+    animate();
     
     return () => {
       clearInterval(timerInterval);
