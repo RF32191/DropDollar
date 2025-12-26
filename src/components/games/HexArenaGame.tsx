@@ -172,7 +172,8 @@ export default function HexArenaGame({
   const ARENA_RADIUS = 5;
   const NUM_LEVELS = 4;
   const LEVEL_HEIGHT = 4;
-  const TILE_COLLAPSE_DELAY = 1500;
+  const TILE_COLLAPSE_DELAY = 1200; // Time before tile starts falling after being stepped on
+const TILE_WARNING_DURATION = 800; // Time tile glows before falling
   const JUMP_FORCE = 0.28;
   const GRAVITY = 0.01;
   const BALL_SPEED = 0.4;
@@ -545,6 +546,19 @@ export default function HexArenaGame({
           player.jumpVelocity = 0;
         } else {
           player.position.y = player.level * LEVEL_HEIGHT + 0.9;
+          
+          // TRIGGER TILE COLLAPSE when player stands on it!
+          if (tile.state === 'solid' && tile.stepTime === null) {
+            tile.stepTime = now;
+            tile.state = 'warning';
+            
+            // Make tile glow bright
+            const mat = tile.mesh.material as THREE.MeshStandardMaterial;
+            const levelColor = LEVEL_COLORS[tile.level];
+            mat.emissive.setHex(levelColor.warning);
+            mat.emissiveIntensity = 1.5;
+            mat.color.setHex(levelColor.warning);
+          }
         }
       }
       
@@ -634,13 +648,48 @@ export default function HexArenaGame({
       return ball.bounces < 4;
     });
     
-    // Update falling tiles
+    // Update tiles - warning glow and falling
     tilesRef.current.forEach(tile => {
-      if (tile.state === 'falling') {
-        tile.fallSpeed += 0.004;
+      if (tile.state === 'warning' && tile.stepTime !== null) {
+        const timeSinceStep = now - tile.stepTime;
+        const mat = tile.mesh.material as THREE.MeshStandardMaterial;
+        const levelColor = LEVEL_COLORS[tile.level];
+        
+        // Pulse glow effect while warning
+        const pulseIntensity = 1.0 + Math.sin(timeSinceStep * 0.015) * 0.8;
+        mat.emissiveIntensity = pulseIntensity;
+        
+        // Shake the tile
+        tile.mesh.position.x += (Math.random() - 0.5) * 0.02;
+        tile.mesh.position.z += (Math.random() - 0.5) * 0.02;
+        
+        // After delay, start falling
+        if (timeSinceStep > TILE_COLLAPSE_DELAY) {
+          tile.state = 'falling';
+          tile.fallSpeed = 0.02;
+          
+          // Flash bright before falling
+          mat.emissive.setHex(0xffffff);
+          mat.emissiveIntensity = 3;
+          
+          // Add score for triggering collapse
+          if (localPlayerRef.current) {
+            localPlayerRef.current.score += 10;
+            setScore(localPlayerRef.current.score);
+          }
+        }
+      } else if (tile.state === 'falling') {
+        tile.fallSpeed += 0.008;
         tile.mesh.position.y -= tile.fallSpeed;
-        tile.mesh.rotation.x += 0.01;
-        if (tile.mesh.position.y < -15) {
+        tile.mesh.rotation.x += 0.03;
+        tile.mesh.rotation.z += 0.02;
+        
+        // Fade out as it falls
+        const mat = tile.mesh.material as THREE.MeshStandardMaterial;
+        mat.opacity = Math.max(0, 1 - tile.fallSpeed * 2);
+        mat.transparent = true;
+        
+        if (tile.mesh.position.y < -20) {
           tile.state = 'gone';
           sceneRef.current?.remove(tile.mesh);
         }
