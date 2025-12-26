@@ -7,6 +7,8 @@ import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
 import GameThemeSelector from './GameThemeSelector';
 import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
+import { useMultiplayerLobby } from '@/hooks/useMultiplayerLobby';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface GameResult {
   score: number;
@@ -37,8 +39,44 @@ interface Round {
 }
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed, theme: initialTheme }: QuickClickGameProps) {
+  const { user } = useAuth();
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
+  const [gameMode, setGameMode] = useState<'solo' | 'online'>('solo');
+  const [menuState, setMenuState] = useState<'menu' | 'matchmaking' | 'lobby' | 'game'>('menu');
+  
+  // Multiplayer hook
+  const lobby = useMultiplayerLobby(
+    'quick-click',
+    user?.id,
+    user?.email?.split('@')[0] || 'Player'
+  );
+
+  // Multiplayer functions
+  const findMatch = useCallback(async () => {
+    setGameMode('online');
+    setMenuState('matchmaking');
+    await lobby.findLobby();
+    setMenuState('lobby');
+  }, [lobby]);
+
+  const startSoloGame = useCallback(() => {
+    setGameMode('solo');
+    setMenuState('game');
+    setGameState('countdown');
+    setCountdown(3);
+  }, []);
+
+  // Handle multiplayer game start
+  useEffect(() => {
+    if (gameMode !== 'online') return;
+    
+    lobby.onGameStart(() => {
+      setMenuState('game');
+      setGameState('countdown');
+      setCountdown(3);
+    });
+  }, [gameMode, lobby]);
   
   // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
   console.log('');
@@ -457,6 +495,167 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'ended') {
     return null;
+  }
+
+  // MENU SCREEN - Choose SOLO or ONLINE
+  if (menuState === 'menu') {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-purple-900 bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10">
+          <div className="absolute inset-0 rounded-3xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-blue-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+          </div>
+          
+          <div className="relative z-10">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-2xl sm:text-3xl">⚡</span>
+            </div>
+            
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text text-transparent">
+              QuickClick
+            </h2>
+            <p className="text-green-200 text-sm mb-4 font-medium">Multi Touch Reaction Challenge</p>
+            
+            {/* Quick Instructions */}
+            <div className="text-left text-xs text-white/80 mb-4 bg-black/20 rounded-xl p-3 space-y-1">
+              <div className="flex items-center gap-2"><span className="text-red-400">🔴</span> Wait for red screen</div>
+              <div className="flex items-center gap-2"><span className="text-green-400">🟢</span> Click when green!</div>
+              <div className="flex items-center gap-2"><span className="text-yellow-400">🎯</span> Bonus: Hit the target!</div>
+              <div className="flex items-center gap-2"><span className="text-cyan-400">🏆</span> Online: Most touches wins!</div>
+            </div>
+            
+            {/* Theme Selector */}
+            <div className="mb-4 bg-black/20 rounded-xl p-2">
+              <GameThemeSelector
+                gameId="quick-click"
+                gameName="QuickClick"
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+                compact={true}
+              />
+            </div>
+            
+            {/* Game Mode Selection */}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <button
+                onClick={startSoloGame}
+                className="py-4 rounded-xl font-bold text-white bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 transition-all transform hover:scale-105"
+              >
+                <div className="text-xl">🎮</div>
+                <div>SOLO</div>
+                <div className="text-xs opacity-75">Practice Mode</div>
+              </button>
+              
+              <button
+                onClick={findMatch}
+                className="py-4 rounded-xl font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 transition-all transform hover:scale-105"
+              >
+                <div className="text-xl">🌐</div>
+                <div>ONLINE</div>
+                <div className="text-xs opacity-75">2-4 Players</div>
+              </button>
+            </div>
+            
+            <div className="text-xs text-gray-400 mb-3">
+              🏆 Online: Compete for most correct touches!
+            </div>
+            
+            {!isCompetitionMode && onExit && (
+              <button
+                onClick={onExit}
+                className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-xl transition-all border border-white/20"
+              >
+                ← Back to Menu
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // MATCHMAKING SCREEN
+  if (menuState === 'matchmaking') {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-purple-900 flex items-center justify-center z-50">
+        <div className="text-center">
+          <div className="text-4xl mb-4 animate-spin">🔍</div>
+          <div className="text-xl text-white font-bold">Finding Match...</div>
+          <div className="text-gray-400 mt-2">Looking for reaction masters</div>
+        </div>
+      </div>
+    );
+  }
+
+  // LOBBY SCREEN
+  if (menuState === 'lobby') {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-purple-900 flex items-center justify-center z-50 p-4">
+        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 max-w-md w-full">
+          <h2 className="text-2xl font-bold text-white text-center mb-4">⚡ QUICKCLICK LOBBY</h2>
+          
+          {lobby.countdown !== null && (
+            <div className="text-center mb-4">
+              <div className="text-5xl font-bold text-yellow-400 animate-pulse">{lobby.countdown}</div>
+              <div className="text-gray-400">Get ready to click!</div>
+            </div>
+          )}
+          
+          <div className="space-y-2 mb-6">
+            {lobby.players.map((p, i) => (
+              <div key={p.id} className={`flex items-center gap-3 p-3 rounded-lg ${p.id === user?.id ? 'bg-green-900/30 border border-green-500/50' : 'bg-white/5'}`}>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center font-bold">
+                  {i + 1}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-white">{p.username}</div>
+                  <div className="text-xs text-gray-400">{p.isHost ? '👑 Host' : ''}</div>
+                </div>
+                <div className={`px-2 py-1 rounded text-xs font-bold ${p.isReady || p.isHost ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                  {p.isReady || p.isHost ? 'READY' : 'WAITING'}
+                </div>
+              </div>
+            ))}
+            
+            {lobby.players.length < 4 && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-dashed border-white/20">
+                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">?</div>
+                <div className="text-gray-500">Waiting for player...</div>
+              </div>
+            )}
+          </div>
+          
+          <div className="text-center text-sm text-green-400 mb-4">
+            🏆 Most correct touches wins!
+          </div>
+          
+          {lobby.error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4 text-red-400 text-sm">
+              {lobby.error}
+            </div>
+          )}
+          
+          <div className="flex gap-3">
+            {lobby.isHost ? (
+              <button onClick={lobby.startGame} disabled={lobby.players.filter(p => p.isReady || p.isHost).length < 2}
+                className="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                START ({lobby.players.filter(p => p.isReady || p.isHost).length}/2 ready)
+              </button>
+            ) : (
+              <button onClick={lobby.toggleReady}
+                className={`flex-1 py-3 rounded-xl font-bold text-white transition-all ${lobby.isReady ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-600 hover:bg-gray-500'}`}>
+                {lobby.isReady ? '✓ READY' : 'READY UP'}
+              </button>
+            )}
+            <button onClick={() => { lobby.leaveLobby(); setMenuState('menu'); }}
+              className="px-4 py-3 rounded-xl font-bold text-white bg-red-600/50 hover:bg-red-500/50 transition-all">
+              LEAVE
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (gameState === 'ready') {
