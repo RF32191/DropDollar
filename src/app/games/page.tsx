@@ -136,6 +136,11 @@ const LockBreak3DGame = dynamic(() => import('@/components/games/LockBreak3DGame
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Lock Break 3D" color="cyan" />
 });
+
+const PhaseShifterGame = dynamic(() => import('@/components/games/PhaseShifterGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Phase Shifter" color="pink" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -184,7 +189,8 @@ import {
   RocketLaunchIcon,
   AdjustmentsHorizontalIcon,
   ArrowDownCircleIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  MusicalNoteIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -417,6 +423,16 @@ const GAMES = [
     avgTime: '90s',
     skills: ['Precision', 'Pattern Recognition', 'Focus', 'Timing'],
     component: LockBreak3DGame
+  },
+  {
+    id: 'phase-shifter',
+    name: 'Phase Shifter',
+    description: 'Rhythm platformer in space! Platform oscillates with the beat - jump to survive and dodge neon music notes!',
+    icon: MusicalNoteIcon,
+    difficulty: 'Hard',
+    avgTime: '60s',
+    skills: ['Rhythm', 'Timing', 'Reflexes', 'Pattern Recognition'],
+    component: PhaseShifterGame
   }
 ];
 
