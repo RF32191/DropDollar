@@ -1498,11 +1498,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     };
   }, []);
 
-  if (gameState === 'ended') {
-    return null;
-  }
-
-  // Multiplayer functions
+  // Multiplayer functions - MUST be defined before any early returns
   const findMatch = useCallback(async () => {
     setGameMode('online');
     setGameState('matchmaking');
@@ -1534,7 +1530,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     });
     
     // Listen for other players' position updates
+    let receiveCount = 0;
     lobby.onPlayerUpdate((updates) => {
+      receiveCount++;
       const newOtherPlayers = new Map<string, { x: number; y: number; score: number; hearts: number; isAlive: boolean }>();
       updates.forEach((update, id) => {
         if (id !== user?.id) {
@@ -1547,6 +1545,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           });
         }
       });
+      
+      // Log every 20th receive (once per second)
+      if (receiveCount % 20 === 0) {
+        console.log(`[LaserDodge] Received position update #${receiveCount}, other players:`, newOtherPlayers.size);
+      }
+      
       setOtherPlayers(newOtherPlayers);
     });
     
@@ -1686,14 +1690,22 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   
   // Send position updates during gameplay
   useEffect(() => {
-    if (gameMode !== 'online' || gameState !== 'playing') return;
+    if (gameMode !== 'online' || gameState !== 'playing') {
+      console.log(`[LaserDodge] Position updates NOT running - gameMode: ${gameMode}, gameState: ${gameState}`);
+      return;
+    }
+    
+    console.log(`[LaserDodge] Starting position updates - user: ${user?.id}`);
+    let updateCount = 0;
     
     const sendPositionUpdate = () => {
       const now = Date.now();
       // Send updates every 50ms (20 times per second)
       if (now - lastPositionSentRef.current > 50) {
         lastPositionSentRef.current = now;
-        lobby.sendPlayerUpdate({
+        updateCount++;
+        
+        const update = {
           id: user?.id || '',
           x: shipRef.current.x,
           y: shipRef.current.y,
@@ -1702,13 +1714,28 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           hearts: heartsRef.current,
           score: currentScoreRef.current,
           isAlive: heartsRef.current > 0
-        });
+        };
+        
+        // Log every 20th update (once per second)
+        if (updateCount % 20 === 0) {
+          console.log(`[LaserDodge] Sending position update #${updateCount}:`, update);
+        }
+        
+        lobby.sendPlayerUpdate(update);
       }
     };
     
     const interval = setInterval(sendPositionUpdate, 50);
-    return () => clearInterval(interval);
+    return () => {
+      console.log(`[LaserDodge] Stopping position updates after ${updateCount} updates`);
+      clearInterval(interval);
+    };
   }, [gameMode, gameState, lobby, user?.id]);
+
+  // Early return for ended state - MUST be after all hooks
+  if (gameState === 'ended') {
+    return null;
+  }
 
   // MENU SCREEN - Choose SOLO or ONLINE
   if (gameState === 'menu') {
