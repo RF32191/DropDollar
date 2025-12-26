@@ -743,7 +743,7 @@ export default function WizardWarzGame({
               const shieldTime = Date.now() - shieldStartTimeRef.current;
               if (shieldTime < PARRY_WINDOW) {
                 // Perfect parry
-                addPopupRef.current({ id: Date.now().toString(), x: 50, y: 40, text: '⚔️ PERFECT PARRY!', color: '#00ffff' });
+                addPopupRef.current(200, 50, 40, 'perfect', 'PERFECT PARRY!');
                 scoreRef.current += 200;
                 setScore(scoreRef.current);
                 spell.velocity.multiplyScalar(-1.5);
@@ -751,7 +751,7 @@ export default function WizardWarzGame({
                 spell.damage *= 1.5;
               } else {
                 // Blocked
-                addPopupRef.current({ id: Date.now().toString(), x: 50, y: 40, text: '🛡️ BLOCKED!', color: '#44ff44' });
+                addPopupRef.current(0, 50, 40, 'bonus', 'BLOCKED!');
                 spellsToRemoveRef.current.push(spell.id);
               }
             } else {
@@ -760,10 +760,10 @@ export default function WizardWarzGame({
               const spellData = ELEMENTS[spell.element];
               if (spellData.beats.includes(currentElementRef.current)) {
                 damage *= COUNTER_MULTIPLIER;
-                addPopupRef.current({ id: Date.now().toString(), x: 50, y: 30, text: '💥 SUPER EFFECTIVE!', color: '#ff4444' });
+                addPopupRef.current(0, 50, 30, 'critical', 'SUPER EFFECTIVE!');
               } else if (spellData.weakTo.includes(currentElementRef.current)) {
                 damage *= RESIST_MULTIPLIER;
-                addPopupRef.current({ id: Date.now().toString(), x: 50, y: 30, text: '🛡️ RESISTED!', color: '#44ff44' });
+                addPopupRef.current(0, 50, 30, 'bonus', 'RESISTED!');
               }
               
               heartsRef.current = Math.max(0, heartsRef.current - damage);
@@ -784,7 +784,7 @@ export default function WizardWarzGame({
             scoreRef.current += Math.floor(damage * 100);
             setScore(scoreRef.current);
             
-            addPopupRef.current({ id: Date.now().toString(), x: 50, y: 50, text: `+${Math.floor(damage * 100)}`, color: '#ffff00' });
+            addPopupRef.current(Math.floor(damage * 100), 50, 50, 'normal');
             
             if (opponentHeartsRef.current <= 0) {
               gameActiveRef.current = false;
@@ -928,7 +928,7 @@ export default function WizardWarzGame({
     teleportCooldownRef.current = TELEPORT_COOLDOWN;
     setTeleportCooldown(TELEPORT_COOLDOWN);
     
-    addPopup({ id: Date.now().toString(), x: 50, y: 50, text: '✨ TELEPORT!', color: '#00ffff' });
+    addPopup(0, 50, 50, 'bonus', 'TELEPORT!');
   }, [addPopup]);
   
   // Change element
