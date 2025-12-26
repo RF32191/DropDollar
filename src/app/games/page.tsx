@@ -189,8 +189,7 @@ import {
   RocketLaunchIcon,
   AdjustmentsHorizontalIcon,
   ArrowDownCircleIcon,
-  LockClosedIcon,
-  MusicalNoteIcon
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
