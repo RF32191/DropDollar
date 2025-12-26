@@ -34,15 +34,15 @@ const ELEMENTS: Record<Element, ElementData> = {
 
 const ELEMENT_ORDER: Element[] = ['fire', 'water', 'earth', 'electric', 'nature', 'dark', 'light'];
 
-// Element-based teleport platforms - 7 platforms for 7 elements
-const TELEPORT_ZONES: { id: string; position: THREE.Vector3; element: Element }[] = [
-  { id: 'fire', position: new THREE.Vector3(0, 0, -12), element: 'fire' },
-  { id: 'water', position: new THREE.Vector3(10, 0, -6), element: 'water' },
-  { id: 'earth', position: new THREE.Vector3(10, 0, 6), element: 'earth' },
-  { id: 'electric', position: new THREE.Vector3(0, 0, 12), element: 'electric' },
-  { id: 'nature', position: new THREE.Vector3(-10, 0, 6), element: 'nature' },
-  { id: 'dark', position: new THREE.Vector3(-10, 0, -6), element: 'dark' },
-  { id: 'light', position: new THREE.Vector3(0, 0, 0), element: 'light' },
+// Element-based teleport platforms - 7 platforms for 7 elements (HUGE ARENA)
+const TELEPORT_ZONES: { id: string; x: number; z: number; element: Element }[] = [
+  { id: 'fire', x: 0, z: -40, element: 'fire' },           // Far back
+  { id: 'water', x: 35, z: -20, element: 'water' },        // Right back
+  { id: 'earth', x: 35, z: 20, element: 'earth' },         // Right front
+  { id: 'electric', x: 0, z: 40, element: 'electric' },    // Far front
+  { id: 'nature', x: -35, z: 20, element: 'nature' },      // Left front
+  { id: 'dark', x: -35, z: -20, element: 'dark' },         // Left back
+  { id: 'light', x: 0, z: 0, element: 'light' },           // Center
 ];
 
 // Damage constants
@@ -74,6 +74,7 @@ const SPELL_DAMAGE = 1; // Base damage (modified by element system)
 const PARRY_WINDOW = 350;
 const SHIELD_DURATION = 2000;
 const TELEPORT_COOLDOWN = 2000;
+const SPELL_COOLDOWN = 800; // 0.8 second between spells - no spam!
 const MAX_HEARTS = 20;
 
 export default function WizardWarzGame({
@@ -99,6 +100,7 @@ export default function WizardWarzGame({
   const [isShielding, setIsShielding] = useState(false);
   const [shieldCooldown, setShieldCooldown] = useState(0);
   const [teleportCooldown, setTeleportCooldown] = useState(0);
+  const [spellCooldown, setSpellCooldown] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [winner, setWinner] = useState<string | null>(null);
   
@@ -120,13 +122,15 @@ export default function WizardWarzGame({
   const heartsRef = useRef(MAX_HEARTS);
   const opponentHeartsRef = useRef(MAX_HEARTS);
   const scoreRef = useRef(0);
-  const playerPositionRef = useRef(new THREE.Vector3(0, 0, 8));
-  const opponentPositionRef = useRef(new THREE.Vector3(0, 0, -8));
+  const playerPositionRef = useRef(new THREE.Vector3(0, 0, 20));
+  const opponentPositionRef = useRef(new THREE.Vector3(0, 0, -20));
   const shieldActiveRef = useRef(false);
   const shieldStartTimeRef = useRef(0);
   const teleportCooldownRef = useRef(0);
   const teleportInvincibleRef = useRef(false);
   const teleportInvincibleUntilRef = useRef(0);
+  const spellCooldownRef = useRef(0);
+  const lastSpellTimeRef = useRef(0);
   const currentElementRef = useRef<Element>('fire');
   const playerGlowRef = useRef<THREE.Mesh | null>(null);
   const opponentGlowRef = useRef<THREE.Mesh | null>(null);
@@ -439,10 +443,10 @@ export default function WizardWarzGame({
     return shield;
   }, []);
   
-  // Create castle environment
+  // Create castle environment (HUGE ARENA)
   const createCastleEnvironment = useCallback((scene: THREE.Scene) => {
-    // Stone floor
-    const floorGeo = new THREE.CircleGeometry(18, 64);
+    // Stone floor (HUGE - 70 radius)
+    const floorGeo = new THREE.CircleGeometry(70, 64);
     const floorMat = new THREE.MeshStandardMaterial({ 
       color: 0x4a4a4a,
       roughness: 0.9,
@@ -453,11 +457,11 @@ export default function WizardWarzGame({
     floor.receiveShadow = true;
     scene.add(floor);
     
-    // Floor pattern - stone tiles
-    for (let x = -15; x <= 15; x += 3) {
-      for (let z = -15; z <= 15; z += 3) {
-        if (Math.sqrt(x*x + z*z) < 16) {
-          const tileGeo = new THREE.BoxGeometry(2.8, 0.1, 2.8);
+    // Floor pattern - stone tiles (HUGE AREA)
+    for (let x = -65; x <= 65; x += 4) {
+      for (let z = -65; z <= 65; z += 4) {
+        if (Math.sqrt(x*x + z*z) < 68) {
+          const tileGeo = new THREE.BoxGeometry(3.8, 0.1, 3.8);
           const tileMat = new THREE.MeshStandardMaterial({ 
             color: 0x3a3a3a + Math.random() * 0x101010,
             roughness: 0.95
@@ -469,10 +473,10 @@ export default function WizardWarzGame({
       }
     }
     
-    // Castle walls
-    const wallHeight = 12;
-    const wallRadius = 20;
-    const wallSegments = 24;
+    // Castle walls (HUGE)
+    const wallHeight = 20;
+    const wallRadius = 72;
+    const wallSegments = 48;
     
     for (let i = 0; i < wallSegments; i++) {
       const angle = (i / wallSegments) * Math.PI * 2;
@@ -540,123 +544,134 @@ export default function WizardWarzGame({
       }
     }
     
-    // Arena corner lights (no pillars blocking view)
+    // Arena corner lights (no pillars blocking view) - spread out for huge arena
     const cornerLights = [
-      { x: 12, z: 12, color: 0xff6600 },
-      { x: -12, z: 12, color: 0x00ff66 },
-      { x: 12, z: -12, color: 0x6600ff },
-      { x: -12, z: -12, color: 0xff0066 },
+      { x: 30, z: 30, color: 0xff6600 },
+      { x: -30, z: 30, color: 0x00ff66 },
+      { x: 30, z: -30, color: 0x6600ff },
+      { x: -30, z: -30, color: 0xff0066 },
+      // Additional lights for huge arena
+      { x: 50, z: 0, color: 0xff9900 },
+      { x: -50, z: 0, color: 0x00ffaa },
+      { x: 0, z: 50, color: 0x9900ff },
+      { x: 0, z: -50, color: 0xff0099 },
+      // Extra corner lights
+      { x: 45, z: 25, color: 0xffaa00 },
+      { x: -45, z: 25, color: 0x00aaff },
+      { x: 45, z: -25, color: 0xaa00ff },
+      { x: -45, z: -25, color: 0xff00aa },
     ];
     
     cornerLights.forEach(({ x, z, color }) => {
-      const light = new THREE.PointLight(color, 1.2, 20);
-      light.position.set(x, 6, z);
+      const light = new THREE.PointLight(color, 2, 40);
+      light.position.set(x, 10, z);
       scene.add(light);
       
       // Small glowing orb to show light source
-      const orbGeo = new THREE.SphereGeometry(0.3, 16, 16);
+      const orbGeo = new THREE.SphereGeometry(0.6, 16, 16);
       const orbMat = new THREE.MeshBasicMaterial({ color });
       const orb = new THREE.Mesh(orbGeo, orbMat);
-      orb.position.set(x, 6, z);
+      orb.position.set(x, 10, z);
       scene.add(orb);
     });
     
-    // Center arena light
-    const centerLight = new THREE.PointLight(0xffffff, 1, 25);
-    centerLight.position.set(0, 10, 0);
+    // Center arena light - brighter for huge arena
+    const centerLight = new THREE.PointLight(0xffffff, 2.5, 80);
+    centerLight.position.set(0, 20, 0);
     scene.add(centerLight);
     
-    // Element teleport zones - 7 platforms for 7 elements
+    // Element teleport zones - 7 platforms for 7 elements (BIGGER, MORE VISIBLE)
     TELEPORT_ZONES.forEach(zone => {
       const elementData = ELEMENTS[zone.element];
       const elementColor = elementData.color;
       const glowColor = elementData.glowColor;
+      const pos = new THREE.Vector3(zone.x, 0, zone.z);
       
-      // Platform base - darker stone
-      const baseGeo = new THREE.CylinderGeometry(2.2, 2.4, 0.4, 24);
+      // Platform base - darker stone (BIGGER)
+      const baseGeo = new THREE.CylinderGeometry(3.5, 3.8, 0.5, 32);
       const baseMat = new THREE.MeshStandardMaterial({
-        color: 0x1a1a1a,
-        roughness: 0.9
+        color: 0x2a2a2a,
+        roughness: 0.8
       });
       const base = new THREE.Mesh(baseGeo, baseMat);
-      base.position.copy(zone.position);
-      base.position.y = 0.2;
+      base.position.copy(pos);
+      base.position.y = 0.25;
       scene.add(base);
       
-      // Element platform
-      const platformGeo = new THREE.CylinderGeometry(1.8, 1.8, 0.3, 24);
+      // Element platform (BIGGER, BRIGHTER)
+      const platformGeo = new THREE.CylinderGeometry(3, 3, 0.4, 32);
       const platformMat = new THREE.MeshStandardMaterial({
         color: elementColor,
         emissive: glowColor,
-        emissiveIntensity: 0.6,
-        transparent: true,
-        opacity: 0.8
-      });
-      const platform = new THREE.Mesh(platformGeo, platformMat);
-      platform.position.copy(zone.position);
-      platform.position.y = 0.45;
-      scene.add(platform);
-      
-      // Magical ring
-      const ringGeo = new THREE.TorusGeometry(2.0, 0.1, 8, 32);
-      const ringMat = new THREE.MeshBasicMaterial({ color: glowColor });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.copy(zone.position);
-      ring.position.y = 0.55;
-      scene.add(ring);
-      
-      // Inner ring
-      const innerRingGeo = new THREE.TorusGeometry(1.2, 0.06, 8, 32);
-      const innerRing = new THREE.Mesh(innerRingGeo, ringMat);
-      innerRing.rotation.x = Math.PI / 2;
-      innerRing.position.copy(zone.position);
-      innerRing.position.y = 0.55;
-      scene.add(innerRing);
-      
-      // Element symbol in center (using emoji as 3D text placeholder - glowing orb)
-      const symbolGeo = new THREE.SphereGeometry(0.4, 16, 16);
-      const symbolMat = new THREE.MeshBasicMaterial({ 
-        color: glowColor,
+        emissiveIntensity: 0.8,
         transparent: true,
         opacity: 0.9
       });
+      const platform = new THREE.Mesh(platformGeo, platformMat);
+      platform.position.copy(pos);
+      platform.position.y = 0.5;
+      scene.add(platform);
+      
+      // Magical ring (BIGGER)
+      const ringGeo = new THREE.TorusGeometry(3.3, 0.15, 12, 48);
+      const ringMat = new THREE.MeshBasicMaterial({ color: glowColor });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.copy(pos);
+      ring.position.y = 0.65;
+      scene.add(ring);
+      
+      // Inner ring (BIGGER)
+      const innerRingGeo = new THREE.TorusGeometry(2, 0.1, 12, 48);
+      const innerRing = new THREE.Mesh(innerRingGeo, ringMat);
+      innerRing.rotation.x = Math.PI / 2;
+      innerRing.position.copy(pos);
+      innerRing.position.y = 0.65;
+      scene.add(innerRing);
+      
+      // Element symbol in center (BIGGER glowing orb)
+      const symbolGeo = new THREE.SphereGeometry(0.6, 16, 16);
+      const symbolMat = new THREE.MeshBasicMaterial({ 
+        color: glowColor,
+        transparent: true,
+        opacity: 0.95
+      });
       const symbol = new THREE.Mesh(symbolGeo, symbolMat);
-      symbol.position.copy(zone.position);
-      symbol.position.y = 1.2;
+      symbol.position.copy(pos);
+      symbol.position.y = 1.5;
       scene.add(symbol);
       
-      // Rune symbols around platform
-      for (let r = 0; r < 8; r++) {
-        const runeAngle = (r / 8) * Math.PI * 2;
-        const runeGeo = new THREE.BoxGeometry(0.2, 0.03, 0.4);
+      // Rune symbols around platform (BIGGER radius)
+      for (let r = 0; r < 10; r++) {
+        const runeAngle = (r / 10) * Math.PI * 2;
+        const runeGeo = new THREE.BoxGeometry(0.3, 0.04, 0.5);
         const runeMat = new THREE.MeshBasicMaterial({ color: glowColor });
         const rune = new THREE.Mesh(runeGeo, runeMat);
         rune.position.set(
-          zone.position.x + Math.cos(runeAngle) * 1.6,
-          0.55,
-          zone.position.z + Math.sin(runeAngle) * 1.6
+          zone.x + Math.cos(runeAngle) * 2.6,
+          0.65,
+          zone.z + Math.sin(runeAngle) * 2.6
         );
         rune.rotation.y = runeAngle;
         scene.add(rune);
       }
       
-      // Vertical light beam
-      const beamGeo = new THREE.CylinderGeometry(0.15, 0.8, 6, 8);
+      // Vertical light beam (TALLER, BRIGHTER)
+      const beamGeo = new THREE.CylinderGeometry(0.2, 1.2, 10, 12);
       const beamMat = new THREE.MeshBasicMaterial({ 
         color: glowColor, 
         transparent: true, 
-        opacity: 0.25 
+        opacity: 0.35 
       });
       const beam = new THREE.Mesh(beamGeo, beamMat);
-      beam.position.copy(zone.position);
-      beam.position.y = 3;
+      beam.position.copy(pos);
+      beam.position.y = 5;
       scene.add(beam);
       
-      // Platform light
-      const platformLight = new THREE.PointLight(elementColor, 0.8, 6);
-      platformLight.position.copy(zone.position);
-      platformLight.position.y = 2;
+      // Platform light (BRIGHTER, LARGER RADIUS)
+      const platformLight = new THREE.PointLight(elementColor, 1.2, 12);
+      platformLight.position.copy(pos);
+      platformLight.position.y = 3;
       scene.add(platformLight);
     });
     
@@ -709,12 +724,13 @@ export default function WizardWarzGame({
     
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1025); // Dark purple, not pitch black
-    scene.fog = new THREE.Fog(0x1a1025, 20, 60);
+    scene.fog = new THREE.Fog(0x1a1025, 100, 200); // Push fog way back for huge arena
     sceneRef.current = scene;
     
-    const camera = new THREE.PerspectiveCamera(55, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
-    camera.position.set(0, 14, 22);
-    camera.lookAt(0, 2, 0);
+    // Camera tracks the enemy - positioned behind player looking at opponent
+    const camera = new THREE.PerspectiveCamera(75, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
+    camera.position.set(0, 30, 50); // Will be updated dynamically
+    camera.lookAt(opponentPositionRef.current);
     cameraRef.current = camera;
     
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -750,6 +766,44 @@ export default function WizardWarzGame({
     const opponentWizard = createWizard(scene, 0xff4400, false);
     opponentWizard.position.copy(opponentPositionRef.current);
     opponentWizardRef.current = opponentWizard;
+    
+    // ENEMY INDICATOR - Big red arrow floating above enemy
+    const enemyIndicatorGroup = new THREE.Group();
+    
+    // Arrow body
+    const arrowGeo = new THREE.ConeGeometry(1.5, 3, 6);
+    const arrowMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+    arrow.rotation.x = Math.PI; // Point down
+    arrow.position.y = 0;
+    enemyIndicatorGroup.add(arrow);
+    
+    // Arrow glow
+    const arrowGlowGeo = new THREE.ConeGeometry(2, 3.5, 6);
+    const arrowGlowMat = new THREE.MeshBasicMaterial({ 
+      color: 0xff4400, 
+      transparent: true, 
+      opacity: 0.4 
+    });
+    const arrowGlow = new THREE.Mesh(arrowGlowGeo, arrowGlowMat);
+    arrowGlow.rotation.x = Math.PI;
+    arrowGlow.position.y = 0;
+    enemyIndicatorGroup.add(arrowGlow);
+    
+    // "ENEMY" label ring
+    const ringGeo = new THREE.TorusGeometry(2, 0.2, 8, 24);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 2;
+    enemyIndicatorGroup.add(ring);
+    
+    enemyIndicatorGroup.position.copy(opponentPositionRef.current);
+    enemyIndicatorGroup.position.y = 8; // Float above enemy
+    scene.add(enemyIndicatorGroup);
+    
+    // Store for animation
+    const enemyIndicator = enemyIndicatorGroup;
     
     // Create player shield
     const shield = createShield(scene);
@@ -939,8 +993,8 @@ export default function WizardWarzGame({
           }
         }
         
-        // Remove if out of bounds
-        if (spell.position.length() > 25) {
+        // Remove if out of bounds (huge arena)
+        if (spell.position.length() > 90) {
           spellsToRemoveRef.current.push(spell.id);
         }
       }
@@ -971,6 +1025,47 @@ export default function WizardWarzGame({
             ELEMENTS[botElementRef.current].glowColor
           );
         }
+      }
+      
+      // Update enemy indicator - follows enemy and bobs up/down
+      if (enemyIndicator && opponentWizardRef.current) {
+        enemyIndicator.position.x = opponentWizardRef.current.position.x;
+        enemyIndicator.position.z = opponentWizardRef.current.position.z;
+        enemyIndicator.position.y = 10 + Math.sin(currentTime * 0.003) * 1.5; // Bob up/down
+        enemyIndicator.rotation.y += 0.02; // Spin slowly
+      }
+      
+      // CAMERA TRACKING - Always look at the enemy from behind player
+      if (cameraRef.current && playerWizardRef.current && opponentWizardRef.current) {
+        const playerPos = playerWizardRef.current.position;
+        const opponentPos = opponentWizardRef.current.position;
+        
+        // Calculate direction from player to opponent
+        const dirToOpponent = new THREE.Vector3()
+          .subVectors(opponentPos, playerPos)
+          .normalize();
+        
+        // Position camera behind and above player, looking toward opponent
+        const cameraOffset = dirToOpponent.clone().multiplyScalar(-25); // Behind player
+        const targetCamPos = new THREE.Vector3(
+          playerPos.x + cameraOffset.x,
+          35, // Fixed height above
+          playerPos.z + cameraOffset.z + 20 // Slightly behind
+        );
+        
+        // Smooth camera movement
+        camera.position.lerp(targetCamPos, 0.03);
+        
+        // Always look at opponent
+        const lookTarget = opponentPos.clone();
+        lookTarget.y = 3; // Look at wizard height
+        camera.lookAt(lookTarget);
+      }
+      
+      // Update spell cooldown
+      if (spellCooldownRef.current > 0) {
+        spellCooldownRef.current -= 16;
+        setSpellCooldown(Math.max(0, spellCooldownRef.current));
       }
       
       // Update teleport cooldown
@@ -1093,9 +1188,17 @@ export default function WizardWarzGame({
     };
   }, [gameState, createWizard, createShield, createCastleEnvironment, createSpellMesh, gameMode]);
   
-  // Fire spell
+  // Fire spell with cooldown
   const fireSpell = useCallback(() => {
     if (!gameActiveRef.current || !sceneRef.current || !playerWizardRef.current) return;
+    
+    // Check spell cooldown
+    const now = Date.now();
+    if (now - lastSpellTimeRef.current < SPELL_COOLDOWN) return;
+    
+    lastSpellTimeRef.current = now;
+    spellCooldownRef.current = SPELL_COOLDOWN;
+    setSpellCooldown(SPELL_COOLDOWN);
     
     const spellMesh = createSpellMesh(currentElementRef.current);
     const startPos = playerWizardRef.current.position.clone();
@@ -1179,8 +1282,9 @@ export default function WizardWarzGame({
     if (!zone) return;
     
     // Move to zone
-    playerPositionRef.current.copy(zone.position);
-    playerWizardRef.current.position.copy(zone.position);
+    const newPos = new THREE.Vector3(zone.x, 0, zone.z);
+    playerPositionRef.current.copy(newPos);
+    playerWizardRef.current.position.copy(newPos);
     teleportCooldownRef.current = TELEPORT_COOLDOWN;
     setTeleportCooldown(TELEPORT_COOLDOWN);
     
@@ -1236,19 +1340,12 @@ export default function WizardWarzGame({
     };
   }, [gameState, fireSpell, activateShield, deactivateShield, changeElement]);
   
-  // Render hearts
+  // Render hearts - simplified for mobile
   const renderHearts = (count: number, max: number, color: string) => {
     return (
-      <div className="flex gap-0.5 flex-wrap max-w-[120px]">
-        {Array.from({ length: max }).map((_, i) => (
-          <span 
-            key={i} 
-            className={`text-lg transition-all ${i < count ? '' : 'opacity-30 grayscale'}`}
-            style={{ color: i < count ? color : '#666' }}
-          >
-            ❤️
-          </span>
-        ))}
+      <div className="flex items-center gap-1">
+        <span className="text-xl">❤️</span>
+        <span className="text-xl font-bold" style={{ color }}>{count}/{max}</span>
       </div>
     );
   };
@@ -1256,7 +1353,16 @@ export default function WizardWarzGame({
   // Menu screen
   if (gameState === 'menu') {
     return (
-      <div className="relative w-full h-full min-h-[600px] bg-gradient-to-br from-purple-900 via-indigo-900 to-black rounded-xl overflow-hidden flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-gradient-to-br from-purple-900 via-indigo-900 to-black overflow-hidden flex items-center justify-center">
+        {/* Exit button on menu */}
+        {onExit && (
+          <button
+            onClick={onExit}
+            className="absolute top-4 right-4 z-50 w-10 h-10 bg-red-600/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white font-bold transition-all hover:scale-110"
+          >
+            ✕
+          </button>
+        )}
         <div className="text-center px-4">
           <h1 className="text-5xl md:text-7xl font-black mb-4 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent animate-pulse">
             🧙 WIZARD WARZ ⚔️
@@ -1312,34 +1418,47 @@ export default function WizardWarzGame({
     );
   }
   
-  // Playing state
+  // Playing state - FULL SCREEN
   return (
-    <div className="relative w-full h-full min-h-[600px] bg-gray-900 rounded-xl overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-gray-900 overflow-hidden">
       <div ref={containerRef} className="absolute inset-0" />
       
       {/* HUD */}
       {gameState === 'playing' && (
         <>
-          {/* Top HUD */}
-          <div className="absolute top-0 left-0 right-0 p-3 pointer-events-none">
-            <div className="flex justify-between items-start gap-2">
+          {/* Exit button - always accessible */}
+          <button
+            onClick={() => {
+              gameActiveRef.current = false;
+              setGameState('menu');
+              spellsRef.current = [];
+              if (onExit) onExit();
+            }}
+            className="absolute top-4 right-4 z-50 w-10 h-10 bg-red-600/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white font-bold transition-all hover:scale-110"
+          >
+            ✕
+          </button>
+          
+          {/* Top HUD - Mobile optimized */}
+          <div className="absolute top-0 left-0 right-0 p-2 md:p-3 pointer-events-none">
+            <div className="flex justify-between items-start gap-1 md:gap-2">
               {/* Player */}
-              <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 min-w-[140px]">
-                <div className="text-cyan-400 font-bold text-sm mb-1">YOU</div>
+              <div className="bg-black/80 backdrop-blur-sm rounded-lg md:rounded-xl p-2 md:p-3">
+                <div className="text-cyan-400 font-bold text-xs md:text-sm">YOU</div>
                 {renderHearts(hearts, MAX_HEARTS, '#00ffff')}
               </div>
               
-              {/* Timer */}
-              <div className="bg-black/70 backdrop-blur-sm rounded-xl px-4 py-2 text-center">
-                <div className={`text-3xl font-mono font-bold ${timeLeft <= 30 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+              {/* Timer & Score */}
+              <div className="bg-black/80 backdrop-blur-sm rounded-lg md:rounded-xl px-3 md:px-4 py-1 md:py-2 text-center">
+                <div className={`text-2xl md:text-3xl font-mono font-bold ${timeLeft <= 30 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                   {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                 </div>
-                <div className="text-yellow-400 font-bold text-sm">⭐ {score}</div>
+                <div className="text-yellow-400 font-bold text-xs md:text-sm">⭐ {score}</div>
               </div>
               
               {/* Opponent */}
-              <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 min-w-[140px]">
-                <div className="text-orange-400 font-bold text-sm mb-1 text-right">ENEMY</div>
+              <div className="bg-black/80 backdrop-blur-sm rounded-lg md:rounded-xl p-2 md:p-3">
+                <div className="text-orange-400 font-bold text-xs md:text-sm text-right">ENEMY</div>
                 <div className="flex justify-end">
                   {renderHearts(opponentHearts, MAX_HEARTS, '#ff4400')}
                 </div>
@@ -1347,70 +1466,83 @@ export default function WizardWarzGame({
             </div>
           </div>
           
-          {/* Current Element */}
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm rounded-xl px-4 py-2 flex items-center gap-2">
-            <span className="text-2xl">{ELEMENTS[currentElement].emoji}</span>
-            <span className="text-white font-bold">{ELEMENTS[currentElement].name}</span>
-            {isShielding && <span className="text-cyan-400 animate-pulse ml-2">🛡️</span>}
+          {/* Current Element + Shield Status - Mobile optimized */}
+          <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-lg md:rounded-xl px-3 md:px-4 py-1.5 md:py-2 flex items-center gap-2">
+            <span className="text-xl md:text-2xl">{ELEMENTS[currentElement].emoji}</span>
+            <span className="text-white font-bold text-sm md:text-base">{ELEMENTS[currentElement].name}</span>
+            {isShielding && <span className="text-cyan-400 animate-pulse ml-1 md:ml-2">🛡️</span>}
           </div>
           
-          {/* Element selector */}
-          <div className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm rounded-xl p-2 flex gap-1">
-            {ELEMENT_ORDER.map((el) => (
-              <button
-                key={el}
-                onClick={() => changeElement(el)}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center text-xl transition-all ${
-                  currentElement === el 
-                    ? 'bg-white/30 scale-110 ring-2 ring-white' 
-                    : 'bg-white/10 hover:bg-white/20'
-                }`}
-              >
-                {ELEMENTS[el].emoji}
-              </button>
-            ))}
+          {/* Element selector - Mobile: scrollable horizontal, bigger buttons */}
+          <div className="absolute bottom-36 md:bottom-32 left-2 right-2 md:left-1/2 md:-translate-x-1/2 md:right-auto overflow-x-auto">
+            <div className="bg-black/80 backdrop-blur-sm rounded-xl p-1.5 md:p-2 flex gap-1 md:gap-1 w-max mx-auto">
+              {ELEMENT_ORDER.map((el) => (
+                <button
+                  key={el}
+                  onClick={() => changeElement(el)}
+                  className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-2xl md:text-xl transition-all touch-manipulation ${
+                    currentElement === el 
+                      ? 'bg-white/30 scale-105 ring-2 ring-white' 
+                      : 'bg-white/10 active:bg-white/30'
+                  }`}
+                >
+                  {ELEMENTS[el].emoji}
+                </button>
+              ))}
+            </div>
           </div>
           
-          {/* Action buttons */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+          {/* Action buttons - MUCH BIGGER for mobile */}
+          <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4 flex gap-2 md:gap-3">
             <button
               onClick={fireSpell}
-              className="px-8 py-4 bg-gradient-to-t from-orange-700 to-orange-500 hover:from-orange-600 hover:to-orange-400 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-orange-500/30"
+              disabled={spellCooldown > 0}
+              className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl font-bold transition-all active:scale-90 shadow-lg touch-manipulation relative ${
+                spellCooldown > 0 
+                  ? 'bg-gray-700 text-gray-400' 
+                  : 'bg-gradient-to-t from-orange-700 to-orange-500 text-white shadow-orange-500/30'
+              }`}
             >
-              <div className="text-2xl">🔮</div>
-              <div className="text-xs">CAST</div>
+              <div className="text-3xl md:text-4xl">🔮</div>
+              <div className="text-xs font-bold">{spellCooldown > 0 ? `${(spellCooldown / 1000).toFixed(1)}s` : 'CAST'}</div>
+              {spellCooldown > 0 && (
+                <div 
+                  className="absolute bottom-0 left-0 h-1 bg-orange-400 rounded-b-2xl transition-all"
+                  style={{ width: `${(1 - spellCooldown / SPELL_COOLDOWN) * 100}%` }}
+                />
+              )}
             </button>
             
             <button
               onMouseDown={activateShield}
               onMouseUp={deactivateShield}
-              onTouchStart={activateShield}
-              onTouchEnd={deactivateShield}
+              onTouchStart={(e) => { e.preventDefault(); activateShield(); }}
+              onTouchEnd={(e) => { e.preventDefault(); deactivateShield(); }}
               disabled={shieldCooldown > 0}
-              className={`px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg ${
+              className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl font-bold transition-all active:scale-90 shadow-lg touch-manipulation ${
                 shieldCooldown > 0 
-                  ? 'bg-gray-600 text-gray-400' 
+                  ? 'bg-gray-700 text-gray-400' 
                   : isShielding 
-                    ? 'bg-cyan-500 text-white animate-pulse shadow-cyan-500/50' 
-                    : 'bg-gradient-to-t from-cyan-700 to-cyan-500 hover:from-cyan-600 hover:to-cyan-400 text-white shadow-cyan-500/30'
+                    ? 'bg-cyan-400 text-white animate-pulse shadow-cyan-400/50' 
+                    : 'bg-gradient-to-t from-cyan-700 to-cyan-500 text-white shadow-cyan-500/30'
               }`}
             >
-              <div className="text-2xl">🛡️</div>
-              <div className="text-xs">{shieldCooldown > 0 ? 'WAIT' : 'SHIELD'}</div>
+              <div className="text-3xl md:text-4xl">🛡️</div>
+              <div className="text-xs font-bold">{shieldCooldown > 0 ? 'WAIT' : isShielding ? 'HOLD!' : 'SHIELD'}</div>
             </button>
           </div>
           
-          {/* Element Teleport buttons */}
-          <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-sm rounded-xl p-2">
-            <div className="text-xs text-gray-400 text-center mb-2">TELEPORT + EQUIP</div>
-            <div className="grid grid-cols-3 gap-1">
+          {/* Element Teleport buttons - Mobile optimized with bigger buttons */}
+          <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 bg-black/80 backdrop-blur-sm rounded-xl p-1.5 md:p-2">
+            <div className="text-[10px] md:text-xs text-gray-400 text-center mb-1 md:mb-2">TELEPORT</div>
+            <div className="grid grid-cols-3 gap-0.5 md:gap-1">
               {/* Row 1: Fire (north) */}
               <div></div>
               <button
                 onClick={() => teleportTo('fire')}
                 disabled={teleportCooldown > 0}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
-                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-orange-600/80 hover:bg-orange-500 hover:scale-105'
+                className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-xl md:text-lg transition-all touch-manipulation ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-orange-600/80 active:bg-orange-500 active:scale-95'
                 } ${currentElement === 'fire' ? 'ring-2 ring-white' : ''}`}
               >
                 🔥
@@ -1421,8 +1553,8 @@ export default function WizardWarzGame({
               <button
                 onClick={() => teleportTo('dark')}
                 disabled={teleportCooldown > 0}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
-                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-purple-900/80 hover:bg-purple-800 hover:scale-105'
+                className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-xl md:text-lg transition-all touch-manipulation ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-purple-900/80 active:bg-purple-800 active:scale-95'
                 } ${currentElement === 'dark' ? 'ring-2 ring-white' : ''}`}
               >
                 🌑
@@ -1430,8 +1562,8 @@ export default function WizardWarzGame({
               <button
                 onClick={() => teleportTo('light')}
                 disabled={teleportCooldown > 0}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
-                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-yellow-100/80 hover:bg-yellow-50 hover:scale-105'
+                className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-xl md:text-lg transition-all touch-manipulation ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-yellow-100/80 active:bg-yellow-50 active:scale-95'
                 } ${currentElement === 'light' ? 'ring-2 ring-purple-500' : ''}`}
               >
                 ✨
@@ -1439,19 +1571,19 @@ export default function WizardWarzGame({
               <button
                 onClick={() => teleportTo('water')}
                 disabled={teleportCooldown > 0}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
-                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-blue-600/80 hover:bg-blue-500 hover:scale-105'
+                className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-xl md:text-lg transition-all touch-manipulation ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-blue-600/80 active:bg-blue-500 active:scale-95'
                 } ${currentElement === 'water' ? 'ring-2 ring-white' : ''}`}
               >
                 💧
               </button>
               
-              {/* Row 3: Nature (southwest), Earth (south center), Electric (southeast) */}
+              {/* Row 3: Nature (southwest), Electric (south center), Earth (southeast) */}
               <button
                 onClick={() => teleportTo('nature')}
                 disabled={teleportCooldown > 0}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
-                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-green-600/80 hover:bg-green-500 hover:scale-105'
+                className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-xl md:text-lg transition-all touch-manipulation ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-green-600/80 active:bg-green-500 active:scale-95'
                 } ${currentElement === 'nature' ? 'ring-2 ring-white' : ''}`}
               >
                 🌿
@@ -1459,8 +1591,8 @@ export default function WizardWarzGame({
               <button
                 onClick={() => teleportTo('electric')}
                 disabled={teleportCooldown > 0}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
-                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-yellow-500/80 hover:bg-yellow-400 hover:scale-105'
+                className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-xl md:text-lg transition-all touch-manipulation ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-yellow-500/80 active:bg-yellow-400 active:scale-95'
                 } ${currentElement === 'electric' ? 'ring-2 ring-white' : ''}`}
               >
                 ⚡
@@ -1468,15 +1600,15 @@ export default function WizardWarzGame({
               <button
                 onClick={() => teleportTo('earth')}
                 disabled={teleportCooldown > 0}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
-                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-amber-700/80 hover:bg-amber-600 hover:scale-105'
+                className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-xl md:text-lg transition-all touch-manipulation ${
+                  teleportCooldown > 0 ? 'bg-gray-700 opacity-50' : 'bg-amber-700/80 active:bg-amber-600 active:scale-95'
                 } ${currentElement === 'earth' ? 'ring-2 ring-white' : ''}`}
               >
                 🪨
               </button>
             </div>
             {teleportCooldown > 0 && (
-              <div className="text-xs text-center text-gray-400 mt-1">
+              <div className="text-[10px] md:text-xs text-center text-gray-400 mt-1">
                 {(teleportCooldown / 1000).toFixed(1)}s
               </div>
             )}

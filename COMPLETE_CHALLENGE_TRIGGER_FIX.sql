@@ -226,3 +226,4 @@ END $$;
 
 SELECT '✅ Challenge Trigger Fix Complete! Play a game and check your dashboard.' as status;
 
+
