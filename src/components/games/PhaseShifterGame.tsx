@@ -188,10 +188,15 @@ export default function PhaseShifterGame({
   
   // Multiplayer hook
   const lobby = useMultiplayerLobby(
-    'hex-arena', // Use same lobby type for rhythm games
+    'phase-shifter',
     user?.id,
     user?.email?.split('@')[0] || 'Player'
   );
+  
+  // Other players for multiplayer
+  const [otherPlayers, setOtherPlayers] = useState<Map<string, { y: number; jumpHeight: number; score: number; lives: number; isAlive: boolean }>>(new Map());
+  const otherAstronautsRef = useRef<Map<string, THREE.Group>>(new Map());
+  const lastPositionSentRef = useRef(0);
   
   // Refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -778,6 +783,16 @@ export default function PhaseShifterGame({
   }, [playBeatSound, createMusicNote, getThemeColors]);
 
   // Handle jump
+  // Fast fall - quickly return to ground
+  const handleFastFall = useCallback(() => {
+    if (!gameActiveRef.current) return;
+    if (!isJumpingRef.current) return; // Only fast fall when in the air
+    
+    // Instantly set target to ground level
+    playerTargetYRef.current = PLATFORM_Y + 1.5;
+    jumpHeightRef.current = 0;
+  }, []);
+  
   const handleJump = useCallback((height: 0 | 1 | 2) => {
     if (!gameActiveRef.current || isJumpingRef.current) return;
     
@@ -1037,12 +1052,15 @@ export default function PhaseShifterGame({
       } else if (e.key === 'ArrowRight' || e.key === 'e' || e.key === 'E' || e.key === '3') {
         e.preventDefault();
         handleJump(2); // High jump
+      } else if (e.key === 'ArrowLeft' || e.key === 'q' || e.key === 'Q' || e.key === 'd' || e.key === 'D' || e.key === '0') {
+        e.preventDefault();
+        handleFastFall(); // Fast fall
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleJump, gameState]);
+  }, [handleJump, handleFastFall, gameState]);
 
   // Start game
   const startGame = useCallback(() => {
@@ -1159,7 +1177,7 @@ export default function PhaseShifterGame({
     startGame();
   }, [startGame]);
 
-  // Handle multiplayer game start
+  // Handle multiplayer game start and player sync
   useEffect(() => {
     if (gameMode !== 'online') return;
     
@@ -1168,7 +1186,106 @@ export default function PhaseShifterGame({
       gameActiveRef.current = true;
       startGame();
     });
-  }, [gameMode, lobby, startGame]);
+    
+    // Listen for other players' position updates
+    lobby.onPlayerUpdate((updates) => {
+      const newOtherPlayers = new Map<string, { y: number; jumpHeight: number; score: number; lives: number; isAlive: boolean }>();
+      updates.forEach((update, id) => {
+        if (id !== user?.id) {
+          newOtherPlayers.set(id, {
+            y: update.y,
+            jumpHeight: update.z, // Using z for jump height
+            score: update.score,
+            lives: update.hearts,
+            isAlive: update.isAlive
+          });
+        }
+      });
+      setOtherPlayers(newOtherPlayers);
+      
+      // Update other astronauts' positions
+      newOtherPlayers.forEach((data, playerId) => {
+        const astronaut = otherAstronautsRef.current.get(playerId);
+        if (astronaut && sceneRef.current) {
+          astronaut.position.y = data.y;
+          astronaut.visible = data.isAlive;
+        }
+      });
+    });
+  }, [gameMode, lobby, startGame, user?.id]);
+  
+  // Create other players' astronauts when they join
+  useEffect(() => {
+    if (gameMode !== 'online' || !sceneRef.current) return;
+    
+    const colors = [0xff00ff, 0x00ffff, 0xffff00, 0x00ff00]; // Magenta, Cyan, Yellow, Green
+    
+    otherPlayers.forEach((data, playerId) => {
+      if (!otherAstronautsRef.current.has(playerId)) {
+        // Create a simple colored astronaut for this player
+        const playerIndex = Array.from(otherPlayers.keys()).indexOf(playerId);
+        const color = colors[playerIndex % colors.length];
+        
+        const otherAstronaut = new THREE.Group();
+        
+        // Simple astronaut body
+        const bodyGeo = new THREE.CapsuleGeometry(0.4, 0.8, 4, 8);
+        const bodyMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 0.6;
+        otherAstronaut.add(body);
+        
+        // Helmet
+        const helmetGeo = new THREE.SphereGeometry(0.35, 16, 16);
+        const helmetMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+        const helmet = new THREE.Mesh(helmetGeo, helmetMat);
+        helmet.position.y = 1.3;
+        otherAstronaut.add(helmet);
+        
+        // Position offset from main player
+        const xOffset = (playerIndex - 1) * 2; // Spread out horizontally
+        otherAstronaut.position.set(xOffset, -2 + 1.5, 2);
+        
+        if (sceneRef.current) {
+          sceneRef.current.add(otherAstronaut);
+          otherAstronautsRef.current.set(playerId, otherAstronaut);
+        }
+      }
+    });
+    
+    // Remove astronauts for players who left
+    otherAstronautsRef.current.forEach((astronaut, playerId) => {
+      if (!otherPlayers.has(playerId) && sceneRef.current) {
+        sceneRef.current.remove(astronaut);
+        otherAstronautsRef.current.delete(playerId);
+      }
+    });
+  }, [gameMode, otherPlayers]);
+  
+  // Send position updates during gameplay
+  useEffect(() => {
+    if (gameMode !== 'online' || gameState !== 'playing') return;
+    
+    const sendPositionUpdate = () => {
+      const now = Date.now();
+      if (now - lastPositionSentRef.current > 50) { // 20 times per second
+        lastPositionSentRef.current = now;
+        lobby.sendPlayerUpdate({
+          id: user?.id || '',
+          x: 0,
+          y: astronautRef.current?.position.y || 0,
+          z: jumpHeightRef.current, // Using z for jump height
+          rotationY: 0,
+          hearts: livesRef.current,
+          score: scoreRef.current,
+          isAlive: livesRef.current > 0
+        });
+      }
+    };
+    
+    const interval = setInterval(sendPositionUpdate, 50);
+    return () => clearInterval(interval);
+  }, [gameMode, gameState, lobby, user?.id]);
 
   // Handle resize
   useEffect(() => {
@@ -1227,6 +1344,9 @@ export default function PhaseShifterGame({
               </div>
               <div className="text-xs text-gray-400">LIVES</div>
               <div className="text-sm text-cyan-400 mt-1">{landings} lands</div>
+              {gameMode === 'online' && (
+                <div className="text-xs text-purple-400 mt-1">👥 {otherPlayers.size + 1} players</div>
+              )}
             </div>
           </div>
         </div>
@@ -1257,9 +1377,16 @@ export default function PhaseShifterGame({
               <div className="text-xl">🚀</div>
               <div className="text-xs">HIGH</div>
             </button>
+            <button
+              onClick={handleFastFall}
+              className="px-6 py-4 bg-gradient-to-t from-purple-700 to-purple-500 hover:from-purple-600 hover:to-purple-400 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg"
+            >
+              <div className="text-xl">⏬</div>
+              <div className="text-xs">FALL</div>
+            </button>
           </div>
           <div className="text-center text-xs text-gray-500 mt-2">
-            Keys: 1/↓ Low • 2/↑/Space Mid • 3/→ High
+            Keys: 1/↓ Low • 2/↑/Space Mid • 3/→ High • 0/←/Q Fall
           </div>
         </div>
       )}
