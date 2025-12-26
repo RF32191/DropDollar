@@ -24,10 +24,17 @@ interface OneShotArenaGameProps {
 interface Target {
   mesh: THREE.Mesh;
   glow: THREE.Mesh;
+  center: THREE.Mesh;
   position: THREE.Vector3;
+  basePosition: THREE.Vector3;
   hit: boolean;
   points: number;
   size: number;
+  // Movement patterns
+  moveType: 'static' | 'horizontal' | 'vertical' | 'circular' | 'zigzag';
+  moveSpeed: number;
+  movePhase: number;
+  moveRadius: number;
 }
 
 interface Projectile {
@@ -36,6 +43,14 @@ interface Projectile {
   trail: THREE.Points;
   ricochets: number;
   active: boolean;
+  sparks: THREE.Points[];
+  tracerLine: THREE.Line;
+}
+
+interface RicochetSpark {
+  mesh: THREE.Points;
+  life: number;
+  velocity: THREE.Vector3;
 }
 
 interface FloatingScore {
@@ -82,9 +97,16 @@ export default function OneShotArenaGame({
   const [totalRicochets, setTotalRicochets] = useState(0);
   const [perfectShots, setPerfectShots] = useState(0);
   const [aimAngle, setAimAngle] = useState({ x: 0, y: 0 });
-  const [power, setPower] = useState(50);
+  const [power, setPower] = useState(80);
   const [floatingScores, setFloatingScores] = useState<FloatingScore[]>([]);
   const [roundScore, setRoundScore] = useState(0);
+  
+  // Sniper mechanics
+  const [isScoped, setIsScoped] = useState(false);
+  const [breathHold, setBreathHold] = useState(100); // Stamina for steady aim
+  const [holdingBreath, setHoldingBreath] = useState(false);
+  const [precision, setPrecision] = useState(100);
+  const [wind, setWind] = useState({ x: 0, z: 0, strength: 0 });
   
   // Refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -101,6 +123,11 @@ export default function OneShotArenaGame({
   const floatingScoreIdRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const arenaRef = useRef<THREE.Group | null>(null);
+  const sparksRef = useRef<RicochetSpark[]>([]);
+  const swayRef = useRef({ x: 0, y: 0 });
+  const swayTimeRef = useRef(0);
+  const breathRef = useRef(100);
+  const scopeZoomRef = useRef(1);
   
   // Arena dimensions
   const ARENA_WIDTH = 20;
@@ -161,53 +188,138 @@ export default function OneShotArenaGame({
     }, 2000);
   }, []);
 
-  // Create target
-  const createTarget = useCallback((position: THREE.Vector3, size: number, points: number, scene: THREE.Scene): Target => {
+  // Create ricochet sparks
+  const createRicochetSparks = useCallback((position: THREE.Vector3, normal: THREE.Vector3, scene: THREE.Scene) => {
+    const colors = getThemeColors();
+    const numParticles = 20;
+    const positions = new Float32Array(numParticles * 3);
+    const velocities: THREE.Vector3[] = [];
+    
+    for (let i = 0; i < numParticles; i++) {
+      positions[i * 3] = position.x;
+      positions[i * 3 + 1] = position.y;
+      positions[i * 3 + 2] = position.z;
+      
+      // Spread sparks in reflection direction
+      const spread = new THREE.Vector3(
+        (Math.random() - 0.5) * 0.5 + normal.x * 0.3,
+        (Math.random() - 0.5) * 0.5 + normal.y * 0.3,
+        (Math.random() - 0.5) * 0.5 + normal.z * 0.3
+      );
+      velocities.push(spread);
+    }
+    
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    const material = new THREE.PointsMaterial({
+      color: colors.projectileGlow,
+      size: 0.15,
+      transparent: true,
+      opacity: 1,
+      blending: THREE.AdditiveBlending
+    });
+    
+    const sparks = new THREE.Points(geometry, material);
+    scene.add(sparks);
+    
+    sparksRef.current.push({
+      mesh: sparks,
+      life: 1,
+      velocity: velocities[0]
+    });
+    
+    // Auto-remove after animation
+    setTimeout(() => {
+      scene.remove(sparks);
+      sparksRef.current = sparksRef.current.filter(s => s.mesh !== sparks);
+    }, 500);
+  }, [getThemeColors]);
+
+  // Create target with movement
+  const createTarget = useCallback((position: THREE.Vector3, size: number, points: number, scene: THREE.Scene, roundNum: number): Target => {
     const colors = getThemeColors();
     
-    // Target ring
-    const geometry = new THREE.TorusGeometry(size, size * 0.15, 16, 32);
-    const material = new THREE.MeshStandardMaterial({
+    // Target group for easier movement
+    const targetGroup = new THREE.Group();
+    
+    // Outer ring
+    const outerRingGeo = new THREE.TorusGeometry(size, size * 0.08, 16, 32);
+    const outerRingMat = new THREE.MeshStandardMaterial({
       color: colors.target,
       emissive: colors.target,
-      emissiveIntensity: 0.5,
+      emissiveIntensity: 0.3,
       metalness: 0.7,
       roughness: 0.3
     });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(position);
-    mesh.lookAt(0, position.y, 0); // Face the launcher
-    scene.add(mesh);
+    const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+    targetGroup.add(outerRing);
     
-    // Center bullseye
-    const centerGeometry = new THREE.SphereGeometry(size * 0.3, 16, 16);
-    const centerMaterial = new THREE.MeshStandardMaterial({
+    // Middle ring
+    const midRingGeo = new THREE.TorusGeometry(size * 0.65, size * 0.06, 16, 32);
+    const midRingMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: 0xffffff,
-      emissiveIntensity: 0.8
+      emissiveIntensity: 0.2
+    });
+    const midRing = new THREE.Mesh(midRingGeo, midRingMat);
+    targetGroup.add(midRing);
+    
+    // Inner ring
+    const innerRingGeo = new THREE.TorusGeometry(size * 0.35, size * 0.05, 16, 32);
+    const innerRingMat = new THREE.MeshStandardMaterial({
+      color: colors.target,
+      emissive: colors.target,
+      emissiveIntensity: 0.5
+    });
+    const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
+    targetGroup.add(innerRing);
+    
+    // Center bullseye (perfect hit zone)
+    const centerGeometry = new THREE.SphereGeometry(size * 0.15, 16, 16);
+    const centerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffff00,
+      emissive: 0xffff00,
+      emissiveIntensity: 1
     });
     const center = new THREE.Mesh(centerGeometry, centerMaterial);
-    center.position.copy(position);
-    scene.add(center);
+    targetGroup.add(center);
     
-    // Glow
+    // Glow effect
     const glowGeometry = new THREE.SphereGeometry(size * 1.5, 16, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: colors.targetGlow,
       transparent: true,
-      opacity: 0.2
+      opacity: 0.15
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.copy(position);
+    
+    targetGroup.position.copy(position);
+    targetGroup.lookAt(0, position.y, ARENA_DEPTH / 2);
+    scene.add(targetGroup);
     scene.add(glow);
+    glow.position.copy(position);
+    
+    // Determine movement pattern based on round
+    const moveTypes: Array<'static' | 'horizontal' | 'vertical' | 'circular' | 'zigzag'> = 
+      ['static', 'horizontal', 'vertical', 'circular', 'zigzag'];
+    const moveChance = Math.min(0.7, roundNum * 0.1); // More moving targets in later rounds
+    const moveType = Math.random() < moveChance ? moveTypes[Math.floor(Math.random() * moveTypes.length)] : 'static';
+    const moveSpeed = 0.5 + Math.random() * 1.5;
     
     return {
-      mesh,
+      mesh: targetGroup as unknown as THREE.Mesh,
       glow,
-      position,
+      center,
+      position: position.clone(),
+      basePosition: position.clone(),
       hit: false,
       points,
-      size
+      size,
+      moveType,
+      moveSpeed,
+      movePhase: Math.random() * Math.PI * 2,
+      moveRadius: 1.5 + Math.random() * 2
     };
   }, [getThemeColors]);
 
@@ -347,23 +459,33 @@ export default function OneShotArenaGame({
     targetsRef.current = [];
     
     // Number of targets increases with rounds
-    const numTargets = Math.min(3 + Math.floor(roundNum / 3), 7);
+    const numTargets = Math.min(2 + Math.floor(roundNum / 2), 6);
     
     for (let i = 0; i < numTargets; i++) {
       // Random position in arena (away from launcher)
-      const x = (rng.next() - 0.5) * (ARENA_WIDTH - 4);
-      const y = 2 + rng.next() * (ARENA_HEIGHT - 4);
-      const z = -rng.next() * (ARENA_DEPTH - 8) - 4;
+      const x = (rng.next() - 0.5) * (ARENA_WIDTH - 6);
+      const y = 2 + rng.next() * (ARENA_HEIGHT - 5);
+      const z = -rng.next() * (ARENA_DEPTH - 10) - 5;
       
       const position = new THREE.Vector3(x, y, z);
       
-      // Size and points - smaller = more points
-      const size = 0.5 + rng.next() * 0.8;
-      const points = Math.floor(200 / size);
+      // Size and points - smaller = more points, further = more points
+      const size = 0.4 + rng.next() * 0.6;
+      const distanceBonus = Math.abs(z) / 5;
+      const points = Math.floor((250 / size) + distanceBonus * 50);
       
-      const target = createTarget(position, size, points, scene);
+      const target = createTarget(position, size, points, scene, roundNum);
       targetsRef.current.push(target);
     }
+    
+    // Generate wind for this round
+    const windAngle = rng.next() * Math.PI * 2;
+    const windStrength = roundNum > 3 ? rng.next() * 0.003 * Math.min(roundNum / 3, 2) : 0;
+    setWind({
+      x: Math.cos(windAngle) * windStrength,
+      z: Math.sin(windAngle) * windStrength,
+      strength: windStrength * 1000
+    });
   }, [createTarget]);
 
   // Initialize scene
@@ -435,136 +557,222 @@ export default function OneShotArenaGame({
     return { scene, camera, renderer };
   }, [getThemeColors, createArena, createLauncher, createAimLine, generateTargets]);
 
-  // Fire projectile
+  // Fire projectile - Sniper bullet with precision
   const fireProjectile = useCallback(() => {
     if (!sceneRef.current || !launcherRef.current) return;
     
     const colors = getThemeColors();
     
-    // Create projectile
-    const geometry = new THREE.SphereGeometry(0.2, 16, 16);
+    // Create bullet (elongated for sniper feel)
+    const geometry = new THREE.CylinderGeometry(0.05, 0.08, 0.4, 8);
+    geometry.rotateX(Math.PI / 2);
     const material = new THREE.MeshStandardMaterial({
-      color: colors.projectile,
+      color: 0xffcc00,
       emissive: colors.projectileGlow,
-      emissiveIntensity: 0.8,
-      metalness: 0.5,
-      roughness: 0.3
+      emissiveIntensity: 1,
+      metalness: 0.9,
+      roughness: 0.1
     });
     const mesh = new THREE.Mesh(geometry, material);
     
     // Start position at launcher
     mesh.position.copy(launcherRef.current.position);
-    mesh.position.y += 1;
+    mesh.position.y += 1.5;
     
-    // Calculate velocity from aim
-    const speed = power * 0.003;
+    // Apply current sway to aim (precision penalty if not holding breath)
+    const finalAimX = aimAngle.x + (holdingBreath ? swayRef.current.x * 0.1 : swayRef.current.x);
+    const finalAimY = aimAngle.y + (holdingBreath ? swayRef.current.y * 0.1 : swayRef.current.y);
+    
+    // Calculate velocity - sniper rifle has high initial speed
+    const speed = power * 0.006;
     const velocity = new THREE.Vector3(
-      Math.sin(aimAngle.x) * Math.cos(aimAngle.y) * speed,
-      Math.sin(aimAngle.y) * speed,
-      -Math.cos(aimAngle.x) * Math.cos(aimAngle.y) * speed
+      Math.sin(finalAimX) * Math.cos(finalAimY) * speed,
+      Math.sin(finalAimY) * speed,
+      -Math.cos(finalAimX) * Math.cos(finalAimY) * speed
     );
+    
+    // Orient bullet in direction of travel
+    mesh.lookAt(mesh.position.clone().add(velocity));
     
     sceneRef.current.add(mesh);
     
-    // Trail effect
+    // Tracer trail effect
     const trailGeometry = new THREE.BufferGeometry();
-    const trailPositions = new Float32Array(30 * 3);
+    const trailPositions = new Float32Array(50 * 3);
     trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
     const trailMaterial = new THREE.PointsMaterial({
       color: colors.projectileGlow,
-      size: 0.1,
+      size: 0.08,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending
     });
     const trail = new THREE.Points(trailGeometry, trailMaterial);
     sceneRef.current.add(trail);
+    
+    // Tracer line (sniper bullet streak)
+    const tracerPoints = [new THREE.Vector3(), new THREE.Vector3()];
+    const tracerGeometry = new THREE.BufferGeometry().setFromPoints(tracerPoints);
+    const tracerMaterial = new THREE.LineBasicMaterial({
+      color: colors.projectileGlow,
+      transparent: true,
+      opacity: 0.6,
+      linewidth: 2
+    });
+    const tracerLine = new THREE.Line(tracerGeometry, tracerMaterial);
+    sceneRef.current.add(tracerLine);
     
     projectileRef.current = {
       mesh,
       velocity,
       trail,
       ricochets: 0,
-      active: true
+      active: true,
+      sparks: [],
+      tracerLine
     };
     
+    // Calculate precision score based on sway at time of shot
+    const swayAmount = Math.sqrt(swayRef.current.x ** 2 + swayRef.current.y ** 2);
+    const precisionScore = Math.max(0, 100 - swayAmount * 500);
+    setPrecision(Math.round(precisionScore));
+    
+    setIsScoped(false);
     setGameState('flying');
-  }, [aimAngle, power, getThemeColors]);
+  }, [aimAngle, power, holdingBreath, getThemeColors]);
 
-  // Update projectile physics
+  // Update projectile physics - Enhanced sniper bullet physics
   const updateProjectile = useCallback(() => {
-    if (!projectileRef.current || !projectileRef.current.active) return false;
+    if (!projectileRef.current || !projectileRef.current.active || !sceneRef.current) return false;
     
     const proj = projectileRef.current;
     const pos = proj.mesh.position;
+    const prevPos = pos.clone();
     
-    // Apply gravity
-    proj.velocity.y -= 0.003;
+    // Apply gravity (bullet drop)
+    proj.velocity.y -= 0.004;
+    
+    // Apply wind
+    proj.velocity.x += wind.x;
+    proj.velocity.z += wind.z;
+    
+    // Air resistance (slight drag)
+    proj.velocity.multiplyScalar(0.998);
     
     // Move projectile
     pos.add(proj.velocity);
     
-    // Check wall collisions (ricochet)
+    // Orient bullet in direction of travel
+    proj.mesh.lookAt(pos.clone().add(proj.velocity));
+    
+    // Check wall collisions (ricochet with sparks)
     let bounced = false;
+    let bounceNormal = new THREE.Vector3();
     
     // Left/Right walls
-    if (pos.x < -ARENA_WIDTH / 2 + 0.3 || pos.x > ARENA_WIDTH / 2 - 0.3) {
-      proj.velocity.x *= -0.8;
-      pos.x = Math.max(-ARENA_WIDTH / 2 + 0.3, Math.min(ARENA_WIDTH / 2 - 0.3, pos.x));
+    if (pos.x < -ARENA_WIDTH / 2 + 0.2) {
+      proj.velocity.x *= -0.75;
+      proj.velocity.multiplyScalar(0.85);
+      pos.x = -ARENA_WIDTH / 2 + 0.2;
+      bounceNormal.set(1, 0, 0);
+      bounced = true;
+    } else if (pos.x > ARENA_WIDTH / 2 - 0.2) {
+      proj.velocity.x *= -0.75;
+      proj.velocity.multiplyScalar(0.85);
+      pos.x = ARENA_WIDTH / 2 - 0.2;
+      bounceNormal.set(-1, 0, 0);
       bounced = true;
     }
     
     // Floor/Ceiling
-    if (pos.y < 0.3 || pos.y > ARENA_HEIGHT - 0.3) {
-      proj.velocity.y *= -0.7;
-      pos.y = Math.max(0.3, Math.min(ARENA_HEIGHT - 0.3, pos.y));
+    if (pos.y < 0.2) {
+      proj.velocity.y *= -0.6;
+      proj.velocity.multiplyScalar(0.8);
+      pos.y = 0.2;
+      bounceNormal.set(0, 1, 0);
+      bounced = true;
+    } else if (pos.y > ARENA_HEIGHT - 0.2) {
+      proj.velocity.y *= -0.6;
+      proj.velocity.multiplyScalar(0.8);
+      pos.y = ARENA_HEIGHT - 0.2;
+      bounceNormal.set(0, -1, 0);
       bounced = true;
     }
     
     // Back wall
-    if (pos.z < -ARENA_DEPTH / 2 + 0.3) {
-      proj.velocity.z *= -0.8;
-      pos.z = -ARENA_DEPTH / 2 + 0.3;
+    if (pos.z < -ARENA_DEPTH / 2 + 0.2) {
+      proj.velocity.z *= -0.7;
+      proj.velocity.multiplyScalar(0.85);
+      pos.z = -ARENA_DEPTH / 2 + 0.2;
+      bounceNormal.set(0, 0, 1);
       bounced = true;
     }
     
     if (bounced) {
       proj.ricochets++;
       setTotalRicochets(prev => prev + 1);
+      
+      // Create ricochet sparks!
+      createRicochetSparks(pos.clone(), bounceNormal, sceneRef.current);
     }
     
+    // Update tracer line
+    const tracerPositions = proj.tracerLine.geometry.attributes.position.array as Float32Array;
+    tracerPositions[0] = prevPos.x;
+    tracerPositions[1] = prevPos.y;
+    tracerPositions[2] = prevPos.z;
+    tracerPositions[3] = pos.x;
+    tracerPositions[4] = pos.y;
+    tracerPositions[5] = pos.z;
+    proj.tracerLine.geometry.attributes.position.needsUpdate = true;
+    
     // Check target collisions
-    let hitTarget = false;
     for (const target of targetsRef.current) {
       if (target.hit) continue;
       
       const dist = pos.distanceTo(target.position);
-      if (dist < target.size + 0.2) {
+      if (dist < target.size + 0.15) {
         target.hit = true;
-        hitTarget = true;
         
         setTargetsHit(prev => prev + 1);
         
-        // Calculate points
+        // Calculate points based on precision
         let points = target.points;
-        const isPerfect = dist < target.size * 0.3;
+        const hitAccuracy = 1 - (dist / target.size);
+        const isPerfect = dist < target.size * 0.2;
+        const isGreat = dist < target.size * 0.5;
+        
+        // Precision multiplier
+        const precisionMult = 1 + (precision / 100) * 0.5;
+        points = Math.floor(points * precisionMult);
         
         if (isPerfect) {
-          points *= 2;
+          points *= 3;
           setPerfectShots(prev => prev + 1);
+        } else if (isGreat) {
+          points *= 1.5;
         }
         
-        // Ricochet bonus
-        const ricochetBonus = proj.ricochets * 50;
-        points += ricochetBonus;
+        // Ricochet bonus (cumulative)
+        const ricochetBonus = proj.ricochets * 100 * (proj.ricochets > 1 ? 1.5 : 1);
+        points += Math.floor(ricochetBonus);
+        
+        // Distance bonus
+        const distanceBonus = Math.floor(Math.abs(target.basePosition.z) * 5);
+        points += distanceBonus;
+        
+        // Moving target bonus
+        if (target.moveType !== 'static') {
+          points = Math.floor(points * 1.3);
+        }
         
         scoreRef.current += points;
         setScore(scoreRef.current);
         setRoundScore(prev => prev + points);
         
-        // Visual feedback
-        const material = target.mesh.material as THREE.MeshStandardMaterial;
-        material.emissive.setHex(0x00ff00);
-        material.emissiveIntensity = 1;
+        // Visual feedback - target explodes
+        target.glow.scale.setScalar(3);
+        (target.glow.material as THREE.MeshBasicMaterial).opacity = 0.8;
         
         // Floating score
         if (cameraRef.current) {
@@ -572,19 +780,32 @@ export default function OneShotArenaGame({
           const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
           const y = (-(screenPos.y * 0.5) + 0.5) * window.innerHeight;
           
-          const text = isPerfect 
-            ? `PERFECT! +${points}` 
-            : proj.ricochets > 0 
-              ? `RICOCHET x${proj.ricochets}! +${points}`
-              : `+${points}`;
+          let text = '';
+          let color = '#00ff88';
           
-          addFloatingScore(text, x, y, isPerfect ? '#ffd700' : '#00ff88');
+          if (isPerfect) {
+            text = `💥 BULLSEYE! +${points}`;
+            color = '#ffd700';
+          } else if (proj.ricochets > 1) {
+            text = `🔄 MULTI-RICOCHET x${proj.ricochets}! +${points}`;
+            color = '#ff66ff';
+          } else if (proj.ricochets > 0) {
+            text = `↗️ BANK SHOT! +${points}`;
+            color = '#66ffff';
+          } else if (target.moveType !== 'static') {
+            text = `🎯 MOVING TARGET! +${points}`;
+            color = '#ff9966';
+          } else {
+            text = `+${points}`;
+          }
+          
+          addFloatingScore(text, x, y, color);
         }
       }
     }
     
     // Check if projectile is out of bounds or stopped
-    if (pos.z > ARENA_DEPTH / 2 + 5 || proj.velocity.length() < 0.01) {
+    if (pos.z > ARENA_DEPTH / 2 + 5 || proj.velocity.length() < 0.008 || proj.ricochets > 5) {
       proj.active = false;
       return false;
     }
@@ -602,7 +823,7 @@ export default function OneShotArenaGame({
     proj.trail.geometry.attributes.position.needsUpdate = true;
     
     return true;
-  }, [addFloatingScore]);
+  }, [addFloatingScore, createRicochetSparks, precision, wind]);
 
   // End round
   const endRound = useCallback(() => {
@@ -708,18 +929,59 @@ export default function OneShotArenaGame({
     }
   }, [user, isPractice, competitionId, totalRounds, targetsHit, perfectShots, totalRicochets, theme]);
 
-  // Game loop
+  // Game loop - Enhanced with sniper mechanics
   const gameLoop = useCallback(() => {
-    // Update aim line position
+    const time = Date.now() * 0.001;
+    
+    // SNIPER SWAY MECHANICS
+    if (gameState === 'aiming') {
+      swayTimeRef.current += 0.016;
+      
+      // Natural sway (breathing)
+      const baseSwayX = Math.sin(swayTimeRef.current * 1.2) * 0.015 + Math.sin(swayTimeRef.current * 2.7) * 0.008;
+      const baseSwayY = Math.cos(swayTimeRef.current * 0.9) * 0.012 + Math.cos(swayTimeRef.current * 2.1) * 0.006;
+      
+      // Reduce sway when holding breath
+      const swayMult = holdingBreath ? 0.15 : 1;
+      swayRef.current.x = baseSwayX * swayMult;
+      swayRef.current.y = baseSwayY * swayMult;
+      
+      // Breath stamina
+      if (holdingBreath) {
+        breathRef.current = Math.max(0, breathRef.current - 0.8);
+        setBreathHold(Math.round(breathRef.current));
+        
+        if (breathRef.current <= 0) {
+          setHoldingBreath(false);
+        }
+      } else {
+        breathRef.current = Math.min(100, breathRef.current + 0.3);
+        setBreathHold(Math.round(breathRef.current));
+      }
+      
+      // Scope zoom effect
+      if (cameraRef.current) {
+        const targetZoom = isScoped ? 1.8 : 1;
+        scopeZoomRef.current += (targetZoom - scopeZoomRef.current) * 0.1;
+        cameraRef.current.zoom = scopeZoomRef.current;
+        cameraRef.current.updateProjectionMatrix();
+      }
+    }
+    
+    // Update aim line position with sway
     if (launcherRef.current && aimLineRef.current && gameState === 'aiming') {
       const start = launcherRef.current.position.clone();
-      start.y += 1;
+      start.y += 1.5;
+      
+      // Apply sway to aim
+      const swayedAimX = aimAngle.x + swayRef.current.x;
+      const swayedAimY = aimAngle.y + swayRef.current.y;
       
       const direction = new THREE.Vector3(
-        Math.sin(aimAngle.x) * Math.cos(aimAngle.y),
-        Math.sin(aimAngle.y),
-        -Math.cos(aimAngle.x) * Math.cos(aimAngle.y)
-      ).multiplyScalar(power * 0.1);
+        Math.sin(swayedAimX) * Math.cos(swayedAimY),
+        Math.sin(swayedAimY),
+        -Math.cos(swayedAimX) * Math.cos(swayedAimY)
+      ).multiplyScalar(power * 0.15);
       
       const end = start.clone().add(direction);
       
@@ -741,13 +1003,59 @@ export default function OneShotArenaGame({
       }
     }
     
-    // Animate targets
+    // Animate targets with MOVEMENT PATTERNS
     targetsRef.current.forEach(target => {
       if (!target.hit) {
-        target.mesh.rotation.z += 0.02;
-        const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 1;
+        // Rotate target ring
+        target.mesh.rotation.z += 0.015;
+        
+        // Pulse glow
+        const pulse = Math.sin(time * 3) * 0.2 + 1.2;
         target.glow.scale.setScalar(pulse);
+        
+        // MOVING TARGETS
+        const t = time * target.moveSpeed + target.movePhase;
+        let offsetX = 0, offsetY = 0, offsetZ = 0;
+        
+        switch (target.moveType) {
+          case 'horizontal':
+            offsetX = Math.sin(t) * target.moveRadius;
+            break;
+          case 'vertical':
+            offsetY = Math.sin(t) * target.moveRadius * 0.7;
+            break;
+          case 'circular':
+            offsetX = Math.sin(t) * target.moveRadius;
+            offsetY = Math.cos(t) * target.moveRadius * 0.5;
+            break;
+          case 'zigzag':
+            offsetX = Math.sin(t * 2) * target.moveRadius;
+            offsetZ = Math.sin(t) * target.moveRadius * 0.3;
+            break;
+        }
+        
+        target.position.set(
+          target.basePosition.x + offsetX,
+          Math.max(1.5, Math.min(ARENA_HEIGHT - 1.5, target.basePosition.y + offsetY)),
+          target.basePosition.z + offsetZ
+        );
+        
+        target.mesh.position.copy(target.position);
+        target.glow.position.copy(target.position);
+        target.mesh.lookAt(0, target.position.y, ARENA_DEPTH / 2);
+      } else {
+        // Fade out hit targets
+        const mat = target.glow.material as THREE.MeshBasicMaterial;
+        mat.opacity *= 0.95;
+        target.glow.scale.multiplyScalar(1.02);
       }
+    });
+    
+    // Update ricochet sparks
+    sparksRef.current.forEach(spark => {
+      spark.life -= 0.05;
+      const mat = spark.mesh.material as THREE.PointsMaterial;
+      mat.opacity = spark.life;
     });
     
     // Render
@@ -756,7 +1064,7 @@ export default function OneShotArenaGame({
     }
     
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, aimAngle, power, updateProjectile, endRound]);
+  }, [gameState, aimAngle, power, holdingBreath, isScoped, updateProjectile, endRound]);
 
   // Input handlers
   useEffect(() => {
@@ -791,17 +1099,35 @@ export default function OneShotArenaGame({
       }
       if (e.code === 'ArrowUp') setPower(prev => Math.min(100, prev + 5));
       if (e.code === 'ArrowDown') setPower(prev => Math.max(20, prev - 5));
+      // Hold breath for steady aim
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        if (breathRef.current > 10) {
+          setHoldingBreath(true);
+        }
+      }
+      // Toggle scope
+      if (e.code === 'KeyZ' || e.code === 'KeyX') {
+        setIsScoped(prev => !prev);
+      }
+    };
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        setHoldingBreath(false);
+      }
     };
     
     window.addEventListener('mousemove', handleMouseMove);
     containerRef.current?.addEventListener('click', handleClick);
     window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, [gameState, fireProjectile]);
 
@@ -967,18 +1293,97 @@ export default function OneShotArenaGame({
         </div>
       )}
       
-      {/* Power Meter */}
+      {/* Sniper UI Panel */}
       {gameState === 'aiming' && (
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-          <div className="bg-black/50 backdrop-blur-sm rounded-xl p-3 border border-white/10">
-            <div className="text-xs text-gray-400 mb-2">POWER</div>
-            <div className="w-4 h-32 bg-gray-700 rounded-full overflow-hidden relative">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none space-y-3">
+          {/* Power Meter */}
+          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+            <div className="text-xs text-gray-400 mb-2 text-center">POWER</div>
+            <div className="w-5 h-28 bg-gray-800 rounded-full overflow-hidden relative mx-auto">
               <div 
-                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-red-500 via-yellow-500 to-green-500 transition-all"
+                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-orange-600 via-yellow-500 to-green-400 transition-all"
                 style={{ height: `${power}%` }}
               />
             </div>
             <div className="text-sm font-bold text-white mt-2 text-center">{power}%</div>
+          </div>
+          
+          {/* Breath/Stamina */}
+          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+            <div className="text-xs text-gray-400 mb-2 text-center">BREATH</div>
+            <div className="w-5 h-20 bg-gray-800 rounded-full overflow-hidden relative mx-auto">
+              <div 
+                className={`absolute bottom-0 left-0 right-0 transition-all ${
+                  holdingBreath ? 'bg-cyan-400' : 'bg-blue-500'
+                } ${breathHold < 30 ? 'animate-pulse' : ''}`}
+                style={{ height: `${breathHold}%` }}
+              />
+            </div>
+            <div className={`text-xs font-bold mt-2 text-center ${holdingBreath ? 'text-cyan-400' : 'text-gray-400'}`}>
+              {holdingBreath ? 'HOLD' : 'SHIFT'}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Right Side Info */}
+      {gameState === 'aiming' && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none space-y-3">
+          {/* Wind Indicator */}
+          {wind.strength > 0 && (
+            <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+              <div className="text-xs text-gray-400 mb-2 text-center">WIND</div>
+              <div className="text-2xl text-center">
+                {wind.x > 0 ? '→' : wind.x < 0 ? '←' : wind.z > 0 ? '↓' : '↑'}
+              </div>
+              <div className="text-sm font-bold text-yellow-400 text-center">
+                {(wind.strength * 100).toFixed(1)}
+              </div>
+            </div>
+          )}
+          
+          {/* Scope Toggle */}
+          <div className={`bg-black/70 backdrop-blur-sm rounded-xl p-3 border transition-all ${
+            isScoped ? 'border-cyan-500 bg-cyan-900/30' : 'border-white/10'
+          }`}>
+            <div className="text-xs text-gray-400 mb-1 text-center">SCOPE</div>
+            <div className={`text-lg font-bold text-center ${isScoped ? 'text-cyan-400' : 'text-gray-500'}`}>
+              {isScoped ? '🔭 ON' : 'Z KEY'}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Crosshair / Scope Overlay */}
+      {gameState === 'aiming' && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className={`transition-all duration-200 ${isScoped ? 'scale-150' : 'scale-100'}`}>
+            {/* Crosshair */}
+            <div className="relative w-20 h-20">
+              {/* Horizontal line */}
+              <div className={`absolute top-1/2 left-0 right-0 h-0.5 -translate-y-1/2 transition-all ${
+                holdingBreath ? 'bg-cyan-400' : 'bg-white/50'
+              }`} style={{ 
+                transform: `translateY(-50%) translateX(${swayRef.current.x * 50}px)` 
+              }} />
+              {/* Vertical line */}
+              <div className={`absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 transition-all ${
+                holdingBreath ? 'bg-cyan-400' : 'bg-white/50'
+              }`} style={{ 
+                transform: `translateX(-50%) translateY(${swayRef.current.y * 50}px)` 
+              }} />
+              {/* Center dot */}
+              <div className={`absolute top-1/2 left-1/2 w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2 ${
+                holdingBreath ? 'bg-cyan-400' : 'bg-red-500'
+              }`} />
+              {/* Scope rings when scoped */}
+              {isScoped && (
+                <>
+                  <div className="absolute inset-0 border-2 border-cyan-500/30 rounded-full" />
+                  <div className="absolute inset-4 border border-cyan-500/20 rounded-full" />
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -986,10 +1391,10 @@ export default function OneShotArenaGame({
       {/* Aiming hint */}
       {gameState === 'aiming' && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="bg-black/50 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
-            <div className="text-xs text-gray-400 text-center">
-              <span className="hidden sm:inline">Move mouse to aim • Scroll to adjust power • Click or SPACE to fire</span>
-              <span className="sm:hidden">Drag to aim • Release to fire!</span>
+          <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
+            <div className="text-xs text-gray-400 text-center space-x-3">
+              <span className="hidden sm:inline">🖱️ Aim • ⚙️ Scroll=Power • ⇧ Hold Breath • Z Scope • Click/Space to Fire</span>
+              <span className="sm:hidden">Drag to aim • Tap to fire!</span>
             </div>
           </div>
         </div>
