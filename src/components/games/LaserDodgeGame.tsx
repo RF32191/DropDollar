@@ -1587,26 +1587,39 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   // Track if countdown has started to prevent re-triggering
   const countdownStartedRef = useRef(false);
   
+  // Store lobby info in refs for stable access
+  const lobbyPlayersRef = useRef(lobby.players);
+  const lobbyIsHostRef = useRef(lobby.isHost);
+  lobbyPlayersRef.current = lobby.players;
+  lobbyIsHostRef.current = lobby.isHost;
+  
   // Check if all players are ready and start sync countdown (HOST ONLY)
   useEffect(() => {
     if (!waitingForPlayers || gameMode !== 'online') return;
-    if (!lobby.isHost) return; // Only host manages countdown
     if (countdownStartedRef.current) return; // Don't restart
     
-    const totalPlayers = lobby.players.length;
+    const totalPlayers = lobbyPlayersRef.current.length;
     const readyCount = playersReady.size;
+    const isHost = lobbyIsHostRef.current;
     
-    console.log(`[LaserDodge] Ready check: ${readyCount}/${totalPlayers}, isHost: ${lobby.isHost}`);
+    console.log(`[LaserDodge] Ready check: ${readyCount}/${totalPlayers}, isHost: ${isHost}, countdownStarted: ${countdownStartedRef.current}`);
+    console.log(`[LaserDodge] Players:`, lobbyPlayersRef.current.map(p => p.username));
+    console.log(`[LaserDodge] Ready IDs:`, Array.from(playersReady));
+    
+    if (!isHost) {
+      console.log('[LaserDodge] Not host, skipping countdown start');
+      return;
+    }
     
     // If all players are ready, host starts the synchronized countdown
     if (readyCount >= totalPlayers && totalPlayers >= 2) {
       console.log('[LaserDodge] All players ready! Starting countdown...');
       countdownStartedRef.current = true;
       // Start countdown - broadcast 3 first
-      lobby.sendPlayerAction('sync_countdown_tick', { count: 3 });
       setSyncCountdown(3);
+      lobby.sendPlayerAction('sync_countdown_tick', { count: 3 });
     }
-  }, [playersReady, waitingForPlayers, gameMode, lobby.isHost, lobby.players.length]);
+  }, [playersReady, waitingForPlayers, gameMode, lobby]);
   
   // Host runs the countdown and broadcasts each tick
   useEffect(() => {
@@ -1644,19 +1657,21 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const handleTapToStart = useCallback(() => {
     if (gameMode !== 'online' || !waitingForPlayers) return;
     
-    // Enable gyroscope if on mobile first
-    if (isMobile && !gyroscopeEnabled) {
-      // Let them enable gyro, they can tap again after
-    }
+    const myId = user?.id || '';
+    console.log(`[LaserDodge] handleTapToStart called, myId: ${myId}`);
     
-    // Signal that this player is ready
-    lobby.sendPlayerAction('ready_to_start');
+    // Update local state FIRST
     setPlayersReady(prev => {
       const newSet = new Set(prev);
-      newSet.add(user?.id || '');
+      newSet.add(myId);
+      console.log(`[LaserDodge] Local playersReady updated: ${newSet.size}`);
       return newSet;
     });
-  }, [gameMode, waitingForPlayers, lobby, user?.id, isMobile, gyroscopeEnabled]);
+    
+    // Then broadcast to others
+    lobby.sendPlayerAction('ready_to_start');
+    console.log(`[LaserDodge] Sent ready_to_start broadcast`);
+  }, [gameMode, waitingForPlayers, lobby, user?.id]);
   
   // Send position updates during gameplay
   useEffect(() => {
