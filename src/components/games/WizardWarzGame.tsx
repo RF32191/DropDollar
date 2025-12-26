@@ -69,10 +69,11 @@ interface WizardWarzGameProps {
 }
 
 const GAME_DURATION = 120;
-const SPELL_SPEED = 0.35;
+const SPELL_SPEED = 0.4;
+const SPELL_DAMAGE = 1; // Base damage (modified by element system)
 const PARRY_WINDOW = 350;
 const SHIELD_DURATION = 2000;
-const TELEPORT_COOLDOWN = 2000; // Faster teleport for dodging
+const TELEPORT_COOLDOWN = 2000;
 const MAX_HEARTS = 20;
 
 export default function WizardWarzGame({
@@ -523,44 +524,31 @@ export default function WizardWarzGame({
       }
     }
     
-    // Pillars
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const x = Math.cos(angle) * 12;
-      const z = Math.sin(angle) * 12;
+    // Arena corner lights (no pillars blocking view)
+    const cornerLights = [
+      { x: 12, z: 12, color: 0xff6600 },
+      { x: -12, z: 12, color: 0x00ff66 },
+      { x: 12, z: -12, color: 0x6600ff },
+      { x: -12, z: -12, color: 0xff0066 },
+    ];
+    
+    cornerLights.forEach(({ x, z, color }) => {
+      const light = new THREE.PointLight(color, 1.2, 20);
+      light.position.set(x, 6, z);
+      scene.add(light);
       
-      // Pillar
-      const pillarGeo = new THREE.CylinderGeometry(0.5, 0.6, 6, 12);
-      const pillarMat = new THREE.MeshStandardMaterial({ color: 0x6a6a6a, roughness: 0.7 });
-      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-      pillar.position.set(x, 3, z);
-      scene.add(pillar);
-      
-      // Pillar capital
-      const capitalGeo = new THREE.CylinderGeometry(0.8, 0.5, 0.5, 12);
-      const capital = new THREE.Mesh(capitalGeo, pillarMat);
-      capital.position.set(x, 6.25, z);
-      scene.add(capital);
-      
-      // Pillar base
-      const baseGeo = new THREE.CylinderGeometry(0.6, 0.8, 0.4, 12);
-      const base = new THREE.Mesh(baseGeo, pillarMat);
-      base.position.set(x, 0.2, z);
-      scene.add(base);
-      
-      // Torch on pillar
-      const torchLightColor = [0xff6600, 0x00ff66, 0x6600ff, 0xff0066][i % 4];
-      const torchLight = new THREE.PointLight(torchLightColor, 0.8, 8);
-      torchLight.position.set(x, 5.5, z);
-      scene.add(torchLight);
-      
-      // Torch flame
-      const flameGeo = new THREE.ConeGeometry(0.15, 0.4, 8);
-      const flameMat = new THREE.MeshBasicMaterial({ color: torchLightColor });
-      const flame = new THREE.Mesh(flameGeo, flameMat);
-      flame.position.set(x, 6.5, z);
-      scene.add(flame);
-    }
+      // Small glowing orb to show light source
+      const orbGeo = new THREE.SphereGeometry(0.3, 16, 16);
+      const orbMat = new THREE.MeshBasicMaterial({ color });
+      const orb = new THREE.Mesh(orbGeo, orbMat);
+      orb.position.set(x, 6, z);
+      scene.add(orb);
+    });
+    
+    // Center arena light
+    const centerLight = new THREE.PointLight(0xffffff, 1, 25);
+    centerLight.position.set(0, 10, 0);
+    scene.add(centerLight);
     
     // Element teleport zones - 7 platforms for 7 elements
     TELEPORT_ZONES.forEach(zone => {
@@ -704,12 +692,12 @@ export default function WizardWarzGame({
     if (!containerRef.current || gameState !== 'playing') return;
     
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050508); // Much darker
-    scene.fog = new THREE.Fog(0x050508, 12, 40);
+    scene.background = new THREE.Color(0x1a1025); // Dark purple, not pitch black
+    scene.fog = new THREE.Fog(0x1a1025, 20, 60);
     sceneRef.current = scene;
     
     const camera = new THREE.PerspectiveCamera(55, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
-    camera.position.set(0, 14, 20);
+    camera.position.set(0, 14, 22);
     camera.lookAt(0, 2, 0);
     cameraRef.current = camera;
     
@@ -720,11 +708,11 @@ export default function WizardWarzGame({
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Darker lighting for dungeon atmosphere
-    const ambientLight = new THREE.AmbientLight(0x202030, 0.3);
+    // Brighter lighting - can see the arena clearly
+    const ambientLight = new THREE.AmbientLight(0x404060, 0.7);
     scene.add(ambientLight);
     
-    const mainLight = new THREE.DirectionalLight(0xaaaacc, 0.4); // Dimmer moonlight
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
     mainLight.position.set(10, 20, 10);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
