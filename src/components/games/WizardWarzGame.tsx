@@ -1023,33 +1023,7 @@ export default function WizardWarzGame({
     setTimeout(() => setShieldCooldown(0), 1000);
   }, []);
   
-  // Teleport - also changes element and gives invincibility frames
-  const teleportTo = useCallback((zoneId: string) => {
-    if (!gameActiveRef.current || teleportCooldownRef.current > 0 || !playerWizardRef.current) return;
-    
-    const zone = TELEPORT_ZONES.find(z => z.id === zoneId);
-    if (!zone) return;
-    
-    // Move to zone
-    playerPositionRef.current.copy(zone.position);
-    playerWizardRef.current.position.copy(zone.position);
-    teleportCooldownRef.current = TELEPORT_COOLDOWN;
-    setTeleportCooldown(TELEPORT_COOLDOWN);
-    
-    // Invincibility frames for dodging
-    teleportInvincibleRef.current = true;
-    teleportInvincibleUntilRef.current = Date.now() + 500; // 0.5 second invincibility
-    setTimeout(() => {
-      teleportInvincibleRef.current = false;
-    }, 500);
-    
-    // Change element to zone's element
-    changeElement(zone.element);
-    
-    addPopup(0, 50, 50, 'bonus', `${ELEMENTS[zone.element].emoji} ${ELEMENTS[zone.element].name.toUpperCase()}!`);
-  }, [addPopup, changeElement]);
-  
-  // Change element - also updates player glow
+  // Change element - also updates player glow (MUST be defined before teleportTo)
   const changeElement = useCallback((element: Element) => {
     currentElementRef.current = element;
     setCurrentElement(element);
@@ -1077,6 +1051,32 @@ export default function WizardWarzGame({
       mat.color.setHex(elementData.glowColor);
     }
   }, []);
+  
+  // Teleport - also changes element and gives invincibility frames
+  const teleportTo = useCallback((zoneId: string) => {
+    if (!gameActiveRef.current || teleportCooldownRef.current > 0 || !playerWizardRef.current) return;
+    
+    const zone = TELEPORT_ZONES.find(z => z.id === zoneId);
+    if (!zone) return;
+    
+    // Move to zone
+    playerPositionRef.current.copy(zone.position);
+    playerWizardRef.current.position.copy(zone.position);
+    teleportCooldownRef.current = TELEPORT_COOLDOWN;
+    setTeleportCooldown(TELEPORT_COOLDOWN);
+    
+    // Invincibility frames for dodging
+    teleportInvincibleRef.current = true;
+    teleportInvincibleUntilRef.current = Date.now() + 500; // 0.5 second invincibility
+    setTimeout(() => {
+      teleportInvincibleRef.current = false;
+    }, 500);
+    
+    // Change element to zone's element
+    changeElement(zone.element);
+    
+    addPopup(0, 50, 50, 'bonus', `${ELEMENTS[zone.element].emoji} ${ELEMENTS[zone.element].name.toUpperCase()}!`);
+  }, [addPopup, changeElement]);
   
   // Keyboard controls
   useEffect(() => {
