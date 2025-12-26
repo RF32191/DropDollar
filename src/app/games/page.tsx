@@ -141,6 +141,11 @@ const PhaseShifterGame = dynamic(() => import('@/components/games/PhaseShifterGa
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Phase Shifter" color="pink" />
 });
+
+const WizardWarzGame = dynamic(() => import('@/components/games/WizardWarzGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Wizard Warz" color="purple" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -432,6 +437,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Rhythm', 'Timing', 'Reflexes', 'Pattern Recognition'],
     component: PhaseShifterGame
+  },
+  {
+    id: 'wizard-warz',
+    name: 'Wizard Warz',
+    description: 'Epic 3D wizard battle! Master 7 elements, teleport around the arena, and deflect spells with perfect timing!',
+    icon: SparklesIcon,
+    difficulty: 'Hard',
+    avgTime: '120s',
+    skills: ['Strategy', 'Timing', 'Reflexes', 'Element Mastery'],
+    component: WizardWarzGame
   }
 ];
 
