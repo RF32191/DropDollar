@@ -1728,17 +1728,24 @@ export default function BladeBounce3D({
     
     // Listen for player ready actions (tapped their sword)
     lobby.onPlayerAction((playerId, action, data) => {
+      console.log(`[BladeBounce] Received action: ${action} from ${playerId}`, data);
+      
       if (action === 'ready_to_start') {
+        console.log(`[BladeBounce] Player ${playerId} is ready!`);
         setPlayersReady(prev => {
           const newSet = new Set(prev);
           newSet.add(playerId);
+          console.log(`[BladeBounce] Players ready count: ${newSet.size}`);
           return newSet;
         });
       } else if (action === 'sync_countdown_tick') {
         // Host is broadcasting countdown - update display for all players
-        setSyncCountdown(data?.count ?? 3);
+        const count = data?.count ?? 3;
+        console.log(`[BladeBounce] Sync countdown tick: ${count}`);
+        setSyncCountdown(count);
       } else if (action === 'game_go') {
         // Everyone start NOW
+        console.log('[BladeBounce] Game GO received!');
         setAllPlayersReady(true);
         setWaitingForPlayers(false);
         setSyncCountdown(0); // Show "GO!" briefly
@@ -1753,42 +1760,61 @@ export default function BladeBounce3D({
     });
   }, [gameMode, lobby, user?.id]);
   
+  // Track if countdown has started to prevent re-triggering
+  const countdownStartedRef = useRef(false);
+  
   // Check if all players are ready and start sync countdown (HOST ONLY)
   useEffect(() => {
     if (!waitingForPlayers || gameMode !== 'online') return;
     if (!lobby.isHost) return; // Only host manages countdown
+    if (countdownStartedRef.current) return; // Don't restart
     
     const totalPlayers = lobby.players.length;
     const readyCount = playersReady.size;
     
+    console.log(`[BladeBounce] Ready check: ${readyCount}/${totalPlayers}, isHost: ${lobby.isHost}`);
+    
     // If all players are ready, host starts the synchronized countdown
     if (readyCount >= totalPlayers && totalPlayers >= 2) {
+      console.log('[BladeBounce] All players ready! Starting countdown...');
+      countdownStartedRef.current = true;
       // Start countdown - broadcast 3 first
       lobby.sendPlayerAction('sync_countdown_tick', { count: 3 });
       setSyncCountdown(3);
     }
-  }, [playersReady, waitingForPlayers, gameMode, lobby]);
+  }, [playersReady, waitingForPlayers, gameMode, lobby.isHost, lobby.players.length]);
   
   // Host runs the countdown and broadcasts each tick
   useEffect(() => {
     if (syncCountdown === null || gameMode !== 'online') return;
     if (!lobby.isHost) return; // Only host manages countdown
     
+    console.log(`[BladeBounce] Sync countdown: ${syncCountdown}`);
+    
     if (syncCountdown > 0) {
       const timer = setTimeout(() => {
         const nextCount = syncCountdown - 1;
+        console.log(`[BladeBounce] Broadcasting countdown: ${nextCount}`);
         setSyncCountdown(nextCount);
         // Broadcast to all players
         if (nextCount > 0) {
           lobby.sendPlayerAction('sync_countdown_tick', { count: nextCount });
         } else {
           // Broadcast GO signal
+          console.log('[BladeBounce] Broadcasting game_go!');
           lobby.sendPlayerAction('game_go');
         }
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [syncCountdown, gameMode, lobby]);
+  }, [syncCountdown, gameMode, lobby.isHost]);
+  
+  // Reset countdown flag when leaving waiting state
+  useEffect(() => {
+    if (gameState !== 'waiting') {
+      countdownStartedRef.current = false;
+    }
+  }, [gameState]);
   
   // Handle player tapping their sword to signal ready
   const handleTapToStart = useCallback(() => {
