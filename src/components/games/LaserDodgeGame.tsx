@@ -105,6 +105,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const myPlayerIndexRef = useRef(0);
   const lastPositionSentRef = useRef(0);
   
+  // Synchronized start for multiplayer
+  const [waitingForPlayers, setWaitingForPlayers] = useState(false);
+  const [playersReady, setPlayersReady] = useState<Set<string>>(new Set());
+  const [allPlayersReady, setAllPlayersReady] = useState(false);
+  const [syncCountdown, setSyncCountdown] = useState<number | null>(null);
+  
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
   const [enemyShips, setEnemyShips] = useState<EnemyShip[]>([]);
@@ -1415,8 +1421,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
       
       setHasControl(true);
-    setCountdown(5);
-    setGameState('countdown');
+      
+      // For multiplayer - signal ready and wait for all players
+      if (gameMode === 'online' && waitingForPlayers) {
+        handleTapToStart();
+        return; // Don't start countdown - wait for sync
+      }
+      
+      // Solo mode - start countdown immediately
+      setCountdown(5);
+      setGameState('countdown');
     }
   };
 
@@ -1512,8 +1526,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }
     
     lobby.onGameStart(() => {
-      setGameState('playing');
-      handleStartGame();
+      // Don't start immediately - wait for all players to tap their ship
+      setWaitingForPlayers(true);
+      setPlayersReady(new Set());
+      setAllPlayersReady(false);
+      setGameState('waiting'); // Show "tap ship to start" screen
     });
     
     // Listen for other players' position updates
@@ -1532,7 +1549,75 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       });
       setOtherPlayers(newOtherPlayers);
     });
+    
+    // Listen for player ready actions (tapped their ship)
+    lobby.onPlayerAction((playerId, action) => {
+      if (action === 'ready_to_start') {
+        setPlayersReady(prev => {
+          const newSet = new Set(prev);
+          newSet.add(playerId);
+          return newSet;
+        });
+      } else if (action === 'sync_countdown') {
+        // All players ready - start synchronized countdown
+        setSyncCountdown(3);
+      } else if (action === 'game_go') {
+        // Everyone start NOW
+        setAllPlayersReady(true);
+        setWaitingForPlayers(false);
+        setSyncCountdown(null);
+        setGameState('playing');
+        handleStartGame();
+      }
+    });
   }, [gameMode, lobby, user?.id]);
+  
+  // Check if all players are ready and start sync countdown
+  useEffect(() => {
+    if (!waitingForPlayers || gameMode !== 'online') return;
+    
+    const totalPlayers = lobby.players.length;
+    const readyCount = playersReady.size;
+    
+    // If all players are ready, host starts the synchronized countdown
+    if (readyCount >= totalPlayers && totalPlayers >= 2 && lobby.isHost) {
+      lobby.sendPlayerAction('sync_countdown');
+      setSyncCountdown(3);
+    }
+  }, [playersReady, waitingForPlayers, gameMode, lobby]);
+  
+  // Synchronized countdown for all players
+  useEffect(() => {
+    if (syncCountdown === null || gameMode !== 'online') return;
+    
+    if (syncCountdown > 0) {
+      const timer = setTimeout(() => {
+        setSyncCountdown(syncCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (syncCountdown === 0 && lobby.isHost) {
+      // Host broadcasts GO signal
+      lobby.sendPlayerAction('game_go');
+    }
+  }, [syncCountdown, gameMode, lobby]);
+  
+  // Handle player tapping their ship to signal ready
+  const handleTapToStart = useCallback(() => {
+    if (gameMode !== 'online' || !waitingForPlayers) return;
+    
+    // Enable gyroscope if on mobile first
+    if (isMobile && !gyroscopeEnabled) {
+      // Let them enable gyro, they can tap again after
+    }
+    
+    // Signal that this player is ready
+    lobby.sendPlayerAction('ready_to_start');
+    setPlayersReady(prev => {
+      const newSet = new Set(prev);
+      newSet.add(user?.id || '');
+      return newSet;
+    });
+  }, [gameMode, waitingForPlayers, lobby, user?.id, isMobile, gyroscopeEnabled]);
   
   // Send position updates during gameplay
   useEffect(() => {
@@ -1918,6 +2003,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Waiting state - player must click on ship to start
   if (gameState === 'waiting') {
+    const isMultiplayerWaiting = gameMode === 'online' && waitingForPlayers;
+    const myReady = playersReady.has(user?.id || '');
+    const totalPlayers = lobby.players.length;
+    const readyCount = playersReady.size;
+    
     return (
       <div 
         className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 z-50 overflow-hidden"
@@ -1938,19 +2028,82 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           ))}
         </div>
         
-        {/* Instruction overlay - simplified since gyro is in the circle */}
+        {/* Multiplayer sync countdown overlay */}
+        {syncCountdown !== null && (
+          <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/60">
+            <div className="text-center">
+              <div className="text-8xl font-bold text-yellow-400 animate-pulse">
+                {syncCountdown > 0 ? syncCountdown : 'GO!'}
+              </div>
+              <div className="text-2xl text-white mt-4">
+                {syncCountdown > 0 ? 'Get Ready...' : 'Starting!'}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Multiplayer player status bar */}
+        {isMultiplayerWaiting && syncCountdown === null && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40 px-4">
+            <div className="bg-black/80 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/20">
+              <div className="text-white text-center font-bold mb-2">
+                Waiting for all players... ({readyCount}/{totalPlayers})
+              </div>
+              <div className="flex justify-center gap-3">
+                {lobby.players.map((player, index) => {
+                  const isReady = playersReady.has(player.id);
+                  const playerColor = PLAYER_COLORS[index % PLAYER_COLORS.length];
+                  return (
+                    <div
+                      key={player.id}
+                      className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${isReady ? 'animate-pulse' : 'opacity-50'}`}
+                      style={{
+                        backgroundColor: playerColor.color + (isReady ? '44' : '22'),
+                        border: `2px solid ${playerColor.color}`,
+                      }}
+                    >
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: isReady ? playerColor.color : '#666' }}
+                      />
+                      <span style={{ color: isReady ? playerColor.color : '#666' }}>
+                        {player.username}
+                      </span>
+                      {isReady && <span>✓</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Instruction overlay */}
         <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-30 px-4 w-full max-w-md">
-          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-6 py-4 border-2 border-green-500 animate-pulse">
-            <p className="text-green-400 text-xl sm:text-2xl font-bold text-center">
-              🎯 TAP THE SHIP TO START! 🎯
-            </p>
-            <p className="text-gray-300 text-sm text-center mt-2">
-              {isMobile 
-                ? gyroscopeEnabled 
-                  ? '✅ Tilt to move • Tap to shoot' 
-                  : '📱 Tap ship to enable tilt & start'
-                : 'Click ship to start • Move mouse to move • Click to shoot'}
-            </p>
+          <div className={`bg-black/80 backdrop-blur-sm rounded-xl px-6 py-4 border-2 ${myReady ? 'border-green-500' : 'border-yellow-500 animate-pulse'}`}>
+            {myReady ? (
+              <>
+                <p className="text-green-400 text-xl sm:text-2xl font-bold text-center">
+                  ✅ YOU'RE READY!
+                </p>
+                <p className="text-gray-300 text-sm text-center mt-2">
+                  Waiting for other players to tap their ships...
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-yellow-400 text-xl sm:text-2xl font-bold text-center">
+                  🎯 TAP THE SHIP TO START! 🎯
+                </p>
+                <p className="text-gray-300 text-sm text-center mt-2">
+                  {isMobile 
+                    ? gyroscopeEnabled 
+                      ? '✅ Tilt to move • Tap to shoot' 
+                      : '📱 Tap ship to enable tilt & start'
+                    : 'Click ship to start • Move mouse to move • Click to shoot'}
+                </p>
+              </>
+            )}
           </div>
         </div>
         

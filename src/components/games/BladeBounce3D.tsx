@@ -145,18 +145,40 @@ export default function BladeBounce3D({
   const inputsRef = useRef<GameInput[]>([]);
   const gameStartTimeRef = useRef<number>(0);
   const isValidatingRef = useRef<boolean>(false);
-  const gameStateRef = useRef<'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>('ready');
+  const gameStateRef = useRef<'menu' | 'matchmaking' | 'lobby' | 'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>('menu');
   const lastClickTimeRef = useRef<number>(0); // For click debouncing
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
   const gyroEnabledRef = useRef<boolean>(false); // Gyroscope control enabled
   const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null); // Base gyro position
   
+  // Auth and multiplayer
+  const { user } = useAuth();
+  const [gameMode, setGameMode] = useState<'solo' | 'online'>('solo');
+  
+  // Multiplayer hook
+  const lobby = useMultiplayerLobby(
+    'blade-bounce',
+    user?.id,
+    user?.email?.split('@')[0] || 'Player'
+  );
+  
+  // Other players' swords for multiplayer
+  const [otherPlayers, setOtherPlayers] = useState<Map<string, { x: number; y: number; angle: number; score: number; hearts: number; isAlive: boolean }>>(new Map());
+  const myPlayerIndexRef = useRef(0);
+  const lastPositionSentRef = useRef(0);
+  
+  // Synchronized start for multiplayer
+  const [waitingForPlayers, setWaitingForPlayers] = useState(false);
+  const [playersReady, setPlayersReady] = useState<Set<string>>(new Set());
+  const [allPlayersReady, setAllPlayersReady] = useState(false);
+  const [syncCountdown, setSyncCountdown] = useState<number | null>(null);
+  
   // In competition mode, skip ready screen and countdown - start playing immediately
-  const initialGameState = isCompetitionMode ? 'playing' : 'ready';
+  const initialGameState = isCompetitionMode ? 'playing' : 'menu';
   console.log('🎯 [BladeBounce3D] Initial game state:', initialGameState);
   
-  const [gameState, setGameState] = useState<'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>(initialGameState);
+  const [gameState, setGameState] = useState<'menu' | 'matchmaking' | 'lobby' | 'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>(initialGameState);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [showGyroNotification, setShowGyroNotification] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -1668,6 +1690,131 @@ export default function BladeBounce3D({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Handle multiplayer game start and player sync
+  useEffect(() => {
+    if (gameMode !== 'online') return;
+    
+    // Find my player index for color assignment
+    const myIndex = lobby.players.findIndex(p => p.id === user?.id);
+    if (myIndex >= 0) {
+      myPlayerIndexRef.current = myIndex;
+    }
+    
+    lobby.onGameStart(() => {
+      // Don't start immediately - wait for all players to tap their sword
+      setWaitingForPlayers(true);
+      setPlayersReady(new Set());
+      setAllPlayersReady(false);
+      setGameState('waiting'); // Show "tap sword to start" screen
+    });
+    
+    // Listen for other players' position updates
+    lobby.onPlayerUpdate((updates) => {
+      const newOtherPlayers = new Map<string, { x: number; y: number; angle: number; score: number; hearts: number; isAlive: boolean }>();
+      updates.forEach((update, id) => {
+        if (id !== user?.id) {
+          newOtherPlayers.set(id, {
+            x: update.x,
+            y: update.y,
+            angle: update.rotationY,
+            score: update.score,
+            hearts: update.hearts,
+            isAlive: update.isAlive
+          });
+        }
+      });
+      setOtherPlayers(newOtherPlayers);
+    });
+    
+    // Listen for player ready actions (tapped their sword)
+    lobby.onPlayerAction((playerId, action) => {
+      if (action === 'ready_to_start') {
+        setPlayersReady(prev => {
+          const newSet = new Set(prev);
+          newSet.add(playerId);
+          return newSet;
+        });
+      } else if (action === 'sync_countdown') {
+        // All players ready - start synchronized countdown
+        setSyncCountdown(3);
+      } else if (action === 'game_go') {
+        // Everyone start NOW
+        setAllPlayersReady(true);
+        setWaitingForPlayers(false);
+        setSyncCountdown(null);
+        setGameState('countdown');
+        setCountdown(3);
+      }
+    });
+  }, [gameMode, lobby, user?.id]);
+  
+  // Check if all players are ready and start sync countdown
+  useEffect(() => {
+    if (!waitingForPlayers || gameMode !== 'online') return;
+    
+    const totalPlayers = lobby.players.length;
+    const readyCount = playersReady.size;
+    
+    // If all players are ready, host starts the synchronized countdown
+    if (readyCount >= totalPlayers && totalPlayers >= 2 && lobby.isHost) {
+      lobby.sendPlayerAction('sync_countdown');
+      setSyncCountdown(3);
+    }
+  }, [playersReady, waitingForPlayers, gameMode, lobby]);
+  
+  // Synchronized countdown for all players
+  useEffect(() => {
+    if (syncCountdown === null || gameMode !== 'online') return;
+    
+    if (syncCountdown > 0) {
+      const timer = setTimeout(() => {
+        setSyncCountdown(syncCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (syncCountdown === 0 && lobby.isHost) {
+      // Host broadcasts GO signal
+      lobby.sendPlayerAction('game_go');
+    }
+  }, [syncCountdown, gameMode, lobby]);
+  
+  // Handle player tapping their sword to signal ready
+  const handleTapToStart = useCallback(() => {
+    if (gameMode !== 'online' || !waitingForPlayers) return;
+    
+    // Signal that this player is ready
+    lobby.sendPlayerAction('ready_to_start');
+    setPlayersReady(prev => {
+      const newSet = new Set(prev);
+      newSet.add(user?.id || '');
+      return newSet;
+    });
+  }, [gameMode, waitingForPlayers, lobby, user?.id]);
+  
+  // Send position updates in multiplayer
+  useEffect(() => {
+    if (gameMode !== 'online' || gameState !== 'playing') return;
+    
+    const sendUpdate = () => {
+      const now = Date.now();
+      if (now - lastPositionSentRef.current < 50) return; // Send 20 times per second
+      lastPositionSentRef.current = now;
+      
+      lobby.sendPlayerUpdate({
+        id: user?.id || '',
+        x: swordGroupRef.current?.position.x || 0,
+        y: swordGroupRef.current?.position.y || 0,
+        z: 0,
+        rotationY: targetAngle,
+        hearts,
+        score,
+        isAlive: hearts > 0
+      });
+    };
+    
+    const interval = setInterval(sendUpdate, 50);
+    return () => clearInterval(interval);
+  }, [gameMode, gameState, lobby, user?.id, hearts, score, targetAngle]);
+
   // Gyroscope control handler - works during waiting and playing states
   useEffect(() => {
     // Only run if gyroscope is enabled and we're in a state where movement matters
@@ -2757,8 +2904,65 @@ export default function BladeBounce3D({
       )}
       
       {/* Waiting screen - Green circle around sword, click to start countdown */}
-      {gameState === 'waiting' && (
+      {gameState === 'waiting' && (() => {
+        const isMultiplayerWaiting = gameMode === 'online' && waitingForPlayers;
+        const myReady = playersReady.has(user?.id || '');
+        const totalPlayers = lobby.players.length;
+        const readyCount = playersReady.size;
+        
+        return (
         <div className="absolute inset-0 pointer-events-none">
+          {/* Multiplayer sync countdown overlay */}
+          {syncCountdown !== null && (
+            <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/60 pointer-events-none">
+              <div className="text-center">
+                <div className="text-8xl font-bold text-yellow-400 animate-pulse">
+                  {syncCountdown > 0 ? syncCountdown : 'GO!'}
+                </div>
+                <div className="text-2xl text-white mt-4">
+                  {syncCountdown > 0 ? 'Get Ready...' : 'Starting!'}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Multiplayer player status bar */}
+          {isMultiplayerWaiting && syncCountdown === null && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40 px-4 pointer-events-none">
+              <div className="bg-black/80 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/20">
+                <div className="text-white text-center font-bold mb-2">
+                  Waiting for all players... ({readyCount}/{totalPlayers})
+                </div>
+                <div className="flex justify-center gap-3">
+                  {lobby.players.map((player, index) => {
+                    const isPlayerReady = playersReady.has(player.id);
+                    const swordColor = PLAYER_SWORD_COLORS[index % PLAYER_SWORD_COLORS.length];
+                    const colorHex = swordColor.blade === 0x00ffff ? '#00ffff' : swordColor.blade === 0xff00ff ? '#ff00ff' : swordColor.blade === 0x00ff00 ? '#00ff00' : '#ffd700';
+                    return (
+                      <div
+                        key={player.id}
+                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${isPlayerReady ? 'animate-pulse' : 'opacity-50'}`}
+                        style={{
+                          backgroundColor: colorHex + (isPlayerReady ? '44' : '22'),
+                          border: `2px solid ${colorHex}`,
+                        }}
+                      >
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: isPlayerReady ? colorHex : '#666' }}
+                        />
+                        <span style={{ color: isPlayerReady ? colorHex : '#666' }}>
+                          {player.username}
+                        </span>
+                        {isPlayerReady && <span>✓</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Green pulsing circle around sword - with LARGE gyro button on mobile */}
           <div 
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex flex-col items-center justify-center"
@@ -2766,6 +2970,11 @@ export default function BladeBounce3D({
               unlockAudio();
               if (isMobile && !gyroEnabledRef.current) {
                 enableGyroscope();
+              }
+              // For multiplayer - signal ready and wait for all players
+              if (gameMode === 'online' && waitingForPlayers) {
+                handleTapToStart();
+                return;
               }
               startCountdown();
             }}
@@ -2775,14 +2984,21 @@ export default function BladeBounce3D({
               if (isMobile && !gyroEnabledRef.current) {
                 enableGyroscope();
               }
+              // For multiplayer - signal ready and wait for all players
+              if (gameMode === 'online' && waitingForPlayers) {
+                handleTapToStart();
+                return;
+              }
               startCountdown();
             }}
             style={{
               width: isMobile ? '240px' : '200px',
               height: isMobile ? '240px' : '200px',
               borderRadius: '50%',
-              border: '6px solid #00ff00',
-              boxShadow: '0 0 30px #00ff00, 0 0 60px #00ff00, inset 0 0 30px rgba(0,255,0,0.3)',
+              border: `6px solid ${myReady ? '#00ff00' : '#ffff00'}`,
+              boxShadow: myReady 
+                ? '0 0 30px #00ff00, 0 0 60px #00ff00, inset 0 0 30px rgba(0,255,0,0.3)'
+                : '0 0 30px #ffff00, 0 0 60px #ffff00, inset 0 0 30px rgba(255,255,0,0.3)',
               animation: 'pulse 1.5s ease-in-out infinite',
             }}
           >
@@ -2826,7 +3042,7 @@ export default function BladeBounce3D({
                 </div>
               </div>
             )}
-            {isMobile && gyroEnabledRef.current && (
+            {isMobile && gyroEnabledRef.current && !myReady && (
               <div 
                 className="absolute inset-4 flex items-center justify-center bg-green-600/90 rounded-full border-4 border-green-400"
               >
@@ -2836,16 +3052,40 @@ export default function BladeBounce3D({
                 </div>
               </div>
             )}
+            {myReady && (
+              <div 
+                className="absolute inset-4 flex items-center justify-center bg-green-600/90 rounded-full border-4 border-green-400"
+              >
+                <div className="flex flex-col items-center text-white font-bold">
+                  <span className="text-4xl mb-2">✓</span>
+                  <span className="text-xl">READY!</span>
+                  <span className="text-sm opacity-80">Waiting...</span>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Instruction text */}
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black/80 px-8 py-4 rounded-xl border-2 border-green-500 pointer-events-none">
-            <p className="text-green-400 text-2xl font-bold text-center animate-pulse">
-              ⚔️ TAP THE SWORD TO START! ⚔️
-            </p>
-            <p className="text-gray-300 text-lg text-center mt-2">
-              {isMobile ? 'Tap inside the green circle' : 'Click inside the green circle'}
-            </p>
+          <div className={`absolute bottom-20 left-1/2 -translate-x-1/2 bg-black/80 px-8 py-4 rounded-xl border-2 ${myReady ? 'border-green-500' : 'border-yellow-500'} pointer-events-none`}>
+            {myReady ? (
+              <>
+                <p className="text-green-400 text-2xl font-bold text-center">
+                  ✅ YOU'RE READY!
+                </p>
+                <p className="text-gray-300 text-lg text-center mt-2">
+                  Waiting for other players to tap their swords...
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-yellow-400 text-2xl font-bold text-center animate-pulse">
+                  ⚔️ TAP THE SWORD TO START! ⚔️
+                </p>
+                <p className="text-gray-300 text-lg text-center mt-2">
+                  {isMobile ? 'Tap inside the green circle' : 'Click inside the green circle'}
+                </p>
+              </>
+            )}
           </div>
           
           {/* Gyroscope notification */}
@@ -2875,6 +3115,185 @@ export default function BladeBounce3D({
               <p className="text-white text-sm font-bold">✅ Gyroscope Enabled</p>
             </div>
           )}
+        </div>
+        );
+      })()}
+      
+      {/* Menu screen - Select Solo or Multiplayer */}
+      {gameState === 'menu' && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-purple-900/30 to-gray-900 flex items-center justify-center z-50">
+          <div className="text-center px-4">
+            <h1 className="text-5xl md:text-7xl font-black mb-4 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              ⚔️ BLADE BOUNCE 3D
+            </h1>
+            <p className="text-gray-400 text-lg mb-8">Choose your game mode</p>
+            
+            <div className="flex flex-col gap-4 max-w-md mx-auto">
+              {/* Solo Practice */}
+              <button
+                onClick={() => {
+                  setGameMode('solo');
+                  setGameState('ready');
+                }}
+                className="group relative px-8 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-xl font-bold text-xl text-white transition-all hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/50"
+              >
+                <span className="flex items-center justify-center gap-3">
+                  <span>🗡️</span>
+                  <span>Solo Practice</span>
+                </span>
+                <span className="block text-sm font-normal opacity-80 mt-1">
+                  Play alone to practice
+                </span>
+              </button>
+              
+              {/* Online Multiplayer */}
+              <button
+                onClick={() => {
+                  setGameMode('online');
+                  setGameState('matchmaking');
+                  lobby.findLobby();
+                }}
+                className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-bold text-xl text-white transition-all hover:scale-105 hover:shadow-lg hover:shadow-purple-500/50"
+              >
+                <span className="flex items-center justify-center gap-3">
+                  <span>⚔️</span>
+                  <span>Online Multiplayer</span>
+                  <span className="px-2 py-0.5 bg-yellow-500 text-black text-xs rounded-full">2-4 Players</span>
+                </span>
+                <span className="block text-sm font-normal opacity-80 mt-1">
+                  Compete with others online
+                </span>
+              </button>
+            </div>
+            
+            {/* Theme Selector */}
+            <div className="mt-8 max-w-md mx-auto">
+              <GameThemeSelector
+                gameId="blade-bounce"
+                gameName="Blade Bounce"
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Matchmaking screen */}
+      {gameState === 'matchmaking' && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-purple-900/30 to-gray-900 flex items-center justify-center z-50">
+          <div className="text-center px-4">
+            <div className="animate-spin text-6xl mb-6">⚔️</div>
+            <h2 className="text-3xl font-bold text-white mb-4">Finding Players...</h2>
+            <p className="text-gray-400 mb-6">Looking for a match</p>
+            
+            {lobby.error && (
+              <p className="text-red-400 mb-4">{lobby.error}</p>
+            )}
+            
+            {lobby.lobbyId && (
+              <div className="text-green-400 mb-4">
+                Connected! Waiting for players...
+                {setTimeout(() => setGameState('lobby'), 500) && null}
+              </div>
+            )}
+            
+            <button
+              onClick={() => {
+                lobby.leaveLobby();
+                setGameState('menu');
+              }}
+              className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Lobby screen */}
+      {gameState === 'lobby' && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-purple-900/30 to-gray-900 flex items-center justify-center z-50">
+          <div className="text-center px-4 max-w-lg w-full">
+            <h2 className="text-4xl font-bold text-white mb-6">⚔️ Blade Bounce Lobby</h2>
+            
+            {/* Players list */}
+            <div className="bg-black/40 rounded-xl p-4 mb-6">
+              <h3 className="text-lg font-bold text-gray-300 mb-3">
+                Players ({lobby.players.length}/4)
+              </h3>
+              <div className="space-y-2">
+                {lobby.players.map((player, index) => {
+                  const swordColor = PLAYER_SWORD_COLORS[index % PLAYER_SWORD_COLORS.length];
+                  return (
+                    <div
+                      key={player.id}
+                      className={`flex items-center justify-between p-3 rounded-lg ${player.isReady ? 'bg-green-900/40' : 'bg-gray-800/40'}`}
+                      style={{ borderLeft: `4px solid ${swordColor.blade === 0x00ffff ? '#00ffff' : swordColor.blade === 0xff00ff ? '#ff00ff' : swordColor.blade === 0x00ff00 ? '#00ff00' : '#ffd700'}` }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">⚔️</span>
+                        <div className="text-left">
+                          <span className="text-white font-medium">{player.username}</span>
+                          {player.isHost && <span className="ml-2 text-yellow-400 text-xs">👑 HOST</span>}
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-sm ${player.isReady ? 'bg-green-500 text-white' : 'bg-gray-600 text-gray-300'}`}>
+                        {player.isReady ? '✓ Ready' : 'Waiting'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Countdown */}
+            {lobby.countdown !== null && (
+              <div className="text-6xl font-black text-yellow-400 mb-6 animate-pulse">
+                {lobby.countdown}
+              </div>
+            )}
+            
+            {/* Action buttons */}
+            <div className="flex flex-col gap-3">
+              {!lobby.isHost && (
+                <button
+                  onClick={() => lobby.toggleReady()}
+                  className={`px-8 py-3 rounded-xl font-bold text-lg transition-all ${
+                    lobby.isReady
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-yellow-500 hover:bg-yellow-600 text-black'
+                  }`}
+                >
+                  {lobby.isReady ? '✓ Ready!' : 'Ready Up'}
+                </button>
+              )}
+              
+              {lobby.isHost && (
+                <button
+                  onClick={() => lobby.startGame()}
+                  disabled={lobby.players.length < 2}
+                  className={`px-8 py-3 rounded-xl font-bold text-lg transition-all ${
+                    lobby.players.length >= 2
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {lobby.players.length >= 2 ? '🚀 Start Game' : 'Waiting for players...'}
+                </button>
+              )}
+              
+              <button
+                onClick={() => {
+                  lobby.leaveLobby();
+                  setGameState('menu');
+                }}
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+              >
+                Leave Lobby
+              </button>
+            </div>
+          </div>
         </div>
       )}
       
