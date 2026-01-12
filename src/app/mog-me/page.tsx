@@ -46,21 +46,21 @@ export default function MogMePage() {
 
           {/* Subtitle */}
           <p className="text-2xl sm:text-3xl text-green-100 text-center mb-4 font-semibold">
-            Your Ultimate Look Maxxing App
+            Your Ultimate Look Improvement & Lifestyle App
           </p>
           
           <p className="text-lg sm:text-xl text-green-200 text-center mb-16 max-w-3xl mx-auto">
-            Transform your appearance and maximize your potential with cutting-edge tools, 
-            expert guidance, and a community dedicated to self-improvement.
+            Transform your appearance and enhance your lifestyle with cutting-edge tools, 
+            expert guidance, and a community dedicated to self-improvement and personal growth.
           </p>
 
           {/* Features Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             <div className="bg-green-800/50 backdrop-blur-xl p-8 rounded-2xl border-2 border-yellow-400/30 hover:border-yellow-400 transition-all duration-300 transform hover:-translate-y-2">
               <div className="text-5xl mb-4 text-center">✨</div>
-              <h3 className="text-2xl font-bold text-yellow-300 mb-3 text-center">Look Maxxing</h3>
+              <h3 className="text-2xl font-bold text-yellow-300 mb-3 text-center">Look Improvement</h3>
               <p className="text-green-100 text-center">
-                Advanced tools and techniques to enhance your physical appearance and boost confidence.
+                Advanced tools and techniques to enhance your physical appearance, boost confidence, and improve your overall lifestyle.
               </p>
             </div>
 
@@ -86,24 +86,26 @@ export default function MogMePage() {
             <h2 className="text-4xl font-bold text-yellow-300 mb-6 text-center">About Mog Me</h2>
             <div className="space-y-6 text-green-100 text-lg leading-relaxed">
               <p>
-                <strong className="text-yellow-300">Mog Me</strong> is a revolutionary look maxxing application designed 
+                <strong className="text-yellow-300">Mog Me</strong> is a revolutionary look improvement and lifestyle application designed 
                 to help you unlock your full potential. Whether you're looking to improve your physical appearance, 
-                enhance your style, or boost your confidence, Mog Me provides the tools and community support you need.
+                enhance your style, boost your confidence, or make positive lifestyle changes, Mog Me provides the tools 
+                and community support you need.
               </p>
               
               <div className="bg-green-900/40 p-6 rounded-2xl border border-yellow-400/20">
-                <h3 className="text-2xl font-bold text-yellow-300 mb-4">What is Look Maxxing?</h3>
+                <h3 className="text-2xl font-bold text-yellow-300 mb-4">What is Look Improvement?</h3>
                 <p>
-                  Look maxxing is the practice of maximizing your physical appearance through various techniques, 
-                  strategies, and lifestyle changes. It encompasses everything from skincare routines and fitness 
-                  programs to style optimization and confidence building. Mog Me provides a comprehensive platform 
-                  to guide you through every aspect of your transformation journey.
+                  Look improvement is the practice of enhancing your physical appearance and lifestyle through various techniques, 
+                  strategies, and positive changes. It encompasses everything from skincare routines and fitness 
+                  programs to style optimization, confidence building, and overall wellness. Mog Me provides a comprehensive platform 
+                  to guide you through every aspect of your personal growth and transformation journey.
                 </p>
               </div>
               
               <p>
                 Our platform combines cutting-edge technology with proven strategies from experts in the field. 
-                Track your progress, set goals, and celebrate milestones as you transform into the best version of yourself.
+                Track your progress, set goals, and celebrate milestones as you transform into the best version of yourself 
+                and build a healthier, more confident lifestyle.
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
@@ -132,8 +134,8 @@ export default function MogMePage() {
               
               <p className="mt-6">
                 Join thousands of users who are already on their journey to becoming their most confident selves. 
-                With Mog Me, the transformation starts today. Download the app and begin your look maxxing journey 
-                with tools designed to help you achieve your goals.
+                With Mog Me, the transformation starts today. Download the app and begin your look improvement and lifestyle 
+                journey with tools designed to help you achieve your goals.
               </p>
             </div>
           </div>
@@ -166,7 +168,7 @@ export default function MogMePage() {
                 <div className="space-y-3 text-green-100">
                   <div className="flex items-start gap-3">
                     <span className="text-xl">✓</span>
-                    <span>Comprehensive look maxxing guides and tutorials</span>
+                    <span>Comprehensive look improvement and lifestyle guides and tutorials</span>
                   </div>
                   <div className="flex items-start gap-3">
                     <span className="text-xl">✓</span>
@@ -182,7 +184,7 @@ export default function MogMePage() {
                   </div>
                   <div className="flex items-start gap-3">
                     <span className="text-xl">✓</span>
-                    <span>Expert tips from look maxxing professionals</span>
+                    <span>Expert tips from look improvement and lifestyle professionals</span>
                   </div>
                 </div>
               </div>

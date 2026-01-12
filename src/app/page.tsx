@@ -389,9 +389,9 @@ export default function HomePage() {
               
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="text-3xl sm:text-4xl font-bold text-yellow-300 mb-3">Mog Me</h3>
-                <p className="text-green-100 text-lg sm:text-xl mb-2">Your Ultimate Look Maxxing App</p>
+                <p className="text-green-100 text-lg sm:text-xl mb-2">Your Ultimate Look Improvement & Lifestyle App</p>
                 <p className="text-green-200 text-sm sm:text-base">
-                  Transform your appearance and maximize your potential with cutting-edge tools and expert guidance
+                  Transform your appearance and enhance your lifestyle with cutting-edge tools and expert guidance
                 </p>
               </div>
               
