@@ -109,6 +109,9 @@ export default function OrbitalDodgeGame({
   const shieldActiveRef = useRef(false);
   const slowActiveRef = useRef(false);
   const gravityRef = useRef(1); // 1 = normal, -1 = flipped
+  const lastClickTimeRef = useRef(0);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isJumpingRef = useRef(false);
   
   // Theme colors
   const getThemeColors = useCallback(() => {
@@ -392,25 +395,103 @@ export default function OrbitalDodgeGame({
     });
   }, [getThemeColors]);
 
-  // Handle player input (tap to change orbit direction / hold to expand orbit)
+  // Jump to another orbit
+  const jumpToOrbit = useCallback(() => {
+    if (!gameActiveRef.current || isJumpingRef.current) return;
+    
+    isJumpingRef.current = true;
+    
+    // Available orbit radii: 3, 4, 5, 6, 7, 8
+    const availableOrbits = [3, 4, 5, 6, 7, 8];
+    const currentRadius = Math.round(playerRadiusRef.current);
+    
+    // Find current orbit index
+    let currentIndex = availableOrbits.findIndex(r => Math.abs(r - currentRadius) < 0.5);
+    if (currentIndex === -1) {
+      // If not exactly on an orbit, find closest
+      currentIndex = availableOrbits.reduce((closest, orbit, index) => {
+        return Math.abs(orbit - currentRadius) < Math.abs(availableOrbits[closest] - currentRadius) 
+          ? index 
+          : closest;
+      }, 0);
+    }
+    
+    // Jump to next orbit (wrap around)
+    const nextIndex = (currentIndex + 1) % availableOrbits.length;
+    const targetOrbit = availableOrbits[nextIndex];
+    
+    // Smoothly jump to new orbit
+    targetRadiusRef.current = targetOrbit;
+    
+    // Visual feedback - player flashes and scales up briefly
+    if (playerRef.current) {
+      const material = playerRef.current.material as THREE.MeshStandardMaterial;
+      const originalColor = material.color.getHex();
+      material.color.setHex(0xffff00); // Yellow flash
+      material.emissiveIntensity = 1.5;
+      
+      // Scale animation
+      const originalScale = playerRef.current.scale.x;
+      playerRef.current.scale.setScalar(originalScale * 1.5);
+      
+      setTimeout(() => {
+        if (playerRef.current) {
+          material.color.setHex(originalColor);
+          material.emissiveIntensity = 0.5;
+          playerRef.current.scale.setScalar(originalScale);
+        }
+        isJumpingRef.current = false;
+      }, 300);
+    }
+    
+    // Add floating score for successful jump
+    addFloatingScore(25, window.innerWidth / 2, window.innerHeight / 2, false);
+  }, [addFloatingScore]);
+
+  // Handle player input (single tap = flip direction, double tap = jump orbit)
   const handleInput = useCallback((event: MouseEvent | TouchEvent) => {
     if (!gameActiveRef.current) return;
     
     event.preventDefault();
     
-    // Toggle gravity direction on tap
-    gravityRef.current *= -1;
-    setGravityFlipped(gravityRef.current === -1);
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTimeRef.current;
     
-    // Visual feedback
-    if (playerRef.current) {
-      const material = playerRef.current.material as THREE.MeshStandardMaterial;
-      material.emissiveIntensity = 1;
-      setTimeout(() => {
-        material.emissiveIntensity = 0.5;
-      }, 100);
+    // Clear any pending single-click timeout
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
     }
-  }, []);
+    
+    // Check if this is a double-click/tap (within 300ms)
+    if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+      // Double-click/tap detected - jump to another orbit
+      jumpToOrbit();
+      lastClickTimeRef.current = 0; // Reset to prevent triple-click
+    } else {
+      // Single-click/tap - set timeout to execute after delay
+      lastClickTimeRef.current = now;
+      
+      clickTimeoutRef.current = setTimeout(() => {
+        // Single tap - toggle gravity direction
+        gravityRef.current *= -1;
+        setGravityFlipped(gravityRef.current === -1);
+        
+        // Visual feedback
+        if (playerRef.current) {
+          const material = playerRef.current.material as THREE.MeshStandardMaterial;
+          material.emissiveIntensity = 1;
+          setTimeout(() => {
+            if (playerRef.current) {
+              material.emissiveIntensity = 0.5;
+            }
+          }, 100);
+        }
+        
+        clickTimeoutRef.current = null;
+      }, 300); // Wait 300ms to see if there's a second click
+    }
+  }, [jumpToOrbit]);
 
   // Check collisions
   const checkCollisions = useCallback(() => {
@@ -568,10 +649,14 @@ export default function OrbitalDodgeGame({
       }
     }
     
-    // Smoothly adjust orbital radius (gravity effect)
-    const radiusChange = gravityRef.current * 0.05;
-    targetRadiusRef.current = Math.max(3, Math.min(8, targetRadiusRef.current + radiusChange * 0.1));
-    playerRadiusRef.current += (targetRadiusRef.current - playerRadiusRef.current) * 0.1;
+    // Smoothly adjust orbital radius (gravity effect or jump)
+    if (!isJumpingRef.current) {
+      const radiusChange = gravityRef.current * 0.05;
+      targetRadiusRef.current = Math.max(3, Math.min(8, targetRadiusRef.current + radiusChange * 0.1));
+    }
+    // Smooth interpolation to target radius (faster when jumping)
+    const lerpSpeed = isJumpingRef.current ? 0.3 : 0.1;
+    playerRadiusRef.current += (targetRadiusRef.current - playerRadiusRef.current) * lerpSpeed;
     
     if (playerRef.current) {
       playerRef.current.position.x = Math.cos(playerAngleRef.current) * playerRadiusRef.current;
@@ -726,6 +811,12 @@ export default function OrbitalDodgeGame({
     gravityRef.current = 1;
     shieldActiveRef.current = false;
     slowActiveRef.current = false;
+    lastClickTimeRef.current = 0;
+    isJumpingRef.current = false;
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
     
     // Clear existing hazards and power-ups
     hazardsRef.current.forEach(h => {
@@ -773,12 +864,27 @@ export default function OrbitalDodgeGame({
     const canvas = rendererRef.current?.domElement;
     if (!canvas) return;
     
-    canvas.addEventListener('click', handleInput);
-    canvas.addEventListener('touchstart', handleInput, { passive: false });
+    // Handle mouse clicks
+    const handleMouseClick = (e: MouseEvent) => {
+      handleInput(e as any);
+    };
+    
+    // Handle touch events
+    const handleTouchStart = (e: TouchEvent) => {
+      handleInput(e);
+    };
+    
+    canvas.addEventListener('click', handleMouseClick);
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     
     return () => {
-      canvas.removeEventListener('click', handleInput);
-      canvas.removeEventListener('touchstart', handleInput);
+      canvas.removeEventListener('click', handleMouseClick);
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      // Clean up any pending timeout
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
     };
   }, [gameState, handleInput]);
 
@@ -892,7 +998,15 @@ export default function OrbitalDodgeGame({
                 <span className="text-2xl">👆</span>
                 <div>
                   <div className="font-bold text-white">Tap to Flip</div>
-                  <div className="text-sm">Tap anywhere to reverse your orbit direction!</div>
+                  <div className="text-sm">Single tap to reverse orbit direction</div>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">👆👆</span>
+                <div>
+                  <div className="font-bold text-white">Double Tap to Jump</div>
+                  <div className="text-sm">Double tap/click to jump to the next orbit ring!</div>
                 </div>
               </div>
               
