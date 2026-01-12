@@ -948,45 +948,100 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
     return () => clearInterval(timer);
   }, [gameState]);
 
-  // Mobile joystick event handlers - using Pointer Events API for better mobile support
-  useEffect(() => {
-    if (gameState !== 'playing') return;
+  // Mobile joystick handlers - using direct touch events for better mobile compatibility
+  const handleJoystickTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const joystickElement = joystickElementRef.current;
+    if (!joystickElement) return;
+    
+    const touch = e.touches[0];
+    if (!touch) return;
+    
+    const rect = joystickElement.getBoundingClientRect();
+    joystickStartRef.current = { 
+      x: rect.left + rect.width / 2, 
+      y: rect.top + rect.height / 2 
+    };
+    joystickActiveRef.current = true;
+    setJoystickActive(true);
+    const delta = { x: 0, y: 0 };
+    setJoystickDelta(delta);
+    joystickDeltaRef.current = delta;
+  }, []);
+
+  const handleJoystickTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!joystickActiveRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
     
     const joystickElement = joystickElementRef.current;
     if (!joystickElement) return;
     
-    const handlePointerDown = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = joystickElement.getBoundingClientRect();
-      joystickStartRef.current = { 
-        x: rect.left + rect.width / 2, 
-        y: rect.top + rect.height / 2 
-      };
-      joystickActiveRef.current = true;
-      setJoystickActive(true);
-      const delta = { x: 0, y: 0 };
-      setJoystickDelta(delta);
-      joystickDeltaRef.current = delta;
-      try {
-        joystickElement.setPointerCapture(e.pointerId);
-      } catch (err) {
-        // Continue even if capture fails
-      }
-    };
+    const touch = e.touches[0];
+    if (!touch) return;
     
-    const handlePointerMove = (e: PointerEvent) => {
+    const rect = joystickElement.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const maxRadius = rect.width / 2 - 24;
+    
+    const dx = touch.clientX - centerX;
+    const dy = touch.clientY - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    let normalizedX = 0;
+    let normalizedY = 0;
+    
+    if (distance > 0) {
+      if (distance > maxRadius) {
+        normalizedX = (dx / distance);
+        normalizedY = (dy / distance);
+      } else {
+        normalizedX = dx / maxRadius;
+        normalizedY = dy / maxRadius;
+      }
+    }
+    
+    const delta = { 
+      x: Math.max(-1, Math.min(1, normalizedX)), 
+      y: Math.max(-1, Math.min(1, normalizedY)) 
+    };
+    setJoystickDelta(delta);
+    joystickDeltaRef.current = delta;
+  }, []);
+
+  const handleJoystickTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    joystickActiveRef.current = false;
+    setJoystickActive(false);
+    const delta = { x: 0, y: 0 };
+    setJoystickDelta(delta);
+    joystickDeltaRef.current = delta;
+  }, []);
+
+  // Also handle touch move on window for when finger moves outside joystick area
+  useEffect(() => {
+    if (gameState !== 'playing' || !joystickActiveRef.current) return;
+    
+    const handleGlobalTouchMove = (e: TouchEvent) => {
       if (!joystickActiveRef.current) return;
       e.preventDefault();
-      e.stopPropagation();
+      
+      const joystickElement = joystickElementRef.current;
+      if (!joystickElement) return;
+      
+      const touch = e.touches[0];
+      if (!touch) return;
       
       const rect = joystickElement.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       const maxRadius = rect.width / 2 - 24;
       
-      const dx = e.clientX - centerX;
-      const dy = e.clientY - centerY;
+      const dx = touch.clientX - centerX;
+      const dy = touch.clientY - centerY;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       let normalizedX = 0;
@@ -1010,83 +1065,23 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
       joystickDeltaRef.current = delta;
     };
     
-    const handlePointerUp = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      joystickActiveRef.current = false;
-      setJoystickActive(false);
-      const delta = { x: 0, y: 0 };
-      setJoystickDelta(delta);
-      joystickDeltaRef.current = delta;
-      try {
-        joystickElement.releasePointerCapture(e.pointerId);
-      } catch (err) {
-        // Ignore if pointer capture fails
-      }
-    };
-    
-    const handlePointerCancel = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      joystickActiveRef.current = false;
-      setJoystickActive(false);
-      const delta = { x: 0, y: 0 };
-      setJoystickDelta(delta);
-      joystickDeltaRef.current = delta;
-      try {
-        joystickElement.releasePointerCapture(e.pointerId);
-      } catch (err) {
-        // Ignore if pointer capture fails
-      }
-    };
-    
-    // Also handle global pointer move for when pointer is captured
-    const handleGlobalPointerMove = (e: PointerEvent) => {
+    const handleGlobalTouchEnd = (e: TouchEvent) => {
       if (!joystickActiveRef.current) return;
-      e.preventDefault();
-      
-      const rect = joystickElement.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const maxRadius = rect.width / 2 - 24;
-      
-      const dx = e.clientX - centerX;
-      const dy = e.clientY - centerY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      let normalizedX = 0;
-      let normalizedY = 0;
-      
-      if (distance > 0) {
-        if (distance > maxRadius) {
-          normalizedX = (dx / distance);
-          normalizedY = (dy / distance);
-        } else {
-          normalizedX = dx / maxRadius;
-          normalizedY = dy / maxRadius;
-        }
-      }
-      
-      const delta = { 
-        x: Math.max(-1, Math.min(1, normalizedX)), 
-        y: Math.max(-1, Math.min(1, normalizedY)) 
-      };
+      joystickActiveRef.current = false;
+      setJoystickActive(false);
+      const delta = { x: 0, y: 0 };
       setJoystickDelta(delta);
       joystickDeltaRef.current = delta;
     };
     
-    joystickElement.addEventListener('pointerdown', handlePointerDown);
-    joystickElement.addEventListener('pointermove', handlePointerMove);
-    joystickElement.addEventListener('pointerup', handlePointerUp);
-    joystickElement.addEventListener('pointercancel', handlePointerCancel);
-    window.addEventListener('pointermove', handleGlobalPointerMove);
+    window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+    window.addEventListener('touchend', handleGlobalTouchEnd);
+    window.addEventListener('touchcancel', handleGlobalTouchEnd);
     
     return () => {
-      joystickElement.removeEventListener('pointerdown', handlePointerDown);
-      joystickElement.removeEventListener('pointermove', handlePointerMove);
-      joystickElement.removeEventListener('pointerup', handlePointerUp);
-      joystickElement.removeEventListener('pointercancel', handlePointerCancel);
-      window.removeEventListener('pointermove', handleGlobalPointerMove);
+      window.removeEventListener('touchmove', handleGlobalTouchMove);
+      window.removeEventListener('touchend', handleGlobalTouchEnd);
+      window.removeEventListener('touchcancel', handleGlobalTouchEnd);
     };
   }, [gameState]);
 
@@ -1428,7 +1423,7 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
           
           {/* MOBILE CONTROLS - Joystick + Buttons */}
           <div className="md:hidden absolute bottom-0 left-0 right-0 p-3 pointer-events-auto z-50" style={{ touchAction: 'none' }}>
-            {/* Virtual Joystick Area - Using Pointer Events API for better mobile support */}
+            {/* Virtual Joystick Area - Using React Touch Events for reliable mobile support */}
             <div 
               ref={joystickElementRef}
               className="absolute bottom-4 left-4 w-36 h-36 rounded-full bg-white/10 border-2 border-white/30"
@@ -1440,6 +1435,10 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
                 pointerEvents: 'auto',
                 cursor: 'pointer'
               }}
+              onTouchStart={handleJoystickTouchStart}
+              onTouchMove={handleJoystickTouchMove}
+              onTouchEnd={handleJoystickTouchEnd}
+              onTouchCancel={handleJoystickTouchEnd}
             >
               {/* Joystick knob */}
               <div 
