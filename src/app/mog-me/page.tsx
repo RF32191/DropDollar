@@ -259,17 +259,26 @@ export default function MogMePage() {
           <p className="text-green-200 mb-4">
             Mog Me is part of the Drop Dollar family of applications
           </p>
-          <a
-            href="https://www.drop-dollar.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-yellow-400 hover:text-yellow-300 font-semibold text-lg transition-colors duration-300 hover:underline"
-          >
-            Visit Drop Dollar
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
+            <Link
+              href="/mog-me/privacy-policy"
+              className="text-yellow-400 hover:text-yellow-300 font-semibold text-lg transition-colors duration-300 hover:underline"
+            >
+              Privacy Policy
+            </Link>
+            <span className="hidden sm:inline text-green-300">•</span>
+            <a
+              href="https://www.drop-dollar.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-yellow-400 hover:text-yellow-300 font-semibold text-lg transition-colors duration-300 hover:underline"
+            >
+              Visit Drop Dollar
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </div>
           <p className="text-green-300 text-sm mt-2">
             <a href="https://www.drop-dollar.com" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">
               https://www.drop-dollar.com
