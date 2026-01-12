@@ -365,7 +365,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Final CTA Section */}
+      {/* Other Apps from Drop Dollar Section */}
+      <section className="relative py-24 bg-gradient-to-r from-green-900/60 to-yellow-900/60 border-t-4 border-yellow-400/30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Other Apps from Drop Dollar
+            </h2>
+            <p className="text-xl text-gray-200 mb-8 max-w-3xl mx-auto">
+              Explore our other innovative applications
+            </p>
+          </div>
+          
+          <Link
+            href="/mog-me"
+            className="block group relative max-w-4xl mx-auto px-8 py-10 bg-gradient-to-br from-green-700/90 to-green-800/90 rounded-3xl hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-[1.02] shadow-2xl border-4 border-yellow-400/60 hover:border-yellow-400 hover:shadow-yellow-400/30"
+          >
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+              {/* Mog Me Icon */}
+              <div className="w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-br from-green-700 to-green-800 rounded-2xl flex items-center justify-center border-4 border-yellow-400/70 shadow-xl flex-shrink-0">
+                <span className="text-6xl sm:text-7xl font-serif text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.9)]">M</span>
+              </div>
+              
+              <div className="flex-1 text-center sm:text-left">
+                <h3 className="text-3xl sm:text-4xl font-bold text-yellow-300 mb-3">Mog Me</h3>
+                <p className="text-green-100 text-lg sm:text-xl mb-2">Your Ultimate Look Maxxing App</p>
+                <p className="text-green-200 text-sm sm:text-base">
+                  Transform your appearance and maximize your potential with cutting-edge tools and expert guidance
+                </p>
+              </div>
+              
+              <div className="text-yellow-400 text-3xl sm:text-4xl group-hover:translate-x-2 transition-transform flex-shrink-0">
+                →
+              </div>
+            </div>
+          </Link>
+        </div>
+      </section>
+
+          {/* Final CTA Section */}
       <section className="relative py-32 bg-gradient-to-r from-blue-900/50 to-purple-900/50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-5xl md:text-6xl font-bold text-white mb-8">

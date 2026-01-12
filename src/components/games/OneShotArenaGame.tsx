@@ -116,6 +116,8 @@ export default function OneShotArenaGame({
   const projectileRef = useRef<Projectile | null>(null);
   const launcherRef = useRef<THREE.Group | null>(null);
   const aimLineRef = useRef<THREE.Line | null>(null);
+  const trajectoryLineRef = useRef<THREE.Line | null>(null);
+  const flagRef = useRef<THREE.Group | null>(null);
   const animationRef = useRef<number>(0);
   const scoreRef = useRef(0);
   const roundRef = useRef(1);
@@ -554,8 +556,14 @@ export default function OneShotArenaGame({
     // Generate initial targets
     generateTargets(scene, rngRef.current, 1);
     
+    // Create wind flag
+    flagRef.current = createWindFlag(scene);
+    
+    // Create trajectory prediction line
+    trajectoryLineRef.current = createTrajectoryLine(scene);
+    
     return { scene, camera, renderer };
-  }, [getThemeColors, createArena, createLauncher, createAimLine, generateTargets]);
+  }, [getThemeColors, createArena, createLauncher, createAimLine, generateTargets, createWindFlag, createTrajectoryLine]);
 
   // Fire projectile - Sniper bullet with precision
   const fireProjectile = useCallback(() => {
@@ -1058,13 +1066,84 @@ export default function OneShotArenaGame({
       mat.opacity = spark.life;
     });
     
+    // Animate wind flag
+    if (flagRef.current && wind.strength > 0) {
+      const flag = flagRef.current.children[1] as THREE.Mesh; // Flag cloth
+      if (flag && flag.geometry) {
+        const windAngle = Math.atan2(wind.z, wind.x);
+        flag.rotation.z = windAngle + Math.PI / 2;
+        
+        // Animate flag cloth with wind
+        const vertices = (flag.geometry as THREE.PlaneGeometry).attributes.position.array as Float32Array;
+        const windStrength = wind.strength * 0.1;
+        for (let i = 0; i < vertices.length; i += 3) {
+          const x = (i / 3) % 11; // Column index
+          const y = Math.floor((i / 3) / 11); // Row index
+          const offset = Math.sin(time * 2 + x * 0.3) * windStrength * (1 - y / 10);
+          vertices[i] = offset; // X offset for wave effect
+        }
+        flag.geometry.attributes.position.needsUpdate = true;
+      }
+    }
+    
+    // Update trajectory prediction line when aiming
+    if (trajectoryLineRef.current && launcherRef.current && gameState === 'aiming') {
+      const start = launcherRef.current.position.clone();
+      start.y += 1.5;
+      
+      const finalAimX = aimAngle.x + swayRef.current.x;
+      const finalAimY = aimAngle.y + swayRef.current.y;
+      const speed = power * 0.006;
+      
+      let velocity = new THREE.Vector3(
+        Math.sin(finalAimX) * Math.cos(finalAimY) * speed,
+        Math.sin(finalAimY) * speed,
+        -Math.cos(finalAimX) * Math.cos(finalAimY) * speed
+      );
+      
+      // Simulate trajectory with wind
+      const trajectoryPoints: THREE.Vector3[] = [];
+      let pos = start.clone();
+      let vel = velocity.clone();
+      
+      for (let i = 0; i < 100; i++) {
+        trajectoryPoints.push(pos.clone());
+        
+        // Apply gravity
+        vel.y -= 0.004;
+        
+        // Apply wind
+        vel.x += wind.x;
+        vel.z += wind.z;
+        
+        // Air resistance
+        vel.multiplyScalar(0.998);
+        
+        // Move
+        pos.add(vel);
+        
+        // Check bounds
+        if (pos.x < -ARENA_WIDTH / 2 || pos.x > ARENA_WIDTH / 2 ||
+            pos.y < 0 || pos.y > ARENA_HEIGHT ||
+            pos.z < -ARENA_DEPTH / 2 || pos.z > ARENA_DEPTH / 2 ||
+            vel.length() < 0.008) {
+          break;
+        }
+      }
+      
+      trajectoryLineRef.current.geometry.setFromPoints(trajectoryPoints);
+      trajectoryLineRef.current.visible = true;
+    } else if (trajectoryLineRef.current) {
+      trajectoryLineRef.current.visible = false;
+    }
+    
     // Render
     if (rendererRef.current && sceneRef.current && cameraRef.current) {
       rendererRef.current.render(sceneRef.current, cameraRef.current);
     }
     
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, aimAngle, power, holdingBreath, isScoped, updateProjectile, endRound]);
+  }, [gameState, aimAngle, power, holdingBreath, isScoped, updateProjectile, endRound, wind]);
 
   // Input handlers
   useEffect(() => {

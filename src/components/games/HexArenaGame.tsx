@@ -148,6 +148,9 @@ export default function HexArenaGame({
   const [joystickActive, setJoystickActive] = useState(false);
   const [joystickDelta, setJoystickDelta] = useState({ x: 0, y: 0 });
   const joystickStartRef = useRef({ x: 0, y: 0 });
+  const joystickDeltaRef = useRef({ x: 0, y: 0 }); // Ref for reliable access in game loop
+  const joystickElementRef = useRef<HTMLDivElement>(null); // Ref to joystick element
+  const joystickActiveRef = useRef(false); // Ref for reliable active state check
   
   // Multiplayer hook
   const lobby = useMultiplayerLobby(
@@ -445,9 +448,11 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
     mesh.position.set(startX, NUM_LEVELS * LEVEL_HEIGHT + 1, startZ);
     sceneRef.current.add(mesh);
     
+    const aiPosition = new THREE.Vector3(startX, NUM_LEVELS * LEVEL_HEIGHT + 1, startZ);
+    
     aiPlayerRef.current = {
       mesh,
-      position: new THREE.Vector3(startX, NUM_LEVELS * LEVEL_HEIGHT + 1, startZ),
+      position: aiPosition,
       velocity: new THREE.Vector3(0, 0, 0),
       level: NUM_LEVELS - 1,
       isJumping: true,
@@ -459,6 +464,25 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
       username: 'AI Bot',
       color
     };
+    
+    // Set initial AI target to a random safe tile
+    const safeTiles = tilesRef.current.filter(t => 
+      t.level === NUM_LEVELS - 1 && 
+      (t.state === 'solid' || t.state === 'warning') &&
+      t.stepTime === null
+    );
+    if (safeTiles.length > 0) {
+      const targetTile = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+      const { x, z } = hexToWorld(targetTile.q, targetTile.r, HEX_SIZE);
+      aiTargetRef.current.set(x, aiPosition.y, z);
+    } else {
+      // Fallback: set target to center
+      aiTargetRef.current.set(0, aiPosition.y, 0);
+    }
+    
+    // Reset AI action timers
+    aiLastActionRef.current = 0;
+    aiLastShootRef.current = 0;
     
     setAiAlive(true);
   }, [createPlayerMesh]);
@@ -629,7 +653,7 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
   const updateAI = useCallback((now: number) => {
     const ai = aiPlayerRef.current;
     const player = localPlayerRef.current;
-    if (!ai || !ai.isAlive || !player) return;
+    if (!ai || !ai.isAlive) return;
     
     // AI thinks every interval
     if (now - aiLastActionRef.current > AI_THINK_INTERVAL) {
@@ -648,30 +672,55 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
         const { x, z } = hexToWorld(targetTile.q, targetTile.r, HEX_SIZE);
         aiTargetRef.current.set(x, ai.position.y, z);
       } else {
-        // No safe tiles - try to jump!
-        if (!ai.isJumping && Math.random() < 0.3) {
+        // No safe tiles - try to jump or find tiles on other levels
+        if (!ai.isJumping && Math.random() < 0.5) {
           ai.isJumping = true;
           ai.jumpVelocity = JUMP_FORCE;
+        }
+        
+        // Try to find a safe tile on a different level
+        for (let level = 0; level < NUM_LEVELS; level++) {
+          const levelTiles = tilesRef.current.filter(t => 
+            t.level === level && 
+            (t.state === 'solid' || t.state === 'warning') &&
+            t.stepTime === null
+          );
+          if (levelTiles.length > 0) {
+            const targetTile = levelTiles[Math.floor(Math.random() * levelTiles.length)];
+            const { x, z } = hexToWorld(targetTile.q, targetTile.r, HEX_SIZE);
+            aiTargetRef.current.set(x, level * LEVEL_HEIGHT + 1, z);
+            break;
+          }
         }
       }
       
       // Occasionally jump to dodge or move to higher ground
-      if (!ai.isJumping && Math.random() < 0.1) {
+      if (!ai.isJumping && Math.random() < 0.15) {
         ai.isJumping = true;
         ai.jumpVelocity = JUMP_FORCE;
       }
     }
     
-    // Move toward target
+    // Move toward target - AI always moves if target is set
     const toTarget = aiTargetRef.current.clone().sub(ai.position);
     toTarget.y = 0;
     const distance = toTarget.length();
     
     let dx = 0, dz = 0;
-    if (distance > 0.5) {
+    if (distance > 0.3) {
       toTarget.normalize();
-      dx = toTarget.x * PLAYER_SPEED * 0.8;
-      dz = toTarget.z * PLAYER_SPEED * 0.8;
+      dx = toTarget.x * PLAYER_SPEED * 0.9;
+      dz = toTarget.z * PLAYER_SPEED * 0.9;
+    } else if (distance > 0) {
+      // Even if close, keep moving slightly to avoid getting stuck
+      toTarget.normalize();
+      dx = toTarget.x * PLAYER_SPEED * 0.3;
+      dz = toTarget.z * PLAYER_SPEED * 0.3;
+    } else {
+      // No target set - wander randomly
+      const angle = Math.random() * Math.PI * 2;
+      dx = Math.cos(angle) * PLAYER_SPEED * 0.5;
+      dz = Math.sin(angle) * PLAYER_SPEED * 0.5;
     }
     
     updatePlayerPhysics(ai, dx, dz, now, true);
@@ -723,23 +772,33 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
       if (keysRef.current.has('a') || keysRef.current.has('arrowleft')) dx -= PLAYER_SPEED;
       if (keysRef.current.has('d') || keysRef.current.has('arrowright')) dx += PLAYER_SPEED;
       
-      // Mobile joystick movement
-      if (joystickActive) {
-        dx += joystickDelta.x * PLAYER_SPEED * 1.5;
-        dz += joystickDelta.y * PLAYER_SPEED * 1.5;
+      // Mobile joystick movement - use ref for reliable access
+      const joyDelta = joystickDeltaRef.current;
+      if (Math.abs(joyDelta.x) > 0.01 || Math.abs(joyDelta.y) > 0.01) {
+        // Apply joystick movement (x controls left/right, y controls forward/back)
+        dx += joyDelta.x * PLAYER_SPEED * 2.5;
+        dz += joyDelta.y * PLAYER_SPEED * 2.5;
       }
       
       updatePlayerPhysics(player, dx, dz, now, false);
       
-      // Camera follow
+      // Camera follow - dynamically adjust based on player position
       if (cameraRef.current) {
+        // Adjust camera distance based on player Y position (when falling)
+        const baseHeight = 18;
+        const baseDistance = 14;
+        const fallOffset = Math.max(0, -player.position.y * 0.5); // Increase distance when falling
+        
         const camTarget = new THREE.Vector3(
           player.position.x,
-          player.position.y + 18,
-          player.position.z + 14
+          player.position.y + baseHeight + fallOffset,
+          player.position.z + baseDistance + fallOffset * 0.7
         );
-        cameraRef.current.position.lerp(camTarget, 0.05);
-        cameraRef.current.lookAt(player.position);
+        cameraRef.current.position.lerp(camTarget, 0.08);
+        
+        // Look at player, but adjust look-at height when falling
+        const lookAtHeight = Math.max(player.position.y, player.position.y - 5);
+        cameraRef.current.lookAt(player.position.x, lookAtHeight, player.position.z);
       }
       
       // Send network update
@@ -889,6 +948,148 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
     return () => clearInterval(timer);
   }, [gameState]);
 
+  // Mobile joystick event handlers - using Pointer Events API for better mobile support
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+    
+    const joystickElement = joystickElementRef.current;
+    if (!joystickElement) return;
+    
+    const handlePointerDown = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = joystickElement.getBoundingClientRect();
+      joystickStartRef.current = { 
+        x: rect.left + rect.width / 2, 
+        y: rect.top + rect.height / 2 
+      };
+      joystickActiveRef.current = true;
+      setJoystickActive(true);
+      const delta = { x: 0, y: 0 };
+      setJoystickDelta(delta);
+      joystickDeltaRef.current = delta;
+      try {
+        joystickElement.setPointerCapture(e.pointerId);
+      } catch (err) {
+        // Continue even if capture fails
+      }
+    };
+    
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!joystickActiveRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const rect = joystickElement.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const maxRadius = rect.width / 2 - 24;
+      
+      const dx = e.clientX - centerX;
+      const dy = e.clientY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      let normalizedX = 0;
+      let normalizedY = 0;
+      
+      if (distance > 0) {
+        if (distance > maxRadius) {
+          normalizedX = (dx / distance);
+          normalizedY = (dy / distance);
+        } else {
+          normalizedX = dx / maxRadius;
+          normalizedY = dy / maxRadius;
+        }
+      }
+      
+      const delta = { 
+        x: Math.max(-1, Math.min(1, normalizedX)), 
+        y: Math.max(-1, Math.min(1, normalizedY)) 
+      };
+      setJoystickDelta(delta);
+      joystickDeltaRef.current = delta;
+    };
+    
+    const handlePointerUp = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      joystickActiveRef.current = false;
+      setJoystickActive(false);
+      const delta = { x: 0, y: 0 };
+      setJoystickDelta(delta);
+      joystickDeltaRef.current = delta;
+      try {
+        joystickElement.releasePointerCapture(e.pointerId);
+      } catch (err) {
+        // Ignore if pointer capture fails
+      }
+    };
+    
+    const handlePointerCancel = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      joystickActiveRef.current = false;
+      setJoystickActive(false);
+      const delta = { x: 0, y: 0 };
+      setJoystickDelta(delta);
+      joystickDeltaRef.current = delta;
+      try {
+        joystickElement.releasePointerCapture(e.pointerId);
+      } catch (err) {
+        // Ignore if pointer capture fails
+      }
+    };
+    
+    // Also handle global pointer move for when pointer is captured
+    const handleGlobalPointerMove = (e: PointerEvent) => {
+      if (!joystickActiveRef.current) return;
+      e.preventDefault();
+      
+      const rect = joystickElement.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const maxRadius = rect.width / 2 - 24;
+      
+      const dx = e.clientX - centerX;
+      const dy = e.clientY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      let normalizedX = 0;
+      let normalizedY = 0;
+      
+      if (distance > 0) {
+        if (distance > maxRadius) {
+          normalizedX = (dx / distance);
+          normalizedY = (dy / distance);
+        } else {
+          normalizedX = dx / maxRadius;
+          normalizedY = dy / maxRadius;
+        }
+      }
+      
+      const delta = { 
+        x: Math.max(-1, Math.min(1, normalizedX)), 
+        y: Math.max(-1, Math.min(1, normalizedY)) 
+      };
+      setJoystickDelta(delta);
+      joystickDeltaRef.current = delta;
+    };
+    
+    joystickElement.addEventListener('pointerdown', handlePointerDown);
+    joystickElement.addEventListener('pointermove', handlePointerMove);
+    joystickElement.addEventListener('pointerup', handlePointerUp);
+    joystickElement.addEventListener('pointercancel', handlePointerCancel);
+    window.addEventListener('pointermove', handleGlobalPointerMove);
+    
+    return () => {
+      joystickElement.removeEventListener('pointerdown', handlePointerDown);
+      joystickElement.removeEventListener('pointermove', handlePointerMove);
+      joystickElement.removeEventListener('pointerup', handlePointerUp);
+      joystickElement.removeEventListener('pointercancel', handlePointerCancel);
+      window.removeEventListener('pointermove', handleGlobalPointerMove);
+    };
+  }, [gameState]);
+
   // Keyboard controls - ALWAYS active during play
   useEffect(() => {
     if (gameState !== 'playing') return;
@@ -994,13 +1195,127 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
     });
   }, [gameMode, lobby, user?.id, createLocalPlayer, createRemotePlayer, createBallMesh, gameLoop]);
 
-  // Start solo game (practice - just you)
-  const startSoloGame = useCallback(() => {
-    setGameMode('solo');
-    setGameState('playing');
+  // Reset game - clean up and rebuild arena
+  const resetGame = useCallback(() => {
+    // Stop game loop
+    gameActiveRef.current = false;
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = 0;
+    }
+    
+    // Ensure scene exists, if not initialize it
+    if (!sceneRef.current) {
+      initScene();
+    }
+    
+    if (!sceneRef.current) return;
+    
+    // Remove all tiles
+    tilesRef.current.forEach(tile => {
+      if (tile.mesh && sceneRef.current) {
+        sceneRef.current.remove(tile.mesh);
+        tile.mesh.geometry?.dispose();
+        (tile.mesh.material as THREE.Material)?.dispose();
+      }
+    });
+    tilesRef.current = [];
+    
+    // Remove all balls
+    ballsRef.current.forEach(ball => {
+      if (ball.mesh && sceneRef.current) {
+        sceneRef.current.remove(ball.mesh);
+        ball.mesh.geometry?.dispose();
+        (ball.mesh.material as THREE.Material)?.dispose();
+      }
+    });
+    ballsRef.current = [];
+    
+    // Remove local player
+    if (localPlayerRef.current && sceneRef.current) {
+      sceneRef.current.remove(localPlayerRef.current.mesh);
+      localPlayerRef.current.mesh.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else {
+            obj.material?.dispose();
+          }
+        }
+      });
+      localPlayerRef.current = null;
+    }
+    
+    // Remove AI player
+    if (aiPlayerRef.current && sceneRef.current) {
+      sceneRef.current.remove(aiPlayerRef.current.mesh);
+      aiPlayerRef.current.mesh.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else {
+            obj.material?.dispose();
+          }
+        }
+      });
+      aiPlayerRef.current = null;
+    }
+    
+    // Remove remote players
+    remotePlayersRef.current.forEach(remote => {
+      if (remote.mesh && sceneRef.current) {
+        sceneRef.current.remove(remote.mesh);
+        remote.mesh.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            obj.geometry?.dispose();
+            if (Array.isArray(obj.material)) {
+              obj.material.forEach(m => m.dispose());
+            } else {
+              obj.material?.dispose();
+            }
+          }
+        });
+      }
+      if (remote.label && sceneRef.current) {
+        sceneRef.current.remove(remote.label);
+        (remote.label.material as THREE.Material)?.dispose();
+      }
+    });
+    remotePlayersRef.current.clear();
+    
+    // Rebuild arena - this is critical!
+    tilesRef.current = buildArena(sceneRef.current);
+    
+    // Reset state
     setScore(0);
     setTimeAlive(0);
+    setBalls(5);
+    setCurrentLevel(0);
+    setFloatingScores([]);
     setWinner(null);
+    setAiAlive(true);
+    setJoystickActive(false);
+    const delta = { x: 0, y: 0 };
+    setJoystickDelta(delta);
+    joystickDeltaRef.current = delta;
+    
+    // Reset refs
+    keysRef.current.clear();
+    lastUpdateRef.current = 0;
+    aiLastActionRef.current = 0;
+    aiLastShootRef.current = 0;
+    clockRef.current = new THREE.Clock();
+  }, [buildArena, initScene]);
+
+  // Start solo game (practice - just you)
+  const startSoloGame = useCallback((skipReset = false) => {
+    if (!skipReset) {
+      resetGame();
+    }
+    setGameMode('solo');
+    setGameState('playing');
     
     if (!sceneRef.current) initScene();
     
@@ -1008,16 +1323,15 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
     gameActiveRef.current = true;
     clockRef.current.start();
     gameLoop();
-  }, [initScene, createLocalPlayer, gameLoop, user]);
+  }, [initScene, createLocalPlayer, gameLoop, user, resetGame]);
 
   // Start AI game
-  const startAIGame = useCallback(() => {
+  const startAIGame = useCallback((skipReset = false) => {
+    if (!skipReset) {
+      resetGame();
+    }
     setGameMode('ai');
     setGameState('playing');
-    setScore(0);
-    setTimeAlive(0);
-    setWinner(null);
-    setAiAlive(true);
     
     if (!sceneRef.current) initScene();
     
@@ -1026,7 +1340,7 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
     gameActiveRef.current = true;
     clockRef.current.start();
     gameLoop();
-  }, [initScene, createLocalPlayer, createAIPlayer, gameLoop, user]);
+  }, [initScene, createLocalPlayer, createAIPlayer, gameLoop, user, resetGame]);
 
   // Find online match
   const findMatch = useCallback(async () => {
@@ -1113,42 +1427,29 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
           </div>
           
           {/* MOBILE CONTROLS - Joystick + Buttons */}
-          <div className="md:hidden absolute bottom-0 left-0 right-0 p-3 pointer-events-auto">
-            {/* Virtual Joystick Area */}
+          <div className="md:hidden absolute bottom-0 left-0 right-0 p-3 pointer-events-auto z-50" style={{ touchAction: 'none' }}>
+            {/* Virtual Joystick Area - Using Pointer Events API for better mobile support */}
             <div 
-              className="absolute bottom-4 left-4 w-28 h-28 rounded-full bg-white/10 border-2 border-white/30 touch-none"
-              onTouchStart={(e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = e.currentTarget.getBoundingClientRect();
-                joystickStartRef.current = { 
-                  x: rect.left + rect.width / 2, 
-                  y: rect.top + rect.height / 2 
-                };
-                setJoystickActive(true);
-              }}
-              onTouchMove={(e) => {
-                e.preventDefault();
-                if (!joystickActive) return;
-                const touch = e.touches[0];
-                const dx = (touch.clientX - joystickStartRef.current.x) / 50;
-                const dy = (touch.clientY - joystickStartRef.current.y) / 50;
-                setJoystickDelta({ 
-                  x: Math.max(-1, Math.min(1, dx)), 
-                  y: Math.max(-1, Math.min(1, dy)) 
-                });
-              }}
-              onTouchEnd={() => {
-                setJoystickActive(false);
-                setJoystickDelta({ x: 0, y: 0 });
+              ref={joystickElementRef}
+              className="absolute bottom-4 left-4 w-36 h-36 rounded-full bg-white/10 border-2 border-white/30"
+              style={{ 
+                touchAction: 'none', 
+                WebkitTouchCallout: 'none', 
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                pointerEvents: 'auto',
+                cursor: 'pointer'
               }}
             >
               {/* Joystick knob */}
               <div 
-                className="absolute w-12 h-12 rounded-full bg-cyan-500/80 border-2 border-white"
+                className="absolute w-16 h-16 rounded-full bg-cyan-500/80 border-2 border-white transition-transform"
                 style={{
-                  left: `calc(50% + ${joystickDelta.x * 30}px - 24px)`,
-                  top: `calc(50% + ${joystickDelta.y * 30}px - 24px)`
+                  left: `calc(50% + ${joystickDelta.x * 40}px - 32px)`,
+                  top: `calc(50% + ${joystickDelta.y * 40}px - 32px)`,
+                  transform: joystickActive ? 'scale(1.1)' : 'scale(1)',
+                  pointerEvents: 'none',
+                  transition: 'transform 0.1s ease-out'
                 }}
               />
               <div className="absolute inset-0 flex items-center justify-center text-white/30 text-xs font-bold">
@@ -1159,21 +1460,40 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
             {/* Action Buttons */}
             <div className="absolute bottom-4 right-4 flex flex-col gap-2">
               <button 
-                onTouchStart={(e) => { e.preventDefault(); jump(); }}
-                className="w-16 h-16 rounded-full bg-green-600/90 border-2 border-white/50 flex items-center justify-center text-white font-bold text-sm active:scale-90 touch-none"
+                onTouchStart={(e) => { 
+                  e.preventDefault();
+                  e.stopPropagation();
+                  jump(); 
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                className="w-16 h-16 rounded-full bg-green-600/90 border-2 border-white/50 flex items-center justify-center text-white font-bold text-sm active:scale-90"
+                style={{ touchAction: 'manipulation' }}
               >
                 ⬆️<br/>JUMP
               </button>
               <button 
                 onTouchStart={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   const player = localPlayerRef.current;
-                  if (player) {
-                    // Shoot forward relative to camera
-                    shootBall(player.position.x, player.position.z - 10);
+                  if (player && cameraRef.current) {
+                    // Shoot forward relative to camera direction
+                    const forward = new THREE.Vector3(0, 0, -1);
+                    forward.applyQuaternion(cameraRef.current.quaternion);
+                    const targetX = player.position.x + forward.x * 10;
+                    const targetZ = player.position.z + forward.z * 10;
+                    shootBall(targetX, targetZ);
                   }
                 }}
-                className="w-16 h-16 rounded-full bg-purple-600/90 border-2 border-white/50 flex items-center justify-center text-white font-bold text-sm active:scale-90 touch-none"
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                className="w-16 h-16 rounded-full bg-purple-600/90 border-2 border-white/50 flex items-center justify-center text-white font-bold text-sm active:scale-90"
+                style={{ touchAction: 'manipulation' }}
               >
                 🔮<br/>FIRE
               </button>
@@ -1348,13 +1668,18 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
             
             <div className="flex gap-2 md:gap-3">
               <button onClick={() => { 
-                setGameState('menu'); 
-                gameActiveRef.current = false;
-                setWinner(null);
-                // Clean up AI
-                if (aiPlayerRef.current && sceneRef.current) {
-                  sceneRef.current.remove(aiPlayerRef.current.mesh);
-                  aiPlayerRef.current = null;
+                // Reset and restart based on previous game mode
+                if (gameMode === 'ai') {
+                  resetGame();
+                  // Use setTimeout to ensure reset completes before restart
+                  setTimeout(() => {
+                    startAIGame(true);
+                  }, 50);
+                } else {
+                  resetGame();
+                  setTimeout(() => {
+                    startSoloGame(true);
+                  }, 50);
                 }
               }}
                 className="flex-1 py-2 md:py-3 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white rounded-xl font-bold transition-all text-sm md:text-base">

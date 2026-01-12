@@ -150,3 +150,4 @@ AND p.proname IN ('update_daily_challenge_progress', 'update_weekly_challenge_pr
 SELECT '✅ Debug checks complete! Review the output above to identify issues.' as status;
 
 
+
