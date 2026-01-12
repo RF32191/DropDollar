@@ -451,6 +451,61 @@ export default function OneShotArenaGame({
     return line;
   }, [getThemeColors]);
 
+  // Create wind flag
+  const createWindFlag = useCallback((scene: THREE.Scene) => {
+    const colors = getThemeColors();
+    const flagGroup = new THREE.Group();
+    
+    // Flag pole
+    const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 3, 8);
+    const poleMaterial = new THREE.MeshStandardMaterial({
+      color: 0x888888,
+      metalness: 0.5,
+      roughness: 0.5
+    });
+    const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+    pole.position.y = 1.5;
+    flagGroup.add(pole);
+    
+    // Flag cloth (plane with subdivisions for animation)
+    const flagGeometry = new THREE.PlaneGeometry(1.5, 1, 10, 6);
+    const flagMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffaa00,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.9
+    });
+    const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+    flag.position.set(0.75, 2.5, 0);
+    flagGroup.add(flag);
+    
+    // Position flag at top of arena
+    flagGroup.position.set(0, ARENA_HEIGHT - 1, -ARENA_DEPTH / 2 + 1);
+    scene.add(flagGroup);
+    
+    return flagGroup;
+  }, []);
+
+  // Create trajectory prediction line
+  const createTrajectoryLine = useCallback((scene: THREE.Scene) => {
+    const colors = getThemeColors();
+    
+    const geometry = new THREE.BufferGeometry();
+    const material = new THREE.LineBasicMaterial({
+      color: colors.projectileGlow,
+      transparent: true,
+      opacity: 0.5,
+      linewidth: 2,
+      dashed: true
+    });
+    
+    const line = new THREE.Line(geometry, material);
+    line.visible = false;
+    scene.add(line);
+    
+    return line;
+  }, [getThemeColors]);
+
   // Generate targets for round
   const generateTargets = useCallback((scene: THREE.Scene, rng: SeededRandom, roundNum: number) => {
     // Clear old targets
@@ -569,6 +624,11 @@ export default function OneShotArenaGame({
   const fireProjectile = useCallback(() => {
     if (!sceneRef.current || !launcherRef.current) return;
     
+    // ENSURE ONLY ONE SHOT - prevent multiple projectiles
+    if (projectileRef.current && projectileRef.current.active) {
+      return; // Already have an active projectile
+    }
+    
     const colors = getThemeColors();
     
     // Create bullet (elongated for sniper feel)
@@ -591,8 +651,11 @@ export default function OneShotArenaGame({
     const finalAimX = aimAngle.x + (holdingBreath ? swayRef.current.x * 0.1 : swayRef.current.x);
     const finalAimY = aimAngle.y + (holdingBreath ? swayRef.current.y * 0.1 : swayRef.current.y);
     
-    // Calculate velocity - sniper rifle has high initial speed
-    const speed = power * 0.006;
+    // Calculate velocity - power bar directly controls speed (20-100 power = 0.12-0.6 speed)
+    // Power bar range: 20-100, so speed range: 0.12-0.6
+    const minSpeed = 0.12;
+    const maxSpeed = 0.6;
+    const speed = minSpeed + (power - 20) / 80 * (maxSpeed - minSpeed);
     const velocity = new THREE.Vector3(
       Math.sin(finalAimX) * Math.cos(finalAimY) * speed,
       Math.sin(finalAimY) * speed,
@@ -660,9 +723,9 @@ export default function OneShotArenaGame({
     // Apply gravity (bullet drop)
     proj.velocity.y -= 0.004;
     
-    // Apply wind
-    proj.velocity.x += wind.x;
-    proj.velocity.z += wind.z;
+    // Apply wind force (wind affects bullet physics continuously)
+    const windForce = new THREE.Vector3(wind.x, 0, wind.z);
+    proj.velocity.add(windForce.multiplyScalar(0.016)); // Apply wind per frame
     
     // Air resistance (slight drag)
     proj.velocity.multiplyScalar(0.998);
@@ -676,42 +739,54 @@ export default function OneShotArenaGame({
     // Check wall collisions (ricochet with sparks)
     let bounced = false;
     let bounceNormal = new THREE.Vector3();
+    const bounceThreshold = 0.15; // Bullet radius
     
-    // Left/Right walls
-    if (pos.x < -ARENA_WIDTH / 2 + 0.2) {
-      proj.velocity.x *= -0.75;
-      proj.velocity.multiplyScalar(0.85);
-      pos.x = -ARENA_WIDTH / 2 + 0.2;
+    // Left/Right walls - proper ricochet physics
+    if (pos.x < -ARENA_WIDTH / 2 + bounceThreshold) {
+      // Reflect velocity component perpendicular to wall
+      const normal = new THREE.Vector3(1, 0, 0);
+      const reflect = proj.velocity.clone().reflect(normal);
+      proj.velocity.copy(reflect);
+      proj.velocity.multiplyScalar(0.75); // Energy loss on bounce
+      pos.x = -ARENA_WIDTH / 2 + bounceThreshold;
       bounceNormal.set(1, 0, 0);
       bounced = true;
-    } else if (pos.x > ARENA_WIDTH / 2 - 0.2) {
-      proj.velocity.x *= -0.75;
-      proj.velocity.multiplyScalar(0.85);
-      pos.x = ARENA_WIDTH / 2 - 0.2;
+    } else if (pos.x > ARENA_WIDTH / 2 - bounceThreshold) {
+      const normal = new THREE.Vector3(-1, 0, 0);
+      const reflect = proj.velocity.clone().reflect(normal);
+      proj.velocity.copy(reflect);
+      proj.velocity.multiplyScalar(0.75);
+      pos.x = ARENA_WIDTH / 2 - bounceThreshold;
       bounceNormal.set(-1, 0, 0);
       bounced = true;
     }
     
-    // Floor/Ceiling
-    if (pos.y < 0.2) {
-      proj.velocity.y *= -0.6;
-      proj.velocity.multiplyScalar(0.8);
-      pos.y = 0.2;
+    // Floor bounce - realistic physics with energy loss
+    if (pos.y < bounceThreshold) {
+      const normal = new THREE.Vector3(0, 1, 0);
+      const reflect = proj.velocity.clone().reflect(normal);
+      proj.velocity.copy(reflect);
+      proj.velocity.multiplyScalar(0.65); // More energy loss on floor bounce
+      pos.y = bounceThreshold;
       bounceNormal.set(0, 1, 0);
       bounced = true;
-    } else if (pos.y > ARENA_HEIGHT - 0.2) {
-      proj.velocity.y *= -0.6;
-      proj.velocity.multiplyScalar(0.8);
-      pos.y = ARENA_HEIGHT - 0.2;
+    } else if (pos.y > ARENA_HEIGHT - bounceThreshold) {
+      const normal = new THREE.Vector3(0, -1, 0);
+      const reflect = proj.velocity.clone().reflect(normal);
+      proj.velocity.copy(reflect);
+      proj.velocity.multiplyScalar(0.65);
+      pos.y = ARENA_HEIGHT - bounceThreshold;
       bounceNormal.set(0, -1, 0);
       bounced = true;
     }
     
-    // Back wall
-    if (pos.z < -ARENA_DEPTH / 2 + 0.2) {
-      proj.velocity.z *= -0.7;
-      proj.velocity.multiplyScalar(0.85);
-      pos.z = -ARENA_DEPTH / 2 + 0.2;
+    // Back wall ricochet
+    if (pos.z < -ARENA_DEPTH / 2 + bounceThreshold) {
+      const normal = new THREE.Vector3(0, 0, 1);
+      const reflect = proj.velocity.clone().reflect(normal);
+      proj.velocity.copy(reflect);
+      proj.velocity.multiplyScalar(0.7);
+      pos.z = -ARENA_DEPTH / 2 + bounceThreshold;
       bounceNormal.set(0, 0, 1);
       bounced = true;
     }
@@ -874,9 +949,12 @@ export default function OneShotArenaGame({
       generateTargets(sceneRef.current, rngRef.current, roundRef.current);
     }
     
-    // Reset aim
+    // Reset aim and allow new shot
     setAimAngle({ x: 0, y: 0.3 });
     setPower(50);
+    
+    // Clear projectile ref to allow new shot
+    projectileRef.current = null;
     
     setGameState('aiming');
   }, [generateTargets]);
@@ -1066,23 +1144,41 @@ export default function OneShotArenaGame({
       mat.opacity = spark.life;
     });
     
-    // Animate wind flag
-    if (flagRef.current && wind.strength > 0) {
+    // Animate wind flag - shows wind direction and strength
+    if (flagRef.current) {
       const flag = flagRef.current.children[1] as THREE.Mesh; // Flag cloth
-      if (flag && flag.geometry) {
+      if (flag && flag.geometry instanceof THREE.PlaneGeometry) {
         const windAngle = Math.atan2(wind.z, wind.x);
         flag.rotation.z = windAngle + Math.PI / 2;
         
-        // Animate flag cloth with wind
-        const vertices = (flag.geometry as THREE.PlaneGeometry).attributes.position.array as Float32Array;
-        const windStrength = wind.strength * 0.1;
-        for (let i = 0; i < vertices.length; i += 3) {
-          const x = (i / 3) % 11; // Column index
-          const y = Math.floor((i / 3) / 11); // Row index
-          const offset = Math.sin(time * 2 + x * 0.3) * windStrength * (1 - y / 10);
-          vertices[i] = offset; // X offset for wave effect
+        // Animate flag cloth with realistic wind wave effect
+        const positionAttribute = flag.geometry.attributes.position;
+        const count = positionAttribute.count;
+        const windStrength = Math.max(0.01, wind.strength * 0.15);
+        
+        // Get base positions (PlaneGeometry has vertices in X-Y plane, Z=0)
+        for (let i = 0; i < count; i++) {
+          const x = positionAttribute.getX(i);
+          const y = positionAttribute.getY(i);
+          
+          // Create wave effect based on wind strength and direction
+          // Wave propagates along the flag based on wind direction
+          const wavePhase = time * 3 + (wind.x * x + wind.z * y) * 5;
+          const waveX = Math.sin(wavePhase) * windStrength * (1 - Math.abs(y) * 0.5);
+          const waveY = Math.cos(wavePhase * 1.3) * windStrength * 0.2;
+          
+          // Apply wave offset in Z direction (perpendicular to flag plane)
+          positionAttribute.setZ(i, waveX + waveY);
         }
-        flag.geometry.attributes.position.needsUpdate = true;
+        positionAttribute.needsUpdate = true;
+        
+        // Rotate flag to face wind direction
+        if (wind.strength > 0) {
+          const windDir = new THREE.Vector3(wind.x, 0, wind.z).normalize();
+          flagRef.current.lookAt(
+            flagRef.current.position.clone().add(windDir.multiplyScalar(5))
+          );
+        }
       }
     }
     
@@ -1093,7 +1189,11 @@ export default function OneShotArenaGame({
       
       const finalAimX = aimAngle.x + swayRef.current.x;
       const finalAimY = aimAngle.y + swayRef.current.y;
-      const speed = power * 0.006;
+      
+      // Use same power-to-speed calculation as fireProjectile
+      const minSpeed = 0.12;
+      const maxSpeed = 0.6;
+      const speed = minSpeed + (power - 20) / 80 * (maxSpeed - minSpeed);
       
       let velocity = new THREE.Vector3(
         Math.sin(finalAimX) * Math.cos(finalAimY) * speed,
@@ -1101,20 +1201,22 @@ export default function OneShotArenaGame({
         -Math.cos(finalAimX) * Math.cos(finalAimY) * speed
       );
       
-      // Simulate trajectory with wind
+      // Simulate trajectory with wind and ricochets
       const trajectoryPoints: THREE.Vector3[] = [];
       let pos = start.clone();
       let vel = velocity.clone();
+      let ricochetCount = 0;
+      const maxRicochets = 5;
       
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 200; i++) {
         trajectoryPoints.push(pos.clone());
         
         // Apply gravity
         vel.y -= 0.004;
         
-        // Apply wind
-        vel.x += wind.x;
-        vel.z += wind.z;
+        // Apply wind force (same as projectile physics)
+        const windForce = new THREE.Vector3(wind.x, 0, wind.z);
+        vel.add(windForce.multiplyScalar(0.016));
         
         // Air resistance
         vel.multiplyScalar(0.998);
@@ -1122,11 +1224,44 @@ export default function OneShotArenaGame({
         // Move
         pos.add(vel);
         
-        // Check bounds
+        // Check wall/floor collisions and simulate ricochets
+        const bounceThreshold = 0.15;
+        if (pos.x < -ARENA_WIDTH / 2 + bounceThreshold) {
+          const normal = new THREE.Vector3(1, 0, 0);
+          vel.reflect(normal).multiplyScalar(0.75);
+          pos.x = -ARENA_WIDTH / 2 + bounceThreshold;
+          ricochetCount++;
+        } else if (pos.x > ARENA_WIDTH / 2 - bounceThreshold) {
+          const normal = new THREE.Vector3(-1, 0, 0);
+          vel.reflect(normal).multiplyScalar(0.75);
+          pos.x = ARENA_WIDTH / 2 - bounceThreshold;
+          ricochetCount++;
+        }
+        
+        if (pos.y < bounceThreshold) {
+          const normal = new THREE.Vector3(0, 1, 0);
+          vel.reflect(normal).multiplyScalar(0.65);
+          pos.y = bounceThreshold;
+          ricochetCount++;
+        } else if (pos.y > ARENA_HEIGHT - bounceThreshold) {
+          const normal = new THREE.Vector3(0, -1, 0);
+          vel.reflect(normal).multiplyScalar(0.65);
+          pos.y = ARENA_HEIGHT - bounceThreshold;
+          ricochetCount++;
+        }
+        
+        if (pos.z < -ARENA_DEPTH / 2 + bounceThreshold) {
+          const normal = new THREE.Vector3(0, 0, 1);
+          vel.reflect(normal).multiplyScalar(0.7);
+          pos.z = -ARENA_DEPTH / 2 + bounceThreshold;
+          ricochetCount++;
+        }
+        
+        // Check bounds or stop conditions
         if (pos.x < -ARENA_WIDTH / 2 || pos.x > ARENA_WIDTH / 2 ||
             pos.y < 0 || pos.y > ARENA_HEIGHT ||
             pos.z < -ARENA_DEPTH / 2 || pos.z > ARENA_DEPTH / 2 ||
-            vel.length() < 0.008) {
+            vel.length() < 0.008 || ricochetCount > maxRicochets) {
           break;
         }
       }
@@ -1163,7 +1298,10 @@ export default function OneShotArenaGame({
     };
     
     const handleClick = () => {
-      fireProjectile();
+      // Only fire if no active projectile exists
+      if (!projectileRef.current || !projectileRef.current.active) {
+        fireProjectile();
+      }
     };
     
     const handleWheel = (e: WheelEvent) => {
@@ -1174,7 +1312,10 @@ export default function OneShotArenaGame({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault();
-        fireProjectile();
+        // Only fire if no active projectile exists
+        if (!projectileRef.current || !projectileRef.current.active) {
+          fireProjectile();
+        }
       }
       if (e.code === 'ArrowUp') setPower(prev => Math.min(100, prev + 5));
       if (e.code === 'ArrowDown') setPower(prev => Math.max(20, prev - 5));
@@ -1230,7 +1371,10 @@ export default function OneShotArenaGame({
     };
     
     const handleTouchEnd = () => {
-      fireProjectile();
+      // Only fire if no active projectile exists
+      if (!projectileRef.current || !projectileRef.current.active) {
+        fireProjectile();
+      }
     };
     
     containerRef.current?.addEventListener('touchmove', handleTouchMove, { passive: false });
