@@ -330,6 +330,19 @@ export default function WinnerTakesAllPage() {
       
       if (error) {
         console.error('❌ [Winner Takes It All] Error loading sessions:', error);
+        console.error('❌ [Winner Takes It All] Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: JSON.stringify(error, null, 2)
+        });
+        setMessage({ 
+          type: 'error', 
+          text: `Error loading sessions: ${error.message || 'Unknown error'}. Please refresh the page.` 
+        });
+        setSessions([]);
+        setIsLoading(false);
         return;
       }
       
