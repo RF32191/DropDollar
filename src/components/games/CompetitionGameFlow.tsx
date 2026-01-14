@@ -114,14 +114,9 @@ export default function CompetitionGameFlow({
           return;
         }
         
-        // Validate RNG seed
-        if (!rngSeed || rngSeed <= 0) {
-          console.error('❌ [CompetitionGameFlow] Invalid RNG seed:', rngSeed);
-          setErrorMessage('Invalid game configuration. Please try again.');
-          setGameState('error');
-          hasCreatedSession.current = true;
-          return;
-        }
+        // Validate RNG seed - use default if not provided
+        const validRngSeed = (rngSeed && rngSeed > 0) ? rngSeed : 1;
+        console.log('🎲 [CompetitionGameFlow] Using RNG seed:', validRngSeed, '(provided:', rngSeed, ')');
         
         // Mark as created BEFORE async operations
         hasCreatedSession.current = true;
@@ -131,7 +126,7 @@ export default function CompetitionGameFlow({
         const newGameSession: GameSession = {
           sessionId: `game-${sessionId}-${Date.now()}`,
           token: `token-${Date.now()}`,
-          rngSeed: rngSeed,
+          rngSeed: validRngSeed,
           expiresAt: Date.now() + (60 * 60 * 1000), // 1 hour from now
           gameType: gameType,
           listingId: sessionId,

@@ -329,6 +329,39 @@ export default function CoinPlayPage() {
       return;
     }
 
+    // DEVICE VALIDATION: Check if user's device matches game requirements
+    const isMobileDevice = deviceInfo.isMobile;
+    const isDesktopDevice = deviceInfo.isDesktop;
+    const isMobileCompatible = MOBILE_COMPATIBLE_GAMES.includes(session.game_type);
+    const isDesktopOnly = DESKTOP_ONLY_GAMES.includes(session.game_type);
+    
+    console.log('📱 [Device Check]', {
+      isMobileDevice,
+      isDesktopDevice,
+      gameType: session.game_type,
+      isMobileCompatible,
+      isDesktopOnly
+    });
+    
+    // Prevent mobile users from playing desktop-only games
+    if (isMobileDevice && isDesktopOnly) {
+      setMessage({ 
+        type: 'error', 
+        text: '❌ This game requires a desktop/laptop computer. Please use a desktop device to play this game. Mobile devices cannot play desktop-only games.' 
+      });
+      return;
+    }
+    
+    // Warn desktop users trying to play mobile-optimized games (but allow it)
+    if (isDesktopDevice && isMobileCompatible && !isDesktopOnly) {
+      const proceed = window.confirm(
+        '⚠️ This game is optimized for mobile devices. You are on a desktop/laptop. Do you want to continue?'
+      );
+      if (!proceed) {
+        return;
+      }
+    }
+
     // Show warning before joining
     const confirmJoin = window.confirm(
       `⚠️ IMPORTANT WARNING:\n\n` +
