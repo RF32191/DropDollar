@@ -52,7 +52,6 @@ BEGIN
         timer_started_at = NULL,
         winner_user_id = NULL,
         winner_prize = NULL,
-        winner_username = NULL,
         prize_amount = NULL,
         platform_fee = NULL,
         platform_fee_amount = NULL,
@@ -89,7 +88,6 @@ SELECT
     COALESCE(current_pot, 0) + COALESCE(prize_pool, 0) as total_pot,
     timer_started_at,
     winner_user_id,
-    winner_username,
     rng_seed
 FROM public.winner_takes_all_sessions
 ORDER BY config_id;
