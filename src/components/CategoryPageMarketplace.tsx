@@ -705,7 +705,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {listings.map((listing) => {
-              const progressPercent = Math.min((listing.prize_pool / listing.base_price) * 100, 100);
+              const progressPercent = Math.min(((listing.participants_count || 0) / listing.base_price) * 100, 100);
               const timeRemaining = calculateTimeRemaining(listing);
               const participants = listing.participants || [];
               const userParticipant = participants.find(p => p.user_id === user?.id);
@@ -885,15 +885,16 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     </div>
                   </div>
 
-                  {/* Prize Pool */}
+                  {/* Prize Pool - Fixed Price */}
                   <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
                     <div className="text-center">
-                      <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POOL</p>
-                      <p className="text-3xl font-bold text-white">{listing.prize_pool.toFixed(0)} Tokens</p>
+                      <p className="text-purple-100 text-sm font-medium mb-1">FIXED PRIZE POOL</p>
+                      <p className="text-3xl font-bold text-white">{listing.base_price} Tokens</p>
                       <div className="mt-2 flex items-center justify-center text-sm text-purple-100">
                         <UserGroupIcon className="inline h-4 w-4 mr-1" />
-                        {listing.participants_count} {listing.participants_count === 1 ? 'Player' : 'Players'}
+                        {listing.participants_count} / {listing.base_price} Players ($1 = 1 player)
                       </div>
+                      <p className="text-purple-200 text-xs mt-1">Fixed price - does not grow</p>
                     </div>
                   </div>
 
@@ -903,21 +904,21 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     <p className="text-lg font-bold text-white">{listing.game_type.replace(/_/g, ' ').replace(/-/g, ' ').toUpperCase()}</p>
                   </div>
 
-                  {/* Progress Bar */}
+                  {/* Progress Bar - Shows Players Joined */}
                   {listing.session_status !== 'completed' && (
                     <div className="mb-4 rounded-2xl p-4 bg-gray-800/50">
                       <div className="flex justify-between text-sm font-semibold text-white mb-2">
-                        <span>🎯 FUNDING PROGRESS</span>
-                        <span className="text-yellow-400">{progressPercent.toFixed(1)}%</span>
+                        <span>👥 PLAYERS JOINED</span>
+                        <span className="text-yellow-400">{Math.min(100, ((listing.participants_count || 0) / listing.base_price) * 100).toFixed(1)}%</span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                         <div 
                           className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 h-3 rounded-full transition-all duration-300 animate-pulse"
-                          style={{ width: `${progressPercent}%` }}
+                          style={{ width: `${Math.min(100, ((listing.participants_count || 0) / listing.base_price) * 100)}%` }}
                         />
                       </div>
                       <div className="mt-2 text-center text-xs text-gray-400">
-                        {listing.prize_pool.toFixed(0)} / {listing.base_price} tokens
+                        {listing.participants_count || 0} / {listing.base_price} players ({listing.base_price - (listing.participants_count || 0)} spots left)
                       </div>
                     </div>
                   )}
