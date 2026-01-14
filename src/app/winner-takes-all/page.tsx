@@ -38,8 +38,11 @@ interface WinnerTakesAllSession {
   timer_started_at: string | null;
   timer_duration: number;
   winner_user_id: string | null;
+  winner_username?: string | null;
+  winner_prize?: number | null;
   prize_amount: number | null;
   platform_fee: number | null;
+  completed_at?: string | null;
   created_at: string;
   updated_at: string;
   participants: Array<{
@@ -1052,7 +1055,7 @@ export default function WinnerTakesAllPage() {
                   </div>
                   
                   {/* Payout Message - Show when session is completed */}
-                  {session && session.status === 'completed' && session.winner_user_id && session.winner_prize && (
+                  {session && session.status === 'completed' && session.winner_user_id && (session.winner_prize || session.prize_amount) && (
                     <div className="mb-6 bg-gradient-to-r from-green-900/80 to-emerald-900/80 border-4 border-yellow-400/80 rounded-lg p-6 animate-pulse shadow-2xl">
                       <div className="flex items-center justify-center gap-3 mb-3">
                         <TrophyIcon className="w-8 h-8 text-yellow-400 animate-bounce" />
@@ -1060,10 +1063,10 @@ export default function WinnerTakesAllPage() {
                       </div>
                       <div className="text-center space-y-2">
                         <div className="text-base text-green-200 mb-2">
-                          <span className="font-bold text-yellow-300 text-lg">{session.winner_username || 'Winner'}</span> won!
+                          <span className="font-bold text-yellow-300 text-lg">{session.winner_username || payoutAnnouncements[config.id]?.winner || 'Winner'}</span> won!
                         </div>
                         <div className="text-3xl font-black text-yellow-300 mb-2">
-                          {formatPrizeAmount(session.winner_prize)}
+                          {formatPrizeAmount(session.winner_prize || session.prize_amount || 0)}
                         </div>
                         <div className="text-sm text-green-300/90">
                           Prize paid out • Listing resetting...
