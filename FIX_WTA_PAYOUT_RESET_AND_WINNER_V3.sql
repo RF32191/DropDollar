@@ -507,7 +507,7 @@ BEGIN
         'message', '🎉 Payout complete! Winner: ' || v_winner_username || ' received ' || v_winner_payout::TEXT || ' tokens. Announcement will show for 30 seconds.',
         'winner_username', v_winner_username,
         'winner_user_id', winner_record.user_id::TEXT,
-        'winner_score', winner_record.score,
+        'winner_score', COALESCE(winner_record.score, 0),  -- CRITICAL: Include winner score in response
         'payout_amount', v_winner_payout,
         'winner_payout', v_winner_payout,
         'platform_fee', v_platform_fee,
