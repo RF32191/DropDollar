@@ -378,6 +378,8 @@ BEGIN
     END LOOP;
     
     -- Now select the actual winner (highest score)
+    -- CRITICAL: Use FOR UPDATE to lock rows and prevent race conditions
+    -- Order by score DESC (highest first), then completed_at ASC (earliest completion breaks ties)
     SELECT 
         p.*, 
         COALESCE(u.username, SPLIT_PART(u.email, '@', 1), 'Player') as username
@@ -387,10 +389,19 @@ BEGIN
     WHERE p.session_id = session_record.id
     AND p.score IS NOT NULL  -- Must have a score
     AND p.completed_at IS NOT NULL  -- Must have completed the game
-    ORDER BY p.score DESC, p.completed_at ASC  -- Highest score wins, earliest completion breaks ties
-    LIMIT 1;
+    ORDER BY 
+        p.score DESC NULLS LAST,  -- Highest score wins (NULL scores last)
+        p.completed_at ASC NULLS LAST  -- Earliest completion breaks ties (NULL last)
+    LIMIT 1
+    FOR UPDATE;  -- Lock row to prevent concurrent modifications
     
-    IF NOT FOUND OR winner_record IS NULL THEN
+    -- Double-check winner is valid
+    IF winner_record IS NULL OR winner_record.user_id IS NULL OR winner_record.score IS NULL THEN
+        RAISE NOTICE '❌ [PAYOUT] Invalid winner record - no valid winner found';
+        winner_record := NULL;
+    END IF;
+    
+    IF winner_record IS NULL THEN
         -- No scores submitted - refund all participants
         UPDATE public.users u
         SET won_tokens = COALESCE(won_tokens, 0) + session_record.base_price

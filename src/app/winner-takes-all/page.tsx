@@ -16,6 +16,8 @@ import LocationVerificationModal from '@/components/modals/LocationVerificationM
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import LazyVideo from '@/components/video/LazyVideo';
+import { useDeviceDetection } from '@/hooks/useDeviceDetection';
+import { useRouter } from 'next/navigation';
 import {
   TrophyIcon,
   ClockIcon,
@@ -78,6 +80,16 @@ interface Message {
 export default function WinnerTakesAllPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
+  const deviceInfo = useDeviceDetection();
+  const router = useRouter();
+  
+  // Redirect mobile users to mobile competitive page
+  useEffect(() => {
+    if (deviceInfo.isMobile) {
+      console.log('📱 [Winner Takes All] Mobile device detected, redirecting to mobile page...');
+      router.push('/winner-takes-all/mobile');
+    }
+  }, [deviceInfo.isMobile, router]);
   
   const [sessions, setSessions] = useState<WinnerTakesAllSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -426,14 +438,31 @@ export default function WinnerTakesAllPage() {
         setConfigs(fallbackConfigs);
       } else if (data && data.length > 0) {
         console.log(`✅ [Winner Takes All] Loaded ${data.length} configs from database`);
-        setConfigs(data as WinnerTakesAllConfig[]);
+        // Filter out laser_dodge and other mobile-only games from desktop competitive
+        const filteredConfigs = (data as WinnerTakesAllConfig[]).filter(config => {
+          // Exclude laser_dodge and other games not suitable for competitive desktop play
+          const excludedGames = ['laser_dodge'];
+          return !excludedGames.includes(config.game_type);
+        });
+        console.log(`✅ [Winner Takes All] Filtered to ${filteredConfigs.length} desktop-compatible configs`);
+        setConfigs(filteredConfigs);
       } else {
         console.warn('⚠️ [Winner Takes All] No configs found in DB, using fallback');
-        setConfigs(fallbackConfigs);
+        // Filter fallback configs too
+        const filteredFallback = fallbackConfigs.filter(config => {
+          const excludedGames = ['laser_dodge'];
+          return !excludedGames.includes(config.game_type);
+        });
+        setConfigs(filteredFallback);
       }
     } catch (err) {
       console.error('❌ [Winner Takes All] Error loading configs:', err);
-      setConfigs(fallbackConfigs);
+      // Filter fallback configs on error too
+      const filteredFallback = fallbackConfigs.filter(config => {
+        const excludedGames = ['laser_dodge'];
+        return !excludedGames.includes(config.game_type);
+      });
+      setConfigs(filteredFallback);
     } finally {
       setLoadingConfigs(false);
     }
@@ -815,7 +844,8 @@ export default function WinnerTakesAllPage() {
         console.log('✅ [Winner Takes All] Payout successful:', data);
         
         // Show prominent payout announcement for 30 seconds
-        const announcementText = `🎉 ${data.winner_username || 'Winner'} won ${data.payout_amount || data.winner_payout || 0} tokens! Announcement will show for 30 seconds.`;
+        const winnerScore = data.winner_score || 0;
+        const announcementText = `🎉 ${data.winner_username || 'Winner'} won ${data.payout_amount || data.winner_payout || 0} tokens with highest score of ${winnerScore}! Announcement will show for 30 seconds.`;
         setMessage({ 
           type: 'success', 
           text: announcementText
@@ -828,6 +858,7 @@ export default function WinnerTakesAllPage() {
             [configId]: {
               winner: data.winner_username,
               payout: data.payout_amount || data.winner_payout || 0,
+              score: winnerScore,
               timestamp: Date.now()
             }
           }));
@@ -1222,11 +1253,16 @@ export default function WinnerTakesAllPage() {
                         <div className="text-base text-green-200 mb-2">
                           <span className="font-bold text-yellow-300 text-lg">
                             {session.winner_username || payoutAnnouncements[config.id]?.winner || 'Winner'}
-                          </span> won with highest score!
+                          </span> won with highest score of <span className="font-bold text-yellow-400">{payoutAnnouncements[config.id]?.score || 'N/A'}</span>!
                         </div>
                         <div className="text-3xl font-black text-yellow-300 mb-2">
                           {formatPrizeAmount(session.winner_prize || session.prize_amount || 0)}
                         </div>
+                        {payoutAnnouncements[config.id]?.score && (
+                          <div className="text-lg text-green-300/90 mb-2">
+                            Score: <span className="font-bold text-yellow-300">{payoutAnnouncements[config.id].score}</span>
+                          </div>
+                        )}
                         <div className="text-sm text-green-300/90">
                           Prize paid out • Listing resetting...
                         </div>
