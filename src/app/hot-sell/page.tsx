@@ -990,11 +990,7 @@ export default function HotSellPage() {
     }
   };
 
-  // Define which games are mobile-compatible vs desktop-only
-  const MOBILE_COMPATIBLE_GAMES = ['laser_dodge', 'multi_target_reaction', 'sword_parry', 'quick_click', 'color_sequence', 'falling_object'];
-  const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack'];
-  
-  // Filter configs by device compatibility
+  // Filter configs by device compatibility (using constants defined above)
   const deviceFilteredConfigs = configs.filter(config => {
     if (deviceFilter === 'all') return true;
     if (deviceFilter === 'mobile') {
