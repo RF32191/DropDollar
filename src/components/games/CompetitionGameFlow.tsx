@@ -59,6 +59,10 @@ export default function CompetitionGameFlow({
   // Enable fullscreen when game is playing
   const fullscreenRef = useFullscreenGame(gameState === 'playing');
   
+  // Track if we've already pushed state to prevent loops
+  const hasPushedState = useRef(false);
+  const lastPushStateTime = useRef(0);
+  
   // Prevent back navigation during game - warn user about score loss
   useEffect(() => {
     if (gameState === 'playing' || gameState === 'countdown') {
@@ -68,19 +72,50 @@ export default function CompetitionGameFlow({
         return e.returnValue;
       };
       
-      const handlePopState = (e: PopStateEvent) => {
-        const confirmLeave = window.confirm('⚠️ WARNING: Going back now will result in a ZERO score! You will lose your entry fee. Are you sure you want to leave?');
-        if (confirmLeave) {
-          // User confirmed - allow navigation but warn about score loss
-          onCancel();
-        } else {
-          // User cancelled - prevent navigation
+      // Throttle pushState calls - only allow once per second max
+      const throttlePushState = () => {
+        const now = Date.now();
+        if (now - lastPushStateTime.current < 1000) {
+          return; // Throttle - don't push if called within last second
+        }
+        lastPushStateTime.current = now;
+        try {
           window.history.pushState(null, '', window.location.href);
+        } catch (error) {
+          console.warn('⚠️ [CompetitionGameFlow] pushState throttled:', error);
         }
       };
       
-      // Push a state to enable back button detection
-      window.history.pushState(null, '', window.location.href);
+      const handlePopState = (e: PopStateEvent) => {
+        // Prevent infinite loop - don't pushState in response to popstate
+        const confirmLeave = window.confirm('⚠️ WARNING: Going back now will result in a ZERO score! You will lose your entry fee. Are you sure you want to leave?');
+        if (confirmLeave) {
+          // User confirmed - allow navigation but warn about score loss
+          hasPushedState.current = false; // Reset flag
+          onCancel();
+        } else {
+          // User cancelled - prevent navigation by going forward
+          // Don't use pushState here as it causes loops - just prevent default
+          e.preventDefault();
+          // Use replaceState instead (safer, doesn't add to history)
+          try {
+            window.history.replaceState(null, '', window.location.href);
+          } catch (error) {
+            console.warn('⚠️ [CompetitionGameFlow] replaceState failed:', error);
+          }
+        }
+      };
+      
+      // Only push state once when entering playing/countdown state
+      if (!hasPushedState.current) {
+        try {
+          window.history.pushState(null, '', window.location.href);
+          hasPushedState.current = true;
+          lastPushStateTime.current = Date.now();
+        } catch (error) {
+          console.warn('⚠️ [CompetitionGameFlow] Initial pushState failed:', error);
+        }
+      }
       
       window.addEventListener('beforeunload', handleBeforeUnload);
       window.addEventListener('popstate', handlePopState);
@@ -88,7 +123,14 @@ export default function CompetitionGameFlow({
       return () => {
         window.removeEventListener('beforeunload', handleBeforeUnload);
         window.removeEventListener('popstate', handlePopState);
+        // Reset flag when leaving playing state
+        if (gameState !== 'playing' && gameState !== 'countdown') {
+          hasPushedState.current = false;
+        }
       };
+    } else {
+      // Reset flag when not in playing/countdown state
+      hasPushedState.current = false;
     }
   }, [gameState, onCancel]);
 
