@@ -1019,14 +1019,30 @@ export default function WinnerTakesAllPage() {
     );
   }
 
+  // Define which games are mobile-compatible vs desktop-only
+  const MOBILE_COMPATIBLE_GAMES = ['laser_dodge', 'multi_target_reaction', 'sword_parry', 'quick_click', 'color_sequence', 'falling_object'];
+  const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack']; // Games that require mouse/precision
+  
+  // Filter configs by device compatibility
+  const deviceFilteredConfigs = configs.filter(config => {
+    if (deviceFilter === 'all') return true;
+    if (deviceFilter === 'mobile') {
+      return MOBILE_COMPATIBLE_GAMES.includes(config.game_type);
+    }
+    if (deviceFilter === 'desktop') {
+      return !MOBILE_COMPATIBLE_GAMES.includes(config.game_type) || DESKTOP_ONLY_GAMES.includes(config.game_type);
+    }
+    return true;
+  });
+
   // Group configs by game type
-  const configsByGame = configs.reduce((acc, config) => {
+  const configsByGame = deviceFilteredConfigs.reduce((acc, config) => {
     if (!acc[config.game_type]) {
       acc[config.game_type] = [];
     }
     acc[config.game_type].push(config);
     return acc;
-  }, {} as { [key: string]: WinnerTakesAllConfig[] });
+  }, {} as Record<string, WinnerTakesAllConfig[]>);
 
   // Sort games alphabetically
   const sortedGames = Object.keys(configsByGame).sort();
