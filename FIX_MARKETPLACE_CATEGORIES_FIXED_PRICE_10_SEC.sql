@@ -86,8 +86,13 @@ SELECT '✅ Step 4: Marketplace trigger created - checks participants_count >= b
 -- STEP 5: UPDATE join_marketplace_session TO USE FIXED PRICING
 -- ============================================================================
 
+-- Drop all existing versions first
+DROP FUNCTION IF EXISTS public.join_marketplace_session(UUID);
+DROP FUNCTION IF EXISTS public.join_marketplace_session(UUID, NUMERIC);
+DROP FUNCTION IF EXISTS public.join_marketplace_session(TEXT, NUMERIC);
+
 CREATE OR REPLACE FUNCTION public.join_marketplace_session(
-    session_id_param UUID,
+    listing_id_param UUID,
     entry_amount_param NUMERIC
 )
 RETURNS JSONB
@@ -112,22 +117,43 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
     END IF;
     
-    -- Get session details
-    SELECT * INTO v_session_record
-    FROM public.marketplace_sessions
-    WHERE id = session_id_param;
-    
-    IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'message', 'Session not found');
-    END IF;
-    
     -- Get listing to get base_price
     SELECT * INTO v_listing_record
     FROM public.marketplace_listings
-    WHERE id = v_session_record.listing_id;
+    WHERE id = listing_id_param AND status = 'active';
     
     IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'message', 'Listing not found');
+        RETURN jsonb_build_object('success', false, 'message', 'Listing not found or inactive');
+    END IF;
+    
+    -- Get or create session for this listing
+    SELECT * INTO v_session_record
+    FROM public.marketplace_sessions
+    WHERE listing_id = listing_id_param;
+    
+    -- If no session exists, create one
+    IF NOT FOUND THEN
+        INSERT INTO public.marketplace_sessions (
+            listing_id,
+            prize_pool,
+            participants_count,
+            max_participants,
+            status,
+            timer_duration,
+            rng_seed,
+            created_at,
+            updated_at
+        ) VALUES (
+            listing_id_param,
+            v_listing_record.base_price,  -- Fixed price
+            0,
+            v_listing_record.base_price,  -- $1 = 1 player
+            'waiting',
+            10,  -- 10 seconds
+            FLOOR(RANDOM() * 1000000)::INTEGER,
+            NOW(),
+            NOW()
+        ) RETURNING * INTO v_session_record;
     END IF;
     
     v_base_price := v_listing_record.base_price;
@@ -147,7 +173,7 @@ BEGIN
     -- Check if user already joined
     IF EXISTS (
         SELECT 1 FROM public.marketplace_participants
-        WHERE session_id = session_id_param AND user_id = v_user_id
+        WHERE session_id = v_session_record.id AND user_id = v_user_id
     ) THEN
         RETURN jsonb_build_object('success', false, 'message', 'Already joined this session');
     END IF;
@@ -184,7 +210,7 @@ BEGIN
         user_id,
         entry_amount
     ) VALUES (
-        session_id_param,
+        v_session_record.id,
         v_user_id,
         entry_amount_param
     );
@@ -198,7 +224,7 @@ BEGIN
         participants_count = v_new_count,
         max_participants = v_max_participants,  -- Ensure it's set
         updated_at = NOW()
-    WHERE id = session_id_param;
+    WHERE id = v_session_record.id;
     
     -- Trigger will automatically start timer if participants_count >= base_price
     
@@ -212,7 +238,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.join_marketplace_session(UUID, NUMERIC) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.join_marketplace_session(UUID, NUMERIC) TO authenticated, anon, service_role;
 
 SELECT '✅ Step 5: join_marketplace_session updated - fixed pricing, participants_count based' as status;
 
