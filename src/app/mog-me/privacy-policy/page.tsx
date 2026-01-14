@@ -179,29 +179,34 @@ export default function MogMePrivacyPolicyPage() {
               <div className="bg-green-900/40 p-6 rounded-xl border border-yellow-400/20 mt-4">
                 <h3 className="text-xl font-bold text-yellow-300 mb-3">5.2 Data Types Collected</h3>
                 <p className="text-green-100 mb-4">
-                  The following data types are collected from this app. Note that most data is <strong>not linked to your identity</strong> 
+                  The following data types are collected from this app. All data is collected in a form that is <strong>not linked to your identity</strong> 
                   and is collected in anonymized or pseudonymous form:
                 </p>
+
+                <div className="bg-yellow-400/10 p-4 rounded-lg border-2 border-yellow-400/30 mb-4">
+                  <p className="text-green-100 text-sm font-semibold">
+                    <strong className="text-yellow-300">Data Not Linked to You:</strong> The following data may be collected but is not linked to your identity.
+                  </p>
+                </div>
 
                 <div className="space-y-4">
                   <div className="bg-green-800/40 p-4 rounded-lg border border-yellow-400/20">
                     <h4 className="text-lg font-bold text-yellow-300 mb-2">Contact Info (Not Linked to Identity)</h4>
                     <ul className="space-y-2 text-green-100 text-sm list-disc list-inside">
-                      <li><strong>Name:</strong> Used for Third-Party Advertising, Developer's Advertising or Marketing, App Functionality, Product Personalization, and Analytics</li>
-                      <li><strong>Email Address:</strong> Used for Other Purposes, Analytics, Developer's Advertising or Marketing, Third-Party Advertising, App Functionality, and Product Personalization</li>
-                      <li><strong>Phone Number:</strong> Used for App Functionality, Developer's Advertising or Marketing, Product Personalization, Third-Party Advertising, and Analytics</li>
-                      <li><strong>Physical Address:</strong> Used for Other Purposes, Product Personalization, Developer's Advertising or Marketing, App Functionality, Third-Party Advertising, and Analytics</li>
-                      <li><strong>Other User Contact Info:</strong> Used for Analytics, Third-Party Advertising, Developer's Advertising or Marketing, Product Personalization, Other Purposes, and App Functionality</li>
+                      <li><strong>Name:</strong> Used for App Functionality, and Product Personalization</li>
+                      <li><strong>Email Address:</strong> Used for Other Purposes, App Functionality, and Product Personalization</li>
+                      <li><strong>Phone Number:</strong> Used for App Functionality, and Product Personalization</li>
+                      <li><strong>Physical Address:</strong> Used for Other Purposes, Product Personalization, and App Functionality</li>
+                      <li><strong>Other User Contact Info:</strong> Used for Product Personalization, Other Purposes, and App Functionality</li>
                     </ul>
                   </div>
 
                   <div className="bg-green-800/40 p-4 rounded-lg border border-yellow-400/20">
                     <h4 className="text-lg font-bold text-yellow-300 mb-2">Health & Fitness (Not Linked to Identity)</h4>
                     <ul className="space-y-2 text-green-100 text-sm list-disc list-inside">
-                      <li><strong>Health:</strong> Used for Analytics, Product Personalization, and App Functionality</li>
-                      <li><strong>Fitness:</strong> Used for Analytics, Product Personalization, and App Functionality</li>
+                      <li><strong>Health:</strong> Used for Product Personalization, and App Functionality</li>
+                      <li><strong>Fitness:</strong> Used for Product Personalization, and App Functionality</li>
                     </ul>
-                    <p className="text-yellow-300 text-sm mt-2 font-semibold">⚠️ Used for tracking purposes</p>
                   </div>
 
                   <div className="bg-green-800/40 p-4 rounded-lg border border-yellow-400/20">
@@ -227,36 +232,41 @@ export default function MogMePrivacyPolicyPage() {
                   <div className="bg-green-800/40 p-4 rounded-lg border border-yellow-400/20">
                     <h4 className="text-lg font-bold text-yellow-300 mb-2">Diagnostics (Not Linked to Identity)</h4>
                     <ul className="space-y-2 text-green-100 text-sm list-disc list-inside">
-                      <li><strong>Crash Data:</strong> Used for App Functionality, Product Personalization, and Analytics</li>
+                      <li><strong>Crash Data:</strong> Used for App Functionality, and Product Personalization</li>
                     </ul>
                   </div>
 
                   <div className="bg-green-800/40 p-4 rounded-lg border border-yellow-400/20">
                     <h4 className="text-lg font-bold text-yellow-300 mb-2">Surroundings (Not Linked to Identity)</h4>
                     <ul className="space-y-2 text-green-100 text-sm list-disc list-inside">
-                      <li><strong>Environment Scanning:</strong> Used for App Functionality, Analytics, and Product Personalization</li>
+                      <li><strong>Environment Scanning:</strong> Used for App Functionality, and Product Personalization</li>
                     </ul>
                   </div>
 
                   <div className="bg-green-800/40 p-4 rounded-lg border border-yellow-400/20">
                     <h4 className="text-lg font-bold text-yellow-300 mb-2">Body (Not Linked to Identity)</h4>
                     <ul className="space-y-2 text-green-100 text-sm list-disc list-inside">
-                      <li><strong>Hands:</strong> Used for Product Personalization, Analytics, and App Functionality</li>
-                      <li><strong>Head:</strong> Used for Analytics, App Functionality, and Product Personalization</li>
+                      <li><strong>Hands:</strong> Used for Product Personalization, and App Functionality</li>
+                      <li><strong>Head:</strong> Used for App Functionality, and Product Personalization</li>
                     </ul>
                   </div>
 
                   <div className="bg-green-800/40 p-4 rounded-lg border border-yellow-400/20">
                     <h4 className="text-lg font-bold text-yellow-300 mb-2">Other Data (Not Linked to Identity)</h4>
-                    <p className="text-green-100 text-sm">Used for Product Personalization, App Functionality, and Analytics</p>
+                    <p className="text-green-100 text-sm">Used for Product Personalization, and App Functionality</p>
                   </div>
                 </div>
 
-                <p className="text-green-100 mt-4 text-sm bg-green-800/40 p-3 rounded-lg">
-                  <strong className="text-yellow-300">Important:</strong> All data types listed above are collected in a form that is 
-                  <strong> not linked to your identity</strong>. This means the data is anonymized, pseudonymized, or collected in a way 
-                  that cannot be used to identify you personally without additional information that we do not possess.
-                </p>
+                <div className="bg-green-800/40 p-4 rounded-lg border border-yellow-400/20 mt-4">
+                  <p className="text-green-100 text-sm mb-2">
+                    <strong className="text-yellow-300">Total Data Types Collected:</strong> 16 data types collected from this app
+                  </p>
+                  <p className="text-green-100 text-sm">
+                    <strong className="text-yellow-300">Important:</strong> All data types listed above are collected in a form that is 
+                    <strong> not linked to your identity</strong>. This means the data is anonymized, pseudonymized, or collected in a way 
+                    that cannot be used to identify you personally without additional information that we do not possess.
+                  </p>
+                </div>
               </div>
 
               <div className="bg-green-900/40 p-6 rounded-xl border border-yellow-400/20 mt-4">
@@ -336,7 +346,7 @@ export default function MogMePrivacyPolicyPage() {
                 <li><strong>Restriction:</strong> Request restriction of processing</li>
               </ul>
               <p className="text-lg leading-relaxed mt-4">
-                To exercise these rights, please contact us at <a href="mailto:privacy@mogme.app" className="text-yellow-400 hover:underline">privacy@mogme.app</a>.
+                To exercise these rights, please contact us at <a href="mailto:ryanfermoselle@outlook.com" className="text-yellow-400 hover:underline">ryanfermoselle@outlook.com</a>.
               </p>
             </section>
 
@@ -380,13 +390,13 @@ export default function MogMePrivacyPolicyPage() {
               </p>
               <div className="bg-green-900/40 p-6 rounded-xl border border-yellow-400/20">
                 <p className="text-green-100 mb-2">
-                  <strong className="text-yellow-300">Email:</strong> <a href="mailto:privacy@mogme.app" className="text-yellow-400 hover:underline">privacy@mogme.app</a>
+                  <strong className="text-yellow-300">Email:</strong> <a href="mailto:ryanfermoselle@outlook.com" className="text-yellow-400 hover:underline">ryanfermoselle@outlook.com</a>
                 </p>
                 <p className="text-green-100 mb-2">
-                  <strong className="text-yellow-300">General Inquiries:</strong> <a href="mailto:info@mogme.app" className="text-yellow-400 hover:underline">info@mogme.app</a>
+                  <strong className="text-yellow-300">General Inquiries:</strong> <a href="mailto:ryanfermoselle@outlook.com" className="text-yellow-400 hover:underline">ryanfermoselle@outlook.com</a>
                 </p>
                 <p className="text-green-100">
-                  <strong className="text-yellow-300">Support:</strong> <a href="mailto:support@mogme.app" className="text-yellow-400 hover:underline">support@mogme.app</a>
+                  <strong className="text-yellow-300">Support:</strong> <a href="mailto:ryanfermoselle@outlook.com" className="text-yellow-400 hover:underline">ryanfermoselle@outlook.com</a>
                 </p>
               </div>
             </section>
