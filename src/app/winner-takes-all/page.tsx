@@ -308,33 +308,24 @@ export default function WinnerTakesAllPage() {
         return;
       }
       
-      // Call the conditional reset function first with session guard
-      const { data: resetData, error: resetError, isSessionValid: resetSessionValid } = 
-        await executeRpcWithSession('conditional_wta_reset');
-      
-      if (!resetSessionValid) {
-        console.error('❌ [Winner Takes All] Session is not active');
-        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
-        setSessions([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      if (resetError) {
-        console.error('❌ [Winner Takes All] Conditional reset error:', resetError);
-      } else {
-        console.log('✅ [Winner Takes All] Conditional reset result:', resetData);
-      }
-
-      // Load sessions with session guard
-      const { data, error, isSessionValid } = await executeRpcWithSession('get_all_winner_takes_all_sessions');
-      
-      if (!isSessionValid) {
-        console.error('❌ [Winner Takes All] Session is not active');
-        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
-        setSessions([]);
-        setIsLoading(false);
-        return;
+      // Call conditional reset only if authenticated (it requires auth)
+      if (isAuthenticated && !authLoading) {
+        try {
+          const { data: resetData, error: resetError, isSessionValid: resetSessionValid } = 
+            await executeRpcWithSession('conditional_wta_reset');
+          
+          if (!resetSessionValid) {
+            console.warn('⚠️ [Winner Takes All] Reset session not valid, continuing anyway');
+          }
+          
+          if (resetError) {
+            console.error('❌ [Winner Takes All] Conditional reset error:', resetError);
+          } else {
+            console.log('✅ [Winner Takes All] Conditional reset result:', resetData);
+          }
+        } catch (resetErr) {
+          console.warn('⚠️ [Winner Takes All] Could not run conditional reset:', resetErr);
+        }
       }
       
       if (error) {
