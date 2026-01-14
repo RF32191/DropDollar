@@ -641,6 +641,20 @@ export default function WinnerTakesAllPage() {
       setMessage({ type: 'error', text: `You need ${config.entry_fee} token to join` });
       return;
     }
+    
+    // Show warning before joining
+    const confirmJoin = window.confirm(
+      `⚠️ IMPORTANT WARNING:\n\n` +
+      `You are about to pay ${config.entry_fee} tokens to join this tournament.\n\n` +
+      `⚠️ DO NOT use the back button or leave the game page once you start!\n` +
+      `Leaving will result in a ZERO score and you will lose your entry fee!\n\n` +
+      `Do you want to continue?`
+    );
+    
+    if (!confirmJoin) {
+      console.log('❌ [Winner Takes All] User cancelled join');
+      return;
+    }
 
     // Location verification
     console.log('🌍 [Winner Takes All] Location check:', { locationVerified });

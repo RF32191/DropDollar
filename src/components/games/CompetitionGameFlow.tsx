@@ -57,6 +57,39 @@ export default function CompetitionGameFlow({
   
   // Enable fullscreen when game is playing
   const fullscreenRef = useFullscreenGame(gameState === 'playing');
+  
+  // Prevent back navigation during game - warn user about score loss
+  useEffect(() => {
+    if (gameState === 'playing' || gameState === 'countdown') {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = '⚠️ WARNING: Leaving now will result in a ZERO score! You will lose your entry fee.';
+        return e.returnValue;
+      };
+      
+      const handlePopState = (e: PopStateEvent) => {
+        const confirmLeave = window.confirm('⚠️ WARNING: Going back now will result in a ZERO score! You will lose your entry fee. Are you sure you want to leave?');
+        if (confirmLeave) {
+          // User confirmed - allow navigation but warn about score loss
+          onCancel();
+        } else {
+          // User cancelled - prevent navigation
+          window.history.pushState(null, '', window.location.href);
+        }
+      };
+      
+      // Push a state to enable back button detection
+      window.history.pushState(null, '', window.location.href);
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('popstate', handlePopState);
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [gameState, onCancel]);
 
   // Create game session directly with RNG seed from Hot Sell session - ONLY ONCE
   useEffect(() => {
@@ -472,6 +505,9 @@ export default function CompetitionGameFlow({
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
         <div className="container mx-auto px-4 py-8">
+          <div className="bg-red-900/80 border-2 border-red-500 rounded-lg p-3 mb-4 max-w-2xl mx-auto">
+            <p className="text-yellow-300 font-bold text-center">⚠️ DO NOT USE BACK BUTTON - You will lose your score and entry fee!</p>
+          </div>
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold text-white mb-2">{getGameTitle()}</h1>
             <p className="text-gray-300">Competition Mode - Good luck!</p>

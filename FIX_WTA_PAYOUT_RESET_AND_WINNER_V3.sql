@@ -294,6 +294,7 @@ BEGIN
         IF session_record.completed_at IS NOT NULL AND 
            EXTRACT(EPOCH FROM (NOW() - session_record.completed_at)) > 30 THEN
             -- Reset the session now (30 seconds have passed)
+            -- CRITICAL: Keep the session ID, just reset its state
             UPDATE public.winner_takes_all_sessions
             SET 
                 status = 'waiting',
@@ -305,6 +306,7 @@ BEGIN
                 winner_prize = NULL,
                 prize_amount = NULL,
                 platform_fee = NULL,
+                platform_fee_amount = NULL,
                 completed_at = NULL,
                 rng_seed = floor(random() * 99999 + 1)::integer,
                 updated_at = NOW()
@@ -314,6 +316,7 @@ BEGIN
             DELETE FROM public.winner_takes_all_participants WHERE session_id = session_record.id;
             
             RAISE NOTICE '🔄 [RESET] Session % reset to waiting state (kept session, cleared data)', session_record.id;
+            RAISE NOTICE '✅ [RESET] Session persists - config_id: %, status: waiting', session_record.config_id;
             
             RETURN jsonb_build_object(
                 'success', true,
