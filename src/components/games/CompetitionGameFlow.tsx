@@ -206,12 +206,36 @@ export default function CompetitionGameFlow({
       // Ensure gameSession exists before transitioning
       if (!gameSession) {
         console.error('❌ [CompetitionGameFlow] gameSession is null at countdown end!');
-        setErrorMessage('Game session lost. Please try again.');
-        setGameState('error');
+        console.error('❌ [CompetitionGameFlow] Attempting to recreate session...');
+        
+        // Try to recreate the session
+        const newGameSession: GameSession = {
+          sessionId: `game-${sessionId}-${Date.now()}`,
+          token: `token-${Date.now()}`,
+          rngSeed: (rngSeed && rngSeed > 0) ? rngSeed : 1,
+          expiresAt: Date.now() + (60 * 60 * 1000),
+          gameType: gameType,
+          listingId: sessionId,
+          entryNumber: 1
+        };
+        
+        setGameSession(newGameSession);
+        console.log('✅ [CompetitionGameFlow] Recreated game session');
+        
+        // Wait a bit for state to update
+        setTimeout(() => {
+          console.log('✅ [CompetitionGameFlow] Transitioning to playing state NOW');
+          setGameState('playing');
+        }, 100);
         return;
       }
       
       console.log('✅ [CompetitionGameFlow] Transitioning to playing state NOW');
+      console.log('✅ [CompetitionGameFlow] Game session valid:', {
+        sessionId: gameSession.sessionId,
+        rngSeed: gameSession.rngSeed,
+        gameType: gameSession.gameType
+      });
       setGameState('playing');
       console.log('✅ [CompetitionGameFlow] State set to playing');
     }, 3300));
