@@ -81,15 +81,16 @@ export default function WinnerTakesAllPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
   const deviceInfo = useDeviceDetection();
-  const router = useRouter();
+  const [deviceFilter, setDeviceFilter] = useState<'all' | 'desktop' | 'mobile'>('all');
   
-  // Redirect mobile users to mobile competitive page
+  // Auto-detect device type on load
   useEffect(() => {
     if (deviceInfo.isMobile) {
-      console.log('📱 [Winner Takes All] Mobile device detected, redirecting to mobile page...');
-      router.push('/winner-takes-all/mobile');
+      setDeviceFilter('mobile');
+    } else if (deviceInfo.isDesktop) {
+      setDeviceFilter('desktop');
     }
-  }, [deviceInfo.isMobile, router]);
+  }, [deviceInfo.isMobile, deviceInfo.isDesktop]);
   
   const [sessions, setSessions] = useState<WinnerTakesAllSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1129,6 +1130,40 @@ export default function WinnerTakesAllPage() {
           </div>
         )}
 
+        {/* Device Filter - Mobile/Desktop/All */}
+        <div className="mb-6 flex flex-wrap gap-3 justify-center">
+          <button
+            onClick={() => setDeviceFilter('all')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              deviceFilter === 'all'
+                ? 'bg-blue-500 text-white shadow-lg scale-105'
+                : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
+            }`}
+          >
+            📱💻 All Devices ({configs.length})
+          </button>
+          <button
+            onClick={() => setDeviceFilter('mobile')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              deviceFilter === 'mobile'
+                ? 'bg-green-500 text-white shadow-lg scale-105'
+                : 'bg-green-800/50 text-green-200 hover:bg-green-700/50'
+            }`}
+          >
+            📱 Mobile ({deviceFilteredConfigs.filter(c => MOBILE_COMPATIBLE_GAMES.includes(c.game_type)).length})
+          </button>
+          <button
+            onClick={() => setDeviceFilter('desktop')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              deviceFilter === 'desktop'
+                ? 'bg-purple-500 text-white shadow-lg scale-105'
+                : 'bg-purple-800/50 text-purple-200 hover:bg-purple-700/50'
+            }`}
+          >
+            💻 Desktop ({deviceFilteredConfigs.filter(c => !MOBILE_COMPATIBLE_GAMES.includes(c.game_type) || DESKTOP_ONLY_GAMES.includes(c.game_type)).length})
+          </button>
+        </div>
+
         {/* Game Filter */}
         <div className="mb-8 flex flex-wrap gap-3 justify-center">
           <button
@@ -1139,7 +1174,7 @@ export default function WinnerTakesAllPage() {
                 : 'bg-yellow-800/50 text-yellow-200 hover:bg-yellow-700/50'
             }`}
           >
-            All Games ({configs.length})
+            All Games ({deviceFilteredConfigs.length})
           </button>
           {sortedGames.map(gameType => (
             <button

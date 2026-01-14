@@ -15,6 +15,7 @@ import LocationVerificationModal from '@/components/modals/LocationVerificationM
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import LazyVideo from '@/components/video/LazyVideo';
+import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import {
   FireIcon,
   TrophyIcon,
@@ -956,8 +957,24 @@ export default function HotSellPage() {
     }
   };
 
+  // Define which games are mobile-compatible vs desktop-only
+  const MOBILE_COMPATIBLE_GAMES = ['laser_dodge', 'multi_target_reaction', 'sword_parry', 'quick_click', 'color_sequence', 'falling_object'];
+  const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack'];
+  
+  // Filter configs by device compatibility
+  const deviceFilteredConfigs = configs.filter(config => {
+    if (deviceFilter === 'all') return true;
+    if (deviceFilter === 'mobile') {
+      return MOBILE_COMPATIBLE_GAMES.includes(config.game_type);
+    }
+    if (deviceFilter === 'desktop') {
+      return !MOBILE_COMPATIBLE_GAMES.includes(config.game_type) || DESKTOP_ONLY_GAMES.includes(config.game_type);
+    }
+    return true;
+  });
+
   // Group configs by game type
-  const gameTypes = Array.from(new Set(configs.map(c => c.game_type)));
+  const gameTypes = Array.from(new Set(deviceFilteredConfigs.map(c => c.game_type)));
   
   // Filter game types based on selection
   const filteredGameTypes = selectedGame === 'all' 
@@ -1141,6 +1158,40 @@ export default function HotSellPage() {
           </div>
         )}
 
+        {/* Device Filter - Mobile/Desktop/All */}
+        <div className="mb-6 flex flex-wrap gap-3 justify-center">
+          <button
+            onClick={() => setDeviceFilter('all')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              deviceFilter === 'all'
+                ? 'bg-blue-500 text-white shadow-lg scale-105'
+                : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
+            }`}
+          >
+            📱💻 All Devices ({configs.length})
+          </button>
+          <button
+            onClick={() => setDeviceFilter('mobile')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              deviceFilter === 'mobile'
+                ? 'bg-green-500 text-white shadow-lg scale-105'
+                : 'bg-green-800/50 text-green-200 hover:bg-green-700/50'
+            }`}
+          >
+            📱 Mobile ({deviceFilteredConfigs.filter(c => MOBILE_COMPATIBLE_GAMES.includes(c.game_type)).length})
+          </button>
+          <button
+            onClick={() => setDeviceFilter('desktop')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              deviceFilter === 'desktop'
+                ? 'bg-purple-500 text-white shadow-lg scale-105'
+                : 'bg-purple-800/50 text-purple-200 hover:bg-purple-700/50'
+            }`}
+          >
+            💻 Desktop ({deviceFilteredConfigs.filter(c => !MOBILE_COMPATIBLE_GAMES.includes(c.game_type) || DESKTOP_ONLY_GAMES.includes(c.game_type)).length})
+          </button>
+        </div>
+
         {/* Game Filter */}
         {!loadingConfigs && configs.length > 0 && (
           <div className="mb-8 flex flex-wrap gap-3 justify-center">
@@ -1152,11 +1203,11 @@ export default function HotSellPage() {
                   : 'bg-orange-800/50 text-orange-200 hover:bg-orange-700/50'
               }`}
             >
-              All Games ({configs.length})
+              All Games ({deviceFilteredConfigs.length})
             </button>
             {gameTypes.map(gameType => {
               const gameInfo = getGameInfo(gameType);
-              const count = configs.filter(c => c.game_type === gameType).length;
+              const count = deviceFilteredConfigs.filter(c => c.game_type === gameType).length;
               return (
                 <button
                   key={gameType}
@@ -1175,8 +1226,8 @@ export default function HotSellPage() {
         )}
 
         {/* Hot Sell Games - Organized by Game Type */}
-        {!loadingConfigs && configs.length > 0 && filteredGameTypes.map(gameType => {
-          const gameConfigs = configs.filter(c => c.game_type === gameType);
+        {!loadingConfigs && deviceFilteredConfigs.length > 0 && filteredGameTypes.map(gameType => {
+          const gameConfigs = deviceFilteredConfigs.filter(c => c.game_type === gameType);
           if (gameConfigs.length === 0) return null;
 
           const gameInfo = getGameInfo(gameType);
