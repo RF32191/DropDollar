@@ -545,6 +545,10 @@ export default function HotSellPage() {
     }
   }, [isAuthenticated, authLoading, loadSessions]);
 
+  // Define which games are mobile-compatible vs desktop-only (needed for validation)
+  const MOBILE_COMPATIBLE_GAMES = ['laser_dodge', 'multi_target_reaction', 'sword_parry', 'quick_click', 'color_sequence', 'falling_object'];
+  const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack'];
+
   const handleJoinSession = async (config: HotSellConfig) => {
     if (!user || !isAuthenticated) {
       setMessage({ type: 'error', text: 'Please sign in to join' });
