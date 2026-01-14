@@ -110,6 +110,7 @@ DECLARE
     v_max_participants INT;
     v_current_count INT;
     v_new_count INT;
+    v_rng_seed INTEGER;
 BEGIN
     -- Get authenticated user
     v_user_id := auth.uid();
@@ -226,12 +227,17 @@ BEGIN
         updated_at = NOW()
     WHERE id = v_session_record.id;
     
+    -- Get rng_seed explicitly from session to avoid ambiguity
+    SELECT rng_seed INTO v_rng_seed
+    FROM public.marketplace_sessions
+    WHERE id = v_session_record.id;
+    
     -- Trigger will automatically start timer if participants_count >= base_price
     
     RETURN jsonb_build_object(
         'success', true,
         'message', 'Joined session successfully',
-        'rng_seed', v_session_record.rng_seed,
+        'rng_seed', COALESCE(v_rng_seed, v_session_record.rng_seed, FLOOR(RANDOM() * 1000000)::INTEGER),
         'participants_count', v_new_count,
         'max_participants', v_max_participants
     );
