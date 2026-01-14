@@ -322,6 +322,7 @@ export default function WinnerTakesAllPage() {
       console.log('📊 [Winner Takes All] Sessions data:', data);
       
       // Filter out completed sessions that should be hidden
+      // Also ensure we're not showing stale cached data
       const filteredSessions = (data || []).filter((session: WinnerTakesAllSession) => {
         // Don't hide if it was just completed (show payout message for 30 seconds)
         if (session.status === 'completed' && session.completed_at) {
@@ -330,10 +331,24 @@ export default function WinnerTakesAllPage() {
           // Show completed sessions for 30 seconds after completion
           if (now - completedTime < 30000) {
             return true;
+          } else {
+            // More than 30 seconds - should be reset, don't show
+            return false;
           }
         }
         // Hide if marked to hide
         return !completedSessionsToHide.has(session.config_id);
+      });
+      
+      // Clear any cached payout announcements for sessions that are no longer completed
+      setPayoutAnnouncements(prev => {
+        const updated = { ...prev };
+        filteredSessions.forEach(session => {
+          if (session.status !== 'completed') {
+            delete updated[session.config_id];
+          }
+        });
+        return updated;
       });
       
       setSessions(filteredSessions);
