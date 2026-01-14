@@ -276,11 +276,34 @@ export default function WinnerTakesAllPage() {
     try {
       console.log('🔄 [Winner Takes All] Loading sessions from database...');
       
-      // CRITICAL: Check auth before making RPC calls
-      const authCheck = await ensureAuthReady(isAuthenticated, authLoading);
+      // Sessions are public data - try to load even without auth
+      // The SQL function will auto-create missing sessions
+      let data, error, isSessionValid;
       
-      if (!authCheck.ready) {
-        console.warn('⚠️ [Winner Takes All] Auth not ready:', authCheck.message);
+      if (isAuthenticated && !authLoading) {
+        // Use session guard for authenticated users
+        const result = await executeRpcWithSession('get_all_winner_takes_all_sessions');
+        data = result.data;
+        error = result.error;
+        isSessionValid = result.isSessionValid;
+      } else {
+        // Try direct RPC call for anonymous users (sessions are public)
+        try {
+          const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_winner_takes_all_sessions');
+          data = rpcData;
+          error = rpcError;
+          isSessionValid = true; // Assume valid for anonymous
+        } catch (rpcErr) {
+          console.warn('⚠️ [Winner Takes All] Could not load sessions without auth:', rpcErr);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      if (!isSessionValid && isAuthenticated) {
+        console.error('❌ [Winner Takes All] Session is not active');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        setSessions([]);
         setIsLoading(false);
         return;
       }
@@ -399,13 +422,10 @@ export default function WinnerTakesAllPage() {
     console.log('📥 [Winner Takes All] Loading configs (public data)...');
     loadConfigs();
     
-    // Only load sessions if authenticated (user-specific data)
-    if (isAuthenticated) {
-      console.log('✅ [Winner Takes All] Authenticated, loading sessions...');
-      loadSessions();
-    } else {
-      console.log('ℹ️ [Winner Takes All] Not authenticated - showing configs only');
-    }
+    // Always load sessions (public data - sessions will auto-create if missing)
+    // The SQL function ensures all configs have sessions
+    console.log('✅ [Winner Takes All] Loading sessions (will auto-create if missing)...');
+    loadSessions();
     
     setIsLoading(false);
   }, [isAuthenticated, authLoading, loadSessions]);
