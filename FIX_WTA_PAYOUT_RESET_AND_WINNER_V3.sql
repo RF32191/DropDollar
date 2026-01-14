@@ -79,6 +79,83 @@ END;
 $$;
 
 -- ============================================================================
+-- FUNCTION: CREATE SESSION FOR SPECIFIC CONFIG (ON-DEMAND)
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.ensure_wta_session_exists(config_id_param TEXT)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_config RECORD;
+    v_session_id UUID;
+    v_existing_session_id UUID;
+BEGIN
+    -- Check if session already exists
+    SELECT id INTO v_existing_session_id
+    FROM public.winner_takes_all_sessions
+    WHERE config_id = config_id_param
+    LIMIT 1;
+    
+    IF v_existing_session_id IS NOT NULL THEN
+        RETURN v_existing_session_id;
+    END IF;
+    
+    -- Get config details
+    SELECT id, COALESCE(base_price, entry_fee, 2) as base_price
+    INTO v_config
+    FROM public.winner_takes_all_configs
+    WHERE id = config_id_param
+    LIMIT 1;
+    
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Config not found: %', config_id_param;
+    END IF;
+    
+    -- Create session
+    v_session_id := gen_random_uuid();
+    INSERT INTO public.winner_takes_all_sessions (
+        id,
+        config_id,
+        status,
+        participants_count,
+        prize_pool,
+        current_pot,
+        base_price,
+        timer_started_at,
+        timer_duration,
+        winner_user_id,
+        winner_prize,
+        platform_fee_amount,
+        rng_seed,
+        created_at,
+        updated_at
+    ) VALUES (
+        v_session_id,
+        v_config.id,
+        'waiting',
+        0,
+        0,
+        0,
+        v_config.base_price,
+        NULL,
+        1800,  -- 30 minutes default timer
+        NULL,
+        0,
+        0,
+        floor(random() * 99999 + 1)::integer,
+        NOW(),
+        NOW()
+    );
+    
+    RAISE NOTICE '✅ Created WTA session % for config: %', v_session_id, config_id_param;
+    RETURN v_session_id;
+END;
+$$;
+
+-- ============================================================================
 -- UPDATE GET_SESSIONS FUNCTION TO INCLUDE WINNER USERNAME AND AUTO-CREATE SESSIONS
 -- ============================================================================
 

@@ -546,11 +546,36 @@ export default function WinnerTakesAllPage() {
       }
       
       if (!session) {
-        console.log('❌ [Winner Takes All] Session still not found after reload:', configId);
-        setMessage({ type: 'error', text: 'Session not found! The session will be created automatically. Please try again in a moment.' });
-        // Trigger a background reload
-        setTimeout(() => loadSessions(), 1000);
-        return;
+        console.log('❌ [Winner Takes All] Session still not found, creating on-demand...', configId);
+        // Try creating the session directly
+        try {
+          const { data: createData, error: createError } = await supabase.rpc('ensure_wta_session_exists', {
+            config_id_param: configId
+          });
+          
+          if (!createError && createData) {
+            console.log('✅ [Winner Takes All] Session created on-demand:', createData);
+            // Reload sessions to get the newly created one
+            await loadSessions();
+            session = sessions.find(s => s.config_id === configId);
+            if (!session) {
+              // Try one more time after a brief delay
+              await new Promise(resolve => setTimeout(resolve, 500));
+              await loadSessions();
+              session = sessions.find(s => s.config_id === configId);
+            }
+          } else {
+            console.error('❌ [Winner Takes All] Error creating session:', createError);
+          }
+        } catch (createErr) {
+          console.error('❌ [Winner Takes All] Exception creating session:', createErr);
+        }
+        
+        if (!session) {
+          console.log('❌ [Winner Takes All] Session still not found after creation attempt:', configId);
+          setMessage({ type: 'error', text: 'Session not found! Please refresh the page or try again.' });
+          return;
+        }
       }
     }
     
