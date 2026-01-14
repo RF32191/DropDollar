@@ -408,6 +408,19 @@ export default function CompetitionGameFlow({
       gameSession: gameSession || undefined
     };
 
+    // Validate gameSession exists before rendering
+    if (!gameSession) {
+      console.error('❌ [CompetitionGameFlow] No gameSession available for rendering');
+      throw new Error('Game session not found. Please try again.');
+    }
+
+    // Validate rngSeed for games that need it
+    const needsRngSeed = ['laser_dodge', 'multi_target_reaction', 'sword_parry', 'quick_click', 'number_tap'];
+    if (needsRngSeed.includes(gameType) && (rngSeed <= 0 || !rngSeed)) {
+      console.error('❌ [CompetitionGameFlow] Invalid rngSeed for game type:', gameType, 'rngSeed:', rngSeed);
+      throw new Error(`Invalid RNG seed (${rngSeed}) for ${gameType}. Please try again.`);
+    }
+
     try {
       switch (gameType) {
         case 'laser_dodge':
@@ -429,29 +442,31 @@ export default function CompetitionGameFlow({
           return <ColorSequenceGame {...baseProps} />;
         case 'blade_bounce':
           console.log('⚔️ Rendering BladeBounceGame with gameSession:', !!gameSession);
+          if (!gameSession) {
+            throw new Error('BladeBounce requires gameSession but it is null');
+          }
           return <BladeBounceGame {...sessionProps} />;
         case 'cash_stack':
         case 'falling_object':
           console.log('💰 Rendering CashStackGame with gameSession:', !!gameSession);
+          if (!gameSession) {
+            throw new Error('CashStack requires gameSession but it is null');
+          }
           return <CashStackGame {...sessionProps} />;
         default:
           console.error('❌ Unknown game type:', gameType);
-          return <div className="text-white text-center p-8">
-            <p className="text-2xl mb-4">❌ Unknown game type: {gameType}</p>
-            <button onClick={onCancel} className="bg-red-600 px-6 py-3 rounded-lg">
-              Back to Listings
-            </button>
-          </div>;
+          throw new Error(`Unknown game type: ${gameType}`);
       }
     } catch (error) {
-      console.error('❌ Error rendering game component:', error);
-      return <div className="text-white text-center p-8">
-        <p className="text-2xl mb-4">❌ Error loading game</p>
-        <p className="mb-4">{error instanceof Error ? error.message : 'Unknown error'}</p>
-        <button onClick={onCancel} className="bg-red-600 px-6 py-3 rounded-lg">
-          Back to Listings
-        </button>
-      </div>;
+      console.error('❌ [CompetitionGameFlow] Error rendering game component:', error);
+      console.error('❌ [CompetitionGameFlow] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        gameType,
+        hasGameSession: !!gameSession,
+        rngSeed: gameSession?.rngSeed
+      });
+      throw error; // Re-throw to be caught by outer error handler
     }
   };
 
@@ -521,6 +536,39 @@ export default function CompetitionGameFlow({
       );
     }
     
+    // Wrap game component in error boundary
+    let gameComponent;
+    try {
+      gameComponent = getGameComponent();
+      if (!gameComponent) {
+        throw new Error('Game component returned null - invalid game type or missing props');
+      }
+    } catch (error) {
+      console.error('❌ [CompetitionGameFlow] Error getting game component:', error);
+      console.error('❌ [CompetitionGameFlow] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        gameType,
+        hasGameSession: !!gameSession,
+        rngSeed: gameSession?.rngSeed
+      });
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-900 to-red-800 flex items-center justify-center">
+          <div className="text-center text-white p-8 max-w-md">
+            <h1 className="text-3xl font-bold mb-4">⚠️ Game Error</h1>
+            <p className="text-xl mb-6">{error instanceof Error ? error.message : 'Failed to load game'}</p>
+            <p className="text-sm text-red-200 mb-6">Game Type: {gameType}</p>
+            <button
+              onClick={onCancel}
+              className="px-6 py-3 bg-white text-red-900 rounded-lg font-bold hover:bg-gray-200"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
         <div className="container mx-auto px-4 py-8">
@@ -531,7 +579,22 @@ export default function CompetitionGameFlow({
             <h1 className="text-3xl font-bold text-white mb-2">{getGameTitle()}</h1>
             <p className="text-gray-300">Competition Mode - Good luck!</p>
           </div>
-          {getGameComponent()}
+          <ErrorBoundary
+            fallback={
+              <div className="text-center text-white p-8">
+                <h2 className="text-2xl font-bold mb-4">⚠️ Game Crashed</h2>
+                <p className="mb-6">The game encountered an error. Please try again.</p>
+                <button
+                  onClick={onCancel}
+                  className="px-6 py-3 bg-red-600 rounded-lg font-bold hover:bg-red-700"
+                >
+                  Go Back
+                </button>
+              </div>
+            }
+          >
+            {gameComponent}
+          </ErrorBoundary>
         </div>
       </div>
     );
