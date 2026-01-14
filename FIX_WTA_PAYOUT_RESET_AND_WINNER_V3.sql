@@ -357,9 +357,11 @@ BEGIN
     -- Only consider players who actually joined and completed the game
     -- Log all participants with scores for debugging
     RAISE NOTICE '🔍 [PAYOUT] Checking participants for session %:', session_record.id;
-    FOR winner_record IN 
+    FOR participant_log IN 
         SELECT 
-            p.*, 
+            p.user_id,
+            p.score,
+            p.completed_at,
             COALESCE(u.username, SPLIT_PART(u.email, '@', 1), 'Player') as username
         FROM public.winner_takes_all_participants p
         JOIN public.users u ON p.user_id = u.id
@@ -369,7 +371,7 @@ BEGIN
         ORDER BY p.score DESC, p.completed_at ASC
     LOOP
         RAISE NOTICE '  👤 Participant: % (ID: %), Score: %, Completed: %', 
-            winner_record.username, winner_record.user_id, winner_record.score, winner_record.completed_at;
+            participant_log.username, participant_log.user_id, participant_log.score, participant_log.completed_at;
     END LOOP;
     
     -- Now select the actual winner (highest score)
