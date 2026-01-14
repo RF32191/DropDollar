@@ -323,7 +323,33 @@ export default function MogMePage() {
                 <div className="flex items-center gap-4">
                   <Mail className="w-8 h-8 text-yellow-400" />
                   <div>
-                    <div className="text-yellow-300 font-bold text-lg">General Inquiries & Support</div>
+                    <div className="text-yellow-300 font-bold text-lg">General Inquiries</div>
+                    <div className="text-green-100">ryanfermoselle@outlook.com</div>
+                  </div>
+                </div>
+              </a>
+
+              <a 
+                href="mailto:ryanfermoselle@outlook.com" 
+                className="block bg-green-800/60 hover:bg-green-700/60 p-6 rounded-xl border-2 border-yellow-400/30 hover:border-yellow-400 transition-all duration-300 transform hover:scale-105"
+              >
+                <div className="flex items-center gap-4">
+                  <Mail className="w-8 h-8 text-yellow-400" />
+                  <div>
+                    <div className="text-yellow-300 font-bold text-lg">Support</div>
+                    <div className="text-green-100">ryanfermoselle@outlook.com</div>
+                  </div>
+                </div>
+              </a>
+
+              <a 
+                href="mailto:ryanfermoselle@outlook.com" 
+                className="block bg-green-800/60 hover:bg-green-700/60 p-6 rounded-xl border-2 border-yellow-400/30 hover:border-yellow-400 transition-all duration-300 transform hover:scale-105"
+              >
+                <div className="flex items-center gap-4">
+                  <Mail className="w-8 h-8 text-yellow-400" />
+                  <div>
+                    <div className="text-yellow-300 font-bold text-lg">Partnerships</div>
                     <div className="text-green-100">ryanfermoselle@outlook.com</div>
                   </div>
                 </div>
