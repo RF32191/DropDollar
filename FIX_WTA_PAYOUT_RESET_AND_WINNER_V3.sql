@@ -196,31 +196,31 @@ BEGIN
     
     RETURN QUERY
     SELECT 
-        s.id,
-        s.config_id,
-        COALESCE(s.current_pot, 0),
-        COALESCE(s.base_price, 0),
-        COALESCE(s.participants_count, 0),
-        s.status,
-        s.timer_started_at,
+        s.id as id,
+        s.config_id as config_id,
+        COALESCE(s.current_pot, 0) as current_pot,
+        COALESCE(s.base_price, 0) as base_price,
+        COALESCE(s.participants_count, 0) as participants_count,
+        s.status as status,
+        s.timer_started_at as timer_started_at,
         COALESCE(s.timer_duration, 1800) as timer_duration,  -- Default 30 minutes
-        s.winner_user_id,
+        s.winner_user_id as winner_user_id,
         -- Get winner username from users table (not cached)
         CASE 
             WHEN s.winner_user_id IS NOT NULL THEN
                 COALESCE(
-                    (SELECT username FROM public.users WHERE id = s.winner_user_id LIMIT 1),
-                    (SELECT SPLIT_PART(email, '@', 1) FROM public.users WHERE id = s.winner_user_id LIMIT 1),
+                    (SELECT u2.username FROM public.users u2 WHERE u2.id = s.winner_user_id LIMIT 1),
+                    (SELECT SPLIT_PART(u3.email, '@', 1) FROM public.users u3 WHERE u3.id = s.winner_user_id LIMIT 1),
                     'Player'
                 )
             ELSE NULL
         END::TEXT as winner_username,
-        s.winner_prize,
-        s.prize_amount,
-        s.platform_fee,
-        s.completed_at,
-        s.created_at,
-        s.updated_at,
+        s.winner_prize as winner_prize,
+        s.prize_amount as prize_amount,
+        s.platform_fee as platform_fee,
+        s.completed_at as completed_at,
+        s.created_at as created_at,
+        s.updated_at as updated_at,
         -- Get CURRENT participants (not cached) - only for active/waiting sessions
         CASE 
             WHEN s.status = 'completed' THEN '[]'::jsonb  -- No participants for completed sessions
