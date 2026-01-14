@@ -251,6 +251,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_all_winner_takes_all_sessions() TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.ensure_all_wta_sessions_exist() TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.ensure_wta_session_exists(TEXT) TO authenticated, anon, service_role;
 
 -- ============================================================================
 -- UPDATE PAYOUT FUNCTION - ENSURE HIGHEST SCORE WINS
