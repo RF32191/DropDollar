@@ -323,12 +323,12 @@ export default function WinnerTakesAllPage() {
       
       // Filter out completed sessions that should be hidden
       const filteredSessions = (data || []).filter((session: WinnerTakesAllSession) => {
-        // Don't hide if it was just completed (show payout message)
+        // Don't hide if it was just completed (show payout message for 30 seconds)
         if (session.status === 'completed' && session.completed_at) {
           const completedTime = new Date(session.completed_at).getTime();
           const now = Date.now();
-          // Show completed sessions for 5 seconds after completion
-          if (now - completedTime < 5000) {
+          // Show completed sessions for 30 seconds after completion
+          if (now - completedTime < 30000) {
             return true;
           }
         }
@@ -665,8 +665,8 @@ export default function WinnerTakesAllPage() {
       } else if (data && data.success) {
         console.log('✅ [Winner Takes All] Payout successful:', data);
         
-        // Show prominent payout announcement
-        const announcementText = `🎉 ${data.winner_username || 'Winner'} won ${data.payout_amount || data.winner_payout || 0} tokens! Listing reset.`;
+        // Show prominent payout announcement for 30 seconds
+        const announcementText = `🎉 ${data.winner_username || 'Winner'} won ${data.payout_amount || data.winner_payout || 0} tokens! Announcement will show for 30 seconds.`;
         setMessage({ 
           type: 'success', 
           text: announcementText
@@ -683,10 +683,16 @@ export default function WinnerTakesAllPage() {
             }
           }));
           
-          // Hide completed session after 5 seconds
+          // Hide completed session after 30 seconds
           setTimeout(() => {
             setCompletedSessionsToHide(prev => new Set(prev).add(configId));
-          }, 5000);
+            // Also trigger auto-reset function to clean up database
+            supabase.rpc('auto_reset_completed_wta_sessions').catch(err => 
+              console.error('Error auto-resetting sessions:', err)
+            );
+            // Reload sessions after hiding to show new waiting session
+            loadSessions();
+          }, 30000);
         }
       } else if (data && !data.success) {
         console.log('ℹ️ [Winner Takes All] Payout info:', data.message);
@@ -695,7 +701,7 @@ export default function WinnerTakesAllPage() {
         }
       }
       
-      // Reload sessions to get updated data (new waiting session should appear)
+      // Reload sessions immediately to get updated data (participants cleared, session marked completed)
       await loadSessions();
       refreshTokens();
     } catch (error) {
