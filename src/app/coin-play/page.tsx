@@ -646,31 +646,16 @@ export default function CoinPlayPage() {
   };
 
   // Group sessions by game (filter out completed sessions that should be hidden)
-  const [completedSessionsVisible, setCompletedSessionsVisible] = useState<Set<string>>(new Set());
-  
-  // Track completed sessions and hide them after 5 seconds
-  useEffect(() => {
-    sessions.forEach(session => {
-      if (session.status === 'completed' && session.winner_user_id) {
-        // Add to visible set
-        setCompletedSessionsVisible(prev => new Set(prev).add(session.id));
-        
-        // Hide after 5 seconds
-        setTimeout(() => {
-          setCompletedSessionsVisible(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(session.id);
-            return newSet;
-          });
-        }, 5000);
-      }
-    });
-  }, [sessions]);
-
-  // Filter sessions: show waiting/active, or completed if still visible
-  const visibleSessions = sessions.filter(session => 
-    session.status !== 'completed' || completedSessionsVisible.has(session.id)
-  );
+  // Filter sessions: show waiting/active, or completed if not marked to hide
+  const visibleSessions = sessions.filter(session => {
+    // Always show waiting/active sessions
+    if (session.status !== 'completed') {
+      return true;
+    }
+    // Show completed sessions only if they haven't been marked to hide
+    // This allows showing payout announcement for 5 seconds before hiding
+    return !completedSessionsToHide.has(session.config_id);
+  });
 
   // Group sessions by game
   const sessionsByGame = visibleSessions.reduce((acc, session) => {
