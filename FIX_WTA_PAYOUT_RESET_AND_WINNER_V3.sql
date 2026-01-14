@@ -266,6 +266,7 @@ AS $$
 DECLARE
     session_record RECORD;
     winner_record RECORD;
+    participant_log RECORD;
     total_pot NUMERIC;
     v_platform_fee NUMERIC;
     v_winner_payout NUMERIC;
