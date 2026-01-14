@@ -456,7 +456,7 @@ export default function WinnerTakesAllPage() {
     return () => clearInterval(checkInterval);
   }, [sessions, autoPayoutTriggered]);
 
-  // Real-time updates
+  // Real-time updates and periodic refresh to prevent cache issues
   useEffect(() => {
     const channel = supabase
       .channel('winner_takes_all_sessions')
@@ -465,6 +465,7 @@ export default function WinnerTakesAllPage() {
         schema: 'public',
         table: 'winner_takes_all_sessions'
       }, () => {
+        console.log('🔄 [WTA] Session changed, reloading...');
         loadSessions();
       })
       .on('postgres_changes', {
@@ -472,14 +473,24 @@ export default function WinnerTakesAllPage() {
         schema: 'public',
         table: 'winner_takes_all_participants'
       }, () => {
+        console.log('🔄 [WTA] Participants changed, reloading...');
         loadSessions();
       })
       .subscribe();
 
+    // Periodic refresh every 5 seconds to prevent cache issues and ensure fresh data
+    const refreshInterval = setInterval(() => {
+      if (currentView === 'list') {
+        console.log('🔄 [WTA] Periodic refresh to prevent cache issues');
+        loadSessions();
+      }
+    }, 5000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(refreshInterval);
     };
-  }, [loadSessions]);
+  }, [loadSessions, currentView]);
 
   // Handle joining a session
   const handleJoinSession = async (configId: string) => {
@@ -1086,7 +1097,9 @@ export default function WinnerTakesAllPage() {
                       </div>
                       <div className="text-center space-y-2">
                         <div className="text-base text-green-200 mb-2">
-                          <span className="font-bold text-yellow-300 text-lg">{session.winner_username || payoutAnnouncements[config.id]?.winner || 'Winner'}</span> won!
+                          <span className="font-bold text-yellow-300 text-lg">
+                            {session.winner_username || payoutAnnouncements[config.id]?.winner || 'Winner'}
+                          </span> won with highest score!
                         </div>
                         <div className="text-3xl font-black text-yellow-300 mb-2">
                           {formatPrizeAmount(session.winner_prize || session.prize_amount || 0)}
