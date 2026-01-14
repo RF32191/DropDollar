@@ -7,6 +7,7 @@ import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { FixedGamesService } from '@/lib/supabase/fixedGamesService';
 import { useFullscreenGame } from '@/hooks/useFullscreenGame';
 import { GameSession } from '@/types/gameSession';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import SwordParryGameSimple from '@/components/games/SwordParryGameSimple';
