@@ -198,9 +198,9 @@ BEGIN
     SELECT 
         s.id as id,
         s.config_id as config_id,
-        COALESCE(s.current_pot, 0) as current_pot,
-        COALESCE(s.base_price, 0) as base_price,
-        COALESCE(s.participants_count, 0) as participants_count,
+        COALESCE(s.current_pot, 0)::NUMERIC as current_pot,
+        COALESCE(s.base_price, 0)::NUMERIC as base_price,
+        COALESCE(s.participants_count, 0)::INTEGER as participants_count,
         s.status as status,
         s.timer_started_at as timer_started_at,
         COALESCE(s.timer_duration, 1800) as timer_duration,  -- Default 30 minutes
