@@ -215,9 +215,9 @@ BEGIN
                 )
             ELSE NULL
         END::TEXT as winner_username,
-        s.winner_prize as winner_prize,
-        s.prize_amount as prize_amount,
-        s.platform_fee as platform_fee,
+        COALESCE(s.winner_prize, 0)::NUMERIC as winner_prize,
+        COALESCE(s.prize_amount, 0)::NUMERIC as prize_amount,
+        COALESCE(s.platform_fee, 0)::NUMERIC as platform_fee,
         s.completed_at as completed_at,
         s.created_at as created_at,
         s.updated_at as updated_at,
