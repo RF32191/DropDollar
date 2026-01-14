@@ -988,8 +988,10 @@ export default function WinnerTakesAllPage() {
             const session = sessions.find(s => s.config_id === config.id);
             const timeRemaining = session ? calculateTimeRemaining(session) : null;
             const canJoin = userTokens >= config.entry_fee;
-            const userParticipant = session?.participants.find((p: any) => p.user_id === user?.id);
-            const hasJoined = !!userParticipant;
+            // Check if user has joined - participants are cleared after payout, so check session status too
+            const userParticipant = session?.participants?.find((p: any) => p.user_id === user?.id);
+            // If session is completed, user is no longer "joined" (participants cleared)
+            const hasJoined = session?.status !== 'completed' && !!userParticipant;
             const hasCompleted = !!userParticipant && userParticipant.score !== null && userParticipant.completed_at !== null;
             
             // Lock join button if timer has 2 minutes or less remaining
