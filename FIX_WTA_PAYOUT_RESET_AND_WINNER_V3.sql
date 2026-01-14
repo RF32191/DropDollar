@@ -16,7 +16,70 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- UPDATE GET_SESSIONS FUNCTION TO INCLUDE WINNER USERNAME
+-- HELPER FUNCTION: ENSURE ALL CONFIGS HAVE SESSIONS
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.ensure_all_wta_sessions_exist()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    config_record RECORD;
+    sessions_created INTEGER := 0;
+BEGIN
+    -- Create sessions for any configs that don't have one
+    FOR config_record IN 
+        SELECT c.id, COALESCE(c.base_price, c.entry_fee, 2) as base_price
+        FROM public.winner_takes_all_configs c
+        WHERE NOT EXISTS (
+            SELECT 1 FROM public.winner_takes_all_sessions s 
+            WHERE s.config_id = c.id
+        )
+    LOOP
+        INSERT INTO public.winner_takes_all_sessions (
+            id,
+            config_id,
+            status,
+            participants_count,
+            prize_pool,
+            current_pot,
+            base_price,
+            timer_started_at,
+            timer_duration,
+            winner_user_id,
+            winner_prize,
+            platform_fee_amount,
+            rng_seed,
+            created_at,
+            updated_at
+        ) VALUES (
+            gen_random_uuid(),
+            config_record.id,
+            'waiting',
+            0,
+            0,
+            0,
+            config_record.base_price,
+            NULL,
+            1800,  -- 30 minutes default timer
+            NULL,
+            0,
+            0,
+            floor(random() * 99999 + 1)::integer,
+            NOW(),
+            NOW()
+        );
+        sessions_created := sessions_created + 1;
+    END LOOP;
+    
+    RETURN sessions_created;
+END;
+$$;
+
+-- ============================================================================
+-- UPDATE GET_SESSIONS FUNCTION TO INCLUDE WINNER USERNAME AND AUTO-CREATE SESSIONS
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS public.get_all_winner_takes_all_sessions() CASCADE;
@@ -45,7 +108,15 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+    sessions_created INTEGER;
 BEGIN
+    -- Auto-create missing sessions before returning
+    SELECT public.ensure_all_wta_sessions_exist() INTO sessions_created;
+    IF sessions_created > 0 THEN
+        RAISE NOTICE '✅ Auto-created % missing WTA session(s)', sessions_created;
+    END IF;
+    
     RETURN QUERY
     SELECT 
         s.id,
@@ -55,7 +126,7 @@ BEGIN
         COALESCE(s.participants_count, 0),
         s.status,
         s.timer_started_at,
-        COALESCE(s.timer_duration, 10) as timer_duration,
+        COALESCE(s.timer_duration, 1800) as timer_duration,  -- Default 30 minutes
         s.winner_user_id,
         -- Get winner username from users table (not cached)
         CASE 
@@ -102,6 +173,7 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_all_winner_takes_all_sessions() TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.ensure_all_wta_sessions_exist() TO authenticated, anon, service_role;
 
 -- ============================================================================
 -- UPDATE PAYOUT FUNCTION - ENSURE HIGHEST SCORE WINS
