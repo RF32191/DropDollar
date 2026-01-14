@@ -97,6 +97,8 @@ export default function CoinPlayPage() {
   const [participants, setParticipants] = useState<Record<string, any[]>>({});
   const [manualLocationModal, setManualLocationModal] = useState(false);
   const [autoPayoutTriggered, setAutoPayoutTriggered] = useState<Set<string>>(new Set());
+  const [completedSessionsToHide, setCompletedSessionsToHide] = useState<Set<string>>(new Set());
+  const [payoutAnnouncements, setPayoutAnnouncements] = useState<Record<string, { winner: string; payout: number; timestamp: number }>>({});
   
   // Location verification
   const {
@@ -139,7 +141,22 @@ export default function CoinPlayPage() {
       // Save scroll position before updating state
       const scrollY = window.scrollY;
       
-      setSessions(data || []);
+      // Filter out completed sessions that should be hidden
+      const filteredSessions = (data || []).filter((session: CoinPlaySession) => {
+        // Don't hide if it was just completed (show payout message)
+        if (session.status === 'completed' && session.completed_at) {
+          const completedTime = new Date(session.completed_at).getTime();
+          const now = Date.now();
+          // Show completed sessions for 5 seconds after completion
+          if (now - completedTime < 5000) {
+            return true;
+          }
+        }
+        // Hide if marked to hide
+        return !completedSessionsToHide.has(session.config_id);
+      });
+      
+      setSessions(filteredSessions);
       
       // Restore scroll position after state update (use requestAnimationFrame to ensure DOM has updated)
       if (silent && scrollY > 0) {
@@ -519,9 +536,29 @@ export default function CoinPlayPage() {
       }
 
       console.log('✅ [Coin Play] Payout successful:', data);
-      setMessage({ type: 'success', text: `Payout completed! Winner: ${data.winner_username || 'Unknown'}` });
       
-      // Reload sessions to show updated state
+      // Show prominent payout announcement
+      const announcementText = `🎉 ${data.winner_username || 'Winner'} won ${data.winner_payout?.toFixed(2) || '0'} tokens! Listing reset.`;
+      setMessage({ type: 'success', text: announcementText });
+      
+      // Store payout announcement for this config
+      if (data.winner_username && data.winner_payout) {
+        setPayoutAnnouncements(prev => ({
+          ...prev,
+          [configId]: {
+            winner: data.winner_username,
+            payout: data.winner_payout,
+            timestamp: Date.now()
+          }
+        }));
+        
+        // Hide completed session after 5 seconds
+        setTimeout(() => {
+          setCompletedSessionsToHide(prev => new Set(prev).add(configId));
+        }, 5000);
+      }
+      
+      // Reload sessions to show updated state (new waiting session should appear)
       await loadSessions();
       refreshTokens();
     } catch (error) {
@@ -608,7 +645,7 @@ export default function CoinPlayPage() {
     }
   };
 
-  // Group sessions by game (filter out completed sessions after 5 seconds)
+  // Group sessions by game (filter out completed sessions that should be hidden)
   const [completedSessionsVisible, setCompletedSessionsVisible] = useState<Set<string>>(new Set());
   
   // Track completed sessions and hide them after 5 seconds
@@ -930,20 +967,23 @@ export default function CoinPlayPage() {
 
                             {/* Payout Message - Show when timer expires and session is completed */}
                             {session.status === 'completed' && session.winner_user_id && session.winner_prize && (
-                              <div className="mb-4 bg-gradient-to-r from-green-900/60 to-emerald-900/60 border-2 border-green-500/50 rounded-lg p-4">
-                                <div className="flex items-center justify-center gap-2 mb-2">
-                                  <TrophyIcon className="w-6 h-6 text-yellow-400" />
-                                  <span className="text-lg font-black text-green-200">Payout Complete!</span>
+                              <div className="mb-4 bg-gradient-to-r from-green-900/80 to-emerald-900/80 border-4 border-yellow-400/80 rounded-lg p-6 animate-pulse shadow-2xl">
+                                <div className="flex items-center justify-center gap-3 mb-3">
+                                  <TrophyIcon className="w-8 h-8 text-yellow-400 animate-bounce" />
+                                  <span className="text-2xl font-black text-yellow-300">🎉 PAYOUT COMPLETE! 🎉</span>
                                 </div>
-                                <div className="text-center">
-                                  <div className="text-sm text-green-300/90 mb-1">
-                                    Winner: <span className="font-bold text-green-200">{session.winner_username || 'Player'}</span>
+                                <div className="text-center space-y-2">
+                                  <div className="text-base text-green-200 mb-2">
+                                    <span className="font-bold text-yellow-300 text-lg">{session.winner_username || 'Winner'}</span> won!
                                   </div>
-                                  <div className="text-lg font-black text-yellow-300">
-                                    ${session.winner_prize.toFixed(2)} Paid
+                                  <div className="text-3xl font-black text-yellow-300 mb-2">
+                                    ${session.winner_prize.toFixed(2)}
                                   </div>
-                                  <div className="text-xs text-green-200/70 mt-1">
-                                    Listing reset - Ready for new game
+                                  <div className="text-sm text-green-300/90">
+                                    Prize paid out • Listing resetting...
+                                  </div>
+                                  <div className="text-xs text-green-200/70 mt-2 pt-2 border-t border-green-500/30">
+                                    New game starting soon
                                   </div>
                                 </div>
                               </div>

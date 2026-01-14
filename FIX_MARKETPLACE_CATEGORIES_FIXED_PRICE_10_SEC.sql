@@ -228,16 +228,16 @@ BEGIN
     WHERE id = v_session_record.id;
     
     -- Get rng_seed explicitly from session to avoid ambiguity
-    SELECT rng_seed INTO v_rng_seed
-    FROM public.marketplace_sessions
-    WHERE id = v_session_record.id;
+    SELECT ms.rng_seed INTO v_rng_seed
+    FROM public.marketplace_sessions ms
+    WHERE ms.id = v_session_record.id;
     
     -- Trigger will automatically start timer if participants_count >= base_price
     
     RETURN jsonb_build_object(
         'success', true,
         'message', 'Joined session successfully',
-        'rng_seed', COALESCE(v_rng_seed, v_session_record.rng_seed, FLOOR(RANDOM() * 1000000)::INTEGER),
+        'rng_seed', COALESCE(v_rng_seed, FLOOR(RANDOM() * 1000000)::INTEGER),
         'participants_count', v_new_count,
         'max_participants', v_max_participants
     );
