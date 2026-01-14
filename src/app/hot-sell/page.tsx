@@ -566,12 +566,18 @@ export default function HotSellPage() {
     }
 
     // DEVICE VALIDATION: Check if user's device matches game requirements
-    // Wait for device info to be ready
-    if (!deviceInfo || deviceInfo.deviceType === undefined) {
-      console.log('⏳ [Device Check] Waiting for device detection...');
-      setMessage({ type: 'error', text: 'Please wait while we detect your device...' });
-      setTimeout(() => handleJoinSession(config), 500);
-      return;
+    // Wait for device info to be ready with error handling
+    try {
+      if (!deviceInfo || deviceInfo.deviceType === undefined) {
+        console.log('⏳ [Device Check] Waiting for device detection...');
+        setMessage({ type: 'error', text: 'Please wait while we detect your device...' });
+        setTimeout(() => handleJoinSession(config), 500);
+        return;
+      }
+    } catch (error) {
+      console.error('❌ [Device Check] Error checking device:', error);
+      // If device detection fails, allow desktop users to proceed (fail open for desktop)
+      console.log('⚠️ [Device Check] Device detection failed, allowing join (assuming desktop)');
     }
     
     const isMobileDevice = deviceInfo.isMobile || deviceInfo.deviceType === 'mobile';
