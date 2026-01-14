@@ -317,6 +317,20 @@ export default function CoinPlayPage() {
       return;
     }
 
+    // Show warning before joining
+    const confirmJoin = window.confirm(
+      `⚠️ IMPORTANT WARNING:\n\n` +
+      `You are about to pay ${session.entry_fee} tokens to join this game.\n\n` +
+      `⚠️ DO NOT use the back button or leave the game page once you start!\n` +
+      `Leaving will result in a ZERO score and you will lose your entry fee!\n\n` +
+      `Do you want to continue?`
+    );
+    
+    if (!confirmJoin) {
+      console.log('❌ [Coin Play] User cancelled join');
+      return;
+    }
+    
     setJoiningSession(true);
 
     try {
