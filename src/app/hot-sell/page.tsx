@@ -561,6 +561,20 @@ export default function HotSellPage() {
     }
 
     try {
+      // Show warning before joining
+      const confirmJoin = window.confirm(
+        `⚠️ IMPORTANT WARNING:\n\n` +
+        `You are about to pay ${config.entry_fee} tokens to join this game.\n\n` +
+        `⚠️ DO NOT use the back button or leave the game page once you start!\n` +
+        `Leaving will result in a ZERO score and you will lose your entry fee!\n\n` +
+        `Do you want to continue?`
+      );
+      
+      if (!confirmJoin) {
+        console.log('❌ [Hot Sell] User cancelled join');
+        return;
+      }
+      
       setJoiningSession(true);
       console.log('🎮 [Hot Sell] Joining session for config:', config.id);
 
