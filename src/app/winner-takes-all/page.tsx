@@ -356,7 +356,7 @@ export default function WinnerTakesAllPage() {
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error loading sessions:', error);
     }
-  }, [isAuthenticated, authLoading]); // Add auth dependencies
+  }, [isAuthenticated, authLoading, completedSessionsToHide]); // Add auth dependencies
 
   // Load configs from database
   const loadConfigs = async () => {
@@ -509,11 +509,38 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    const session = sessions.find(s => s.config_id === configId);
+    let session = sessions.find(s => s.config_id === configId);
     if (!session) {
-      console.log('❌ [Winner Takes All] Session not found for config:', configId);
-      setMessage({ type: 'error', text: 'Session not found!' });
-      return;
+      console.log('⚠️ [Winner Takes All] Session not found for config, reloading sessions...', configId);
+      // Try reloading sessions - the SQL function should auto-create missing sessions
+      try {
+        const { data: reloadedData, error: reloadError } = await executeRpcWithSession('get_all_winner_takes_all_sessions');
+        if (!reloadError && reloadedData) {
+          const reloadedSessions = (reloadedData || []).filter((s: WinnerTakesAllSession) => {
+            if (s.status === 'completed' && s.completed_at) {
+              const completedTime = new Date(s.completed_at).getTime();
+              const now = Date.now();
+              return now - completedTime < 30000;
+            }
+            return !completedSessionsToHide.has(s.config_id);
+          });
+          setSessions(reloadedSessions);
+          session = reloadedSessions.find((s: WinnerTakesAllSession) => s.config_id === configId);
+          if (session) {
+            console.log('✅ [Winner Takes All] Session found after reload:', session);
+          }
+        }
+      } catch (reloadErr) {
+        console.error('❌ [Winner Takes All] Error reloading sessions:', reloadErr);
+      }
+      
+      if (!session) {
+        console.log('❌ [Winner Takes All] Session still not found after reload:', configId);
+        setMessage({ type: 'error', text: 'Session not found! The session will be created automatically. Please try again in a moment.' });
+        // Trigger a background reload
+        setTimeout(() => loadSessions(), 1000);
+        return;
+      }
     }
     
     console.log('✅ [Winner Takes All] Found config and session:', { config, session });
