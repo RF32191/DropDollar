@@ -400,6 +400,13 @@ export default function MogMePage() {
               Privacy Policy
             </Link>
             <span className="hidden sm:inline text-green-300">•</span>
+            <Link
+              href="/mog-me/terms-of-service"
+              className="text-yellow-400 hover:text-yellow-300 font-semibold text-lg transition-colors duration-300 hover:underline"
+            >
+              Terms of Service
+            </Link>
+            <span className="hidden sm:inline text-green-300">•</span>
             <a
               href="https://www.drop-dollar.com"
               target="_blank"
