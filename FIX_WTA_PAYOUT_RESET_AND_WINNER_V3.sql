@@ -312,10 +312,13 @@ BEGIN
             -- Clear participants to fix "joined" status
             DELETE FROM public.winner_takes_all_participants WHERE session_id = session_record.id;
             
+            RAISE NOTICE '🔄 [RESET] Session % reset to waiting state (kept session, cleared data)', session_record.id;
+            
             RETURN jsonb_build_object(
                 'success', true,
                 'message', 'Session reset after 30-second announcement period',
-                'reset', true
+                'reset', true,
+                'session_id', session_record.id::TEXT
             );
         ELSE
             -- Still in announcement period - return winner info
@@ -351,6 +354,24 @@ BEGIN
 
     -- CRITICAL: Find winner from CURRENT participants with HIGHEST SCORE
     -- Only consider players who actually joined and completed the game
+    -- Log all participants with scores for debugging
+    RAISE NOTICE '🔍 [PAYOUT] Checking participants for session %:', session_record.id;
+    FOR winner_record IN 
+        SELECT 
+            p.*, 
+            COALESCE(u.username, SPLIT_PART(u.email, '@', 1), 'Player') as username
+        FROM public.winner_takes_all_participants p
+        JOIN public.users u ON p.user_id = u.id
+        WHERE p.session_id = session_record.id
+        AND p.score IS NOT NULL
+        AND p.completed_at IS NOT NULL
+        ORDER BY p.score DESC, p.completed_at ASC
+    LOOP
+        RAISE NOTICE '  👤 Participant: % (ID: %), Score: %, Completed: %', 
+            winner_record.username, winner_record.user_id, winner_record.score, winner_record.completed_at;
+    END LOOP;
+    
+    -- Now select the actual winner (highest score)
     SELECT 
         p.*, 
         COALESCE(u.username, SPLIT_PART(u.email, '@', 1), 'Player') as username
@@ -362,6 +383,11 @@ BEGIN
     AND p.completed_at IS NOT NULL  -- Must have completed the game
     ORDER BY p.score DESC, p.completed_at ASC  -- Highest score wins, earliest completion breaks ties
     LIMIT 1;
+    
+    IF FOUND THEN
+        RAISE NOTICE '🏆 [PAYOUT] SELECTED WINNER: % (ID: %) with score: %', 
+            winner_record.username, winner_record.user_id, winner_record.score;
+    END IF;
 
     IF NOT FOUND THEN
         -- No scores submitted - refund all participants
