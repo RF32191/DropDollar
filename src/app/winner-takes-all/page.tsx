@@ -293,8 +293,20 @@ export default function WinnerTakesAllPage() {
           data = rpcData;
           error = rpcError;
           isSessionValid = true; // Assume valid for anonymous
-        } catch (rpcErr) {
-          console.warn('⚠️ [Winner Takes All] Could not load sessions without auth:', rpcErr);
+        } catch (rpcErr: any) {
+          console.error('❌ [Winner Takes All] Could not load sessions without auth:', rpcErr);
+          console.error('❌ [Winner Takes All] RPC error details:', {
+            message: rpcErr?.message,
+            details: rpcErr?.details,
+            hint: rpcErr?.hint,
+            code: rpcErr?.code,
+            fullError: JSON.stringify(rpcErr, Object.getOwnPropertyNames(rpcErr), 2)
+          });
+          setMessage({ 
+            type: 'error', 
+            text: `Error loading sessions: ${rpcErr?.message || 'Please log in to view sessions'}` 
+          });
+          setSessions([]);
           setIsLoading(false);
           return;
         }
@@ -380,8 +392,21 @@ export default function WinnerTakesAllPage() {
       
       setSessions(filteredSessions);
       console.log('✅ [Winner Takes It All] Sessions loaded:', filteredSessions.length);
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Error loading sessions:', error);
+      setIsLoading(false);
+    } catch (error: any) {
+      console.error('❌ [Winner Takes It All] Exception loading sessions:', error);
+      console.error('❌ [Winner Takes It All] Exception details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+      });
+      setMessage({ 
+        type: 'error', 
+        text: `Error loading sessions: ${error?.message || 'Unknown error'}. Please refresh the page.` 
+      });
+      setSessions([]);
+      setIsLoading(false);
     }
   }, [isAuthenticated, authLoading, completedSessionsToHide]); // Add auth dependencies
 
