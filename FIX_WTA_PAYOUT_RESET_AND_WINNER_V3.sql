@@ -387,12 +387,7 @@ BEGIN
     ORDER BY p.score DESC, p.completed_at ASC  -- Highest score wins, earliest completion breaks ties
     LIMIT 1;
     
-    IF FOUND THEN
-        RAISE NOTICE '🏆 [PAYOUT] SELECTED WINNER: % (ID: %) with score: %', 
-            winner_record.username, winner_record.user_id, winner_record.score;
-    END IF;
-
-    IF NOT FOUND THEN
+    IF NOT FOUND OR winner_record IS NULL THEN
         -- No scores submitted - refund all participants
         UPDATE public.users u
         SET won_tokens = COALESCE(won_tokens, 0) + session_record.base_price
