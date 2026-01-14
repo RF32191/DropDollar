@@ -101,6 +101,8 @@ export default function WinnerTakesAllPage() {
   
   // Track which sessions have triggered auto-payout to prevent duplicates
   const [autoPayoutTriggered, setAutoPayoutTriggered] = useState<Set<string>>(new Set());
+  const [completedSessionsToHide, setCompletedSessionsToHide] = useState<Set<string>>(new Set());
+  const [payoutAnnouncements, setPayoutAnnouncements] = useState<Record<string, { winner: string; payout: number; timestamp: number }>>({});
 
   // State for dynamically loaded configs
   const [configs, setConfigs] = useState<WinnerTakesAllConfig[]>([]);
@@ -315,8 +317,24 @@ export default function WinnerTakesAllPage() {
       }
       
       console.log('📊 [Winner Takes All] Sessions data:', data);
-      setSessions(data || []);
-      console.log('✅ [Winner Takes It All] Sessions loaded:', data?.length || 0);
+      
+      // Filter out completed sessions that should be hidden
+      const filteredSessions = (data || []).filter((session: WinnerTakesAllSession) => {
+        // Don't hide if it was just completed (show payout message)
+        if (session.status === 'completed' && session.completed_at) {
+          const completedTime = new Date(session.completed_at).getTime();
+          const now = Date.now();
+          // Show completed sessions for 5 seconds after completion
+          if (now - completedTime < 5000) {
+            return true;
+          }
+        }
+        // Hide if marked to hide
+        return !completedSessionsToHide.has(session.config_id);
+      });
+      
+      setSessions(filteredSessions);
+      console.log('✅ [Winner Takes It All] Sessions loaded:', filteredSessions.length);
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error loading sessions:', error);
     }
@@ -643,19 +661,40 @@ export default function WinnerTakesAllPage() {
         setMessage({ type: 'error', text: `Payout failed: ${error.message}` });
       } else if (data && data.success) {
         console.log('✅ [Winner Takes All] Payout successful:', data);
+        
+        // Show prominent payout announcement
+        const announcementText = `🎉 ${data.winner_username || 'Winner'} won ${data.payout_amount || data.winner_payout || 0} tokens! Listing reset.`;
         setMessage({ 
           type: 'success', 
-          text: `🎉 Winner: ${data.winner_username} (Score: ${data.winner_score}) won ${data.payout_amount} tokens!` 
+          text: announcementText
         });
+        
+        // Store payout announcement for this config
+        if (data.winner_username && (data.payout_amount || data.winner_payout)) {
+          setPayoutAnnouncements(prev => ({
+            ...prev,
+            [configId]: {
+              winner: data.winner_username,
+              payout: data.payout_amount || data.winner_payout || 0,
+              timestamp: Date.now()
+            }
+          }));
+          
+          // Hide completed session after 5 seconds
+          setTimeout(() => {
+            setCompletedSessionsToHide(prev => new Set(prev).add(configId));
+          }, 5000);
+        }
       } else if (data && !data.success) {
         console.log('ℹ️ [Winner Takes All] Payout info:', data.message);
-        if (!data.message.includes('already paid')) {
+        if (!data.message?.includes('already paid') && !data.message?.includes('not expired')) {
           setMessage({ type: 'error', text: `Payout issue: ${data.message}` });
         }
       }
       
-      // Reload sessions to get updated data
-      loadSessions();
+      // Reload sessions to get updated data (new waiting session should appear)
+      await loadSessions();
+      refreshTokens();
     } catch (error) {
       console.error('❌ [Winner Takes All] Payout system error:', error);
       setMessage({ type: 'error', text: 'Payout system error occurred.' });
@@ -1012,8 +1051,32 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
+                  {/* Payout Message - Show when session is completed */}
+                  {session && session.status === 'completed' && session.winner_user_id && session.winner_prize && (
+                    <div className="mb-6 bg-gradient-to-r from-green-900/80 to-emerald-900/80 border-4 border-yellow-400/80 rounded-lg p-6 animate-pulse shadow-2xl">
+                      <div className="flex items-center justify-center gap-3 mb-3">
+                        <TrophyIcon className="w-8 h-8 text-yellow-400 animate-bounce" />
+                        <span className="text-2xl font-black text-yellow-300">🎉 PAYOUT COMPLETE! 🎉</span>
+                      </div>
+                      <div className="text-center space-y-2">
+                        <div className="text-base text-green-200 mb-2">
+                          <span className="font-bold text-yellow-300 text-lg">{session.winner_username || 'Winner'}</span> won!
+                        </div>
+                        <div className="text-3xl font-black text-yellow-300 mb-2">
+                          {formatPrizeAmount(session.winner_prize)}
+                        </div>
+                        <div className="text-sm text-green-300/90">
+                          Prize paid out • Listing resetting...
+                        </div>
+                        <div className="text-xs text-green-200/70 mt-2 pt-2 border-t border-green-500/30">
+                          New game starting soon
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Live Timer Display - Big, Flashing, Red */}
-                  {timeRemaining && (
+                  {timeRemaining && session?.status !== 'completed' && (
                     <div className="mb-6">
                       <div className="text-center p-6 rounded-2xl bg-red-500/30 border-2 border-red-500/70 animate-pulse">
                         <div className="flex items-center justify-center mb-3">
