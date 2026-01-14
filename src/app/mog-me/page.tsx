@@ -1,11 +1,73 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { Mail, Sparkles, TrendingUp, Users, Star } from 'lucide-react';
+import { Mail, Sparkles, TrendingUp, Users, Star, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+const faqData: FAQItem[] = [
+  {
+    question: "How does the facial and body analysis work?",
+    answer: "Our advanced AI-powered analysis uses your uploaded photos to assess various aspects of your appearance, including facial symmetry, skin condition, body proportions, and overall aesthetics. The analysis is completely private and provides detailed insights to help you understand your current state and identify areas for improvement. We use state-of-the-art computer vision technology to provide accurate, objective assessments."
+  },
+  {
+    question: "Is my photo data secure and private?",
+    answer: "Absolutely. Your privacy is our top priority. All photos are encrypted and stored securely. We never share your images with third parties, and you have complete control over your data. You can delete your photos and analysis results at any time. Our facial and body analysis is processed locally when possible, and all data transmission uses industry-standard encryption protocols."
+  },
+  {
+    question: "How accurate is the facial and body analysis?",
+    answer: "Our analysis uses advanced AI algorithms trained on extensive datasets to provide highly accurate assessments. However, it's important to remember that beauty and appearance are subjective. Our analysis provides objective measurements and insights based on scientific principles, but personal confidence and self-expression are equally important. The analysis is designed to be a helpful tool, not a definitive judgment."
+  },
+  {
+    question: "What kind of recommendations does the app provide?",
+    answer: "Based on your analysis, Mog Me provides personalized recommendations across multiple areas: skincare routines tailored to your skin type and concerns, fitness and nutrition plans for body composition goals, style and grooming tips to enhance your features, lifestyle changes to improve overall appearance, and confidence-building exercises. All recommendations are customized to your specific analysis results and personal goals."
+  },
+  {
+    question: "How often should I use the analysis features?",
+    answer: "We recommend using the facial analysis monthly to track progress on skincare and grooming improvements. For body analysis, monthly assessments work well for tracking fitness and body composition changes. However, you can use the app as often as you'd like - daily for progress photos, weekly for check-ins, or whenever you want to reassess your goals. The app tracks your progress over time, so regular use helps you see your transformation journey."
+  },
+  {
+    question: "Do I need to pay for the analysis features?",
+    answer: "Mog Me offers both free and premium features. Basic analysis and progress tracking are available in the free version. Premium features include advanced AI analysis, detailed personalized recommendations, priority support, exclusive content from experts, and advanced progress tracking with detailed analytics. Check our app for current pricing and subscription options."
+  },
+  {
+    question: "Can I use the app without uploading photos?",
+    answer: "While facial and body analysis requires photos for the most accurate results, Mog Me offers many features you can use without photos: lifestyle guides and tutorials, community forums, goal setting and tracking, expert tips and articles, and progress journaling. However, uploading photos enables the most personalized and effective experience."
+  },
+  {
+    question: "What makes Mog Me different from other lifestyle apps?",
+    answer: "Mog Me combines cutting-edge AI analysis with comprehensive lifestyle improvement tools. Unlike apps that focus on just one aspect, we provide a holistic approach covering facial analysis, body assessment, style optimization, confidence building, and community support. Our platform is specifically designed for look improvement and lifestyle enhancement, with expert-backed strategies and a supportive community of users on similar journeys."
+  },
+  {
+    question: "How do I get started with Mog Me?",
+    answer: "Getting started is easy! Simply download the app (or use our web version), create your account, and complete your initial profile. You can start by uploading your first photos for analysis, exploring our guides and tutorials, setting your personal goals, or joining the community. The app will guide you through each step, and you can use features at your own pace. No pressure - start wherever feels most comfortable for you."
+  },
+  {
+    question: "Will my analysis results be visible to other users?",
+    answer: "No, your analysis results are completely private. Only you can see your personal analysis, progress photos, and recommendations. The community features are separate - you choose what to share in forums or with other users. Your privacy settings give you complete control over what's visible to others. We believe in creating a safe, supportive environment where you can share as much or as little as you're comfortable with."
+  },
+  {
+    question: "What if I disagree with the analysis results?",
+    answer: "That's completely understandable! Remember that our analysis provides objective measurements and insights, but beauty and appearance are highly subjective. The analysis is meant to be a helpful tool, not a definitive judgment. If you disagree with results, you can always get a second analysis, consult with our community or experts, or simply focus on the aspects that resonate with you. The goal is self-improvement and confidence, not perfection according to any algorithm."
+  },
+  {
+    question: "Does the app work on both mobile and desktop?",
+    answer: "Yes! Mog Me is available as a web application (accessible now on desktop and mobile browsers) and native mobile apps are coming soon to iOS and Android. The web version works great on all devices, and the mobile apps will offer additional features like camera integration and push notifications. Your data syncs across all platforms, so you can access your progress anywhere."
+  }
+];
 
 export default function MogMePage() {
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+
+  const toggleFAQ = (index: number) => {
+    setOpenFAQ(openFAQ === index ? null : index);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-yellow-900">
       <CleanNavigation variant="gradient" currentPage="/mog-me" />
@@ -191,6 +253,58 @@ export default function MogMePage() {
             </div>
           </div>
 
+          {/* FAQ Section */}
+          <div className="bg-green-800/40 backdrop-blur-xl p-10 rounded-3xl border-2 border-yellow-400/40 mb-16">
+            <h2 className="text-4xl font-bold text-yellow-300 mb-8 text-center flex items-center justify-center gap-3">
+              <Sparkles className="w-10 h-10" />
+              Frequently Asked Questions
+            </h2>
+            <p className="text-green-100 text-center mb-6 text-lg max-w-3xl mx-auto">
+              Have questions about Mog Me? Find answers to common questions about our facial and body analysis features, privacy, and how to get the most out of your look improvement journey.
+            </p>
+            <div className="text-center mb-10">
+              <Link
+                href="/mog-me/support"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-yellow-500 text-white font-semibold rounded-full hover:from-green-500 hover:to-yellow-400 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                <HelpCircle className="w-5 h-5" />
+                Visit Full Support Center
+              </Link>
+            </div>
+            
+            <div className="space-y-4 max-w-4xl mx-auto">
+              {faqData.map((faq, index) => (
+                <div
+                  key={index}
+                  className="bg-green-900/40 backdrop-blur-sm rounded-2xl border-2 border-yellow-400/30 hover:border-yellow-400/50 transition-all duration-300 overflow-hidden"
+                >
+                  <button
+                    onClick={() => toggleFAQ(index)}
+                    className="w-full p-6 text-left flex items-center justify-between gap-4 hover:bg-green-800/30 transition-colors duration-200"
+                  >
+                    <h3 className="text-xl font-bold text-yellow-300 flex-1 pr-4">
+                      {faq.question}
+                    </h3>
+                    <div className="flex-shrink-0">
+                      {openFAQ === index ? (
+                        <ChevronUp className="w-6 h-6 text-yellow-400" />
+                      ) : (
+                        <ChevronDown className="w-6 h-6 text-yellow-400" />
+                      )}
+                    </div>
+                  </button>
+                  {openFAQ === index && (
+                    <div className="px-6 pb-6 pt-2 border-t border-yellow-400/20">
+                      <p className="text-green-100 leading-relaxed text-lg">
+                        {faq.answer}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Contact Section */}
           <div className="bg-yellow-400/20 backdrop-blur-xl p-10 rounded-3xl border-2 border-yellow-400/50">
             <h2 className="text-4xl font-bold text-yellow-300 mb-8 text-center flex items-center justify-center gap-3">
@@ -203,43 +317,27 @@ export default function MogMePage() {
             
             <div className="space-y-4 max-w-2xl mx-auto">
               <a 
-                href="mailto:info@mogme.app" 
+                href="mailto:ryanfermoselle@outlook.com" 
                 className="block bg-green-800/60 hover:bg-green-700/60 p-6 rounded-xl border-2 border-yellow-400/30 hover:border-yellow-400 transition-all duration-300 transform hover:scale-105"
               >
                 <div className="flex items-center gap-4">
                   <Mail className="w-8 h-8 text-yellow-400" />
                   <div>
-                    <div className="text-yellow-300 font-bold text-lg">General Inquiries</div>
-                    <div className="text-green-100">info@mogme.app</div>
+                    <div className="text-yellow-300 font-bold text-lg">General Inquiries & Support</div>
+                    <div className="text-green-100">ryanfermoselle@outlook.com</div>
                   </div>
                 </div>
               </a>
 
-              <a 
-                href="mailto:support@mogme.app" 
-                className="block bg-green-800/60 hover:bg-green-700/60 p-6 rounded-xl border-2 border-yellow-400/30 hover:border-yellow-400 transition-all duration-300 transform hover:scale-105"
-              >
-                <div className="flex items-center gap-4">
-                  <Mail className="w-8 h-8 text-yellow-400" />
-                  <div>
-                    <div className="text-yellow-300 font-bold text-lg">Support</div>
-                    <div className="text-green-100">support@mogme.app</div>
-                  </div>
-                </div>
-              </a>
-
-              <a 
-                href="mailto:partnerships@mogme.app" 
-                className="block bg-green-800/60 hover:bg-green-700/60 p-6 rounded-xl border-2 border-yellow-400/30 hover:border-yellow-400 transition-all duration-300 transform hover:scale-105"
-              >
-                <div className="flex items-center gap-4">
-                  <Mail className="w-8 h-8 text-yellow-400" />
-                  <div>
-                    <div className="text-yellow-300 font-bold text-lg">Partnerships</div>
-                    <div className="text-green-100">partnerships@mogme.app</div>
-                  </div>
-                </div>
-              </a>
+              <div className="text-center mt-6">
+                <Link
+                  href="/mog-me/support"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-green-700/60 hover:bg-green-600/60 text-yellow-300 font-semibold rounded-xl border-2 border-yellow-400/30 hover:border-yellow-400 transition-all duration-300"
+                >
+                  <HelpCircle className="w-5 h-5" />
+                  Visit Support Center
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -262,6 +360,13 @@ export default function MogMePage() {
             Mog Me is part of the Drop Dollar family of applications
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
+            <Link
+              href="/mog-me/support"
+              className="text-yellow-400 hover:text-yellow-300 font-semibold text-lg transition-colors duration-300 hover:underline"
+            >
+              Support
+            </Link>
+            <span className="hidden sm:inline text-green-300">•</span>
             <Link
               href="/mog-me/privacy-policy"
               className="text-yellow-400 hover:text-yellow-300 font-semibold text-lg transition-colors duration-300 hover:underline"
