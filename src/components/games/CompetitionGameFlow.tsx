@@ -580,20 +580,7 @@ export default function CompetitionGameFlow({
             <h1 className="text-3xl font-bold text-white mb-2">{getGameTitle()}</h1>
             <p className="text-gray-300">Competition Mode - Good luck!</p>
           </div>
-          <ErrorBoundary
-            fallback={
-              <div className="text-center text-white p-8">
-                <h2 className="text-2xl font-bold mb-4">⚠️ Game Crashed</h2>
-                <p className="mb-6">The game encountered an error. Please try again.</p>
-                <button
-                  onClick={onCancel}
-                  className="px-6 py-3 bg-red-600 rounded-lg font-bold hover:bg-red-700"
-                >
-                  Go Back
-                </button>
-              </div>
-            }
-          >
+          <ErrorBoundary>
             {gameComponent}
           </ErrorBoundary>
         </div>
