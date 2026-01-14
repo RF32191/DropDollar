@@ -31,52 +31,105 @@ export const useDeviceDetection = (): DeviceInfo => {
 
   useEffect(() => {
     const detectDevice = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const userAgent = navigator.userAgent;
-      const pixelRatio = window.devicePixelRatio || 1;
-      
-      // Device type detection based on screen width
-      const isMobile = width < 768;
-      const isTablet = width >= 768 && width < 1024;
-      const isDesktop = width >= 1024;
-      
-      // Touch device detection
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      
-      // Orientation detection
-      const orientation = width > height ? 'landscape' : 'portrait';
-      
-      // Device type priority
-      let deviceType: 'mobile' | 'tablet' | 'desktop' = 'desktop';
-      if (isMobile) deviceType = 'mobile';
-      else if (isTablet) deviceType = 'tablet';
-      
-      // Enhanced mobile detection using user agent
-      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-      const isMobileUA = mobileRegex.test(userAgent);
-      
-      // Final mobile determination
-      const finalIsMobile = isMobile || (isMobileUA && width < 1024);
-      const finalIsTablet = isTablet && !finalIsMobile;
-      const finalIsDesktop = !finalIsMobile && !finalIsTablet;
-      
-      if (finalIsMobile) deviceType = 'mobile';
-      else if (finalIsTablet) deviceType = 'tablet';
-      else deviceType = 'desktop';
+      try {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const userAgent = navigator.userAgent.toLowerCase();
+        const pixelRatio = window.devicePixelRatio || 1;
+        
+        // PRIMARY: User agent detection (most reliable)
+        const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i;
+        const isMobileUA = mobileRegex.test(userAgent);
+        
+        // Check for desktop indicators in user agent
+        const desktopRegex = /windows|macintosh|linux|win32|win64|x11/i;
+        const isDesktopUA = desktopRegex.test(userAgent) && !isMobileUA;
+        
+        // Touch device detection
+        const isTouchDevice = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+        
+        // Screen size checks (secondary)
+        const isSmallScreen = width < 768;
+        const isMediumScreen = width >= 768 && width < 1024;
+        const isLargeScreen = width >= 1024;
+        
+        // Orientation detection
+        const orientation = width > height ? 'landscape' : 'portrait';
+        
+        // FINAL DETERMINATION: User agent is PRIMARY, screen size is SECONDARY
+        let finalIsMobile = false;
+        let finalIsTablet = false;
+        let finalIsDesktop = false;
+        let deviceType: 'mobile' | 'tablet' | 'desktop' = 'desktop';
+        
+        if (isMobileUA) {
+          // User agent says mobile/tablet
+          if (userAgent.includes('ipad') || userAgent.includes('tablet') || (isMediumScreen && isTouchDevice)) {
+            finalIsTablet = true;
+            deviceType = 'tablet';
+          } else {
+            finalIsMobile = true;
+            deviceType = 'mobile';
+          }
+        } else if (isDesktopUA) {
+          // User agent says desktop (Windows, Mac, Linux)
+          finalIsDesktop = true;
+          deviceType = 'desktop';
+        } else {
+          // Fallback: Use screen size + touch detection
+          if (isSmallScreen && isTouchDevice) {
+            finalIsMobile = true;
+            deviceType = 'mobile';
+          } else if (isMediumScreen && isTouchDevice) {
+            finalIsTablet = true;
+            deviceType = 'tablet';
+          } else {
+            finalIsDesktop = true;
+            deviceType = 'desktop';
+          }
+        }
+        
+        console.log('🔍 [Device Detection]', {
+          userAgent: navigator.userAgent,
+          isMobileUA,
+          isDesktopUA,
+          isTouchDevice,
+          width,
+          height,
+          finalIsMobile,
+          finalIsTablet,
+          finalIsDesktop,
+          deviceType
+        });
 
-      setDeviceInfo({
-        isMobile: finalIsMobile,
-        isTablet: finalIsTablet,
-        isDesktop: finalIsDesktop,
-        screenWidth: width,
-        screenHeight: height,
-        orientation,
-        deviceType,
-        isTouchDevice: isTouchDevice || finalIsMobile,
-        userAgent,
-        pixelRatio
-      });
+        setDeviceInfo({
+          isMobile: finalIsMobile,
+          isTablet: finalIsTablet,
+          isDesktop: finalIsDesktop,
+          screenWidth: width,
+          screenHeight: height,
+          orientation,
+          deviceType,
+          isTouchDevice: isTouchDevice || finalIsMobile,
+          userAgent: navigator.userAgent,
+          pixelRatio
+        });
+      } catch (error) {
+        console.error('❌ [Device Detection] Error:', error);
+        // Default to desktop on error
+        setDeviceInfo({
+          isMobile: false,
+          isTablet: false,
+          isDesktop: true,
+          screenWidth: window.innerWidth,
+          screenHeight: window.innerHeight,
+          orientation: 'landscape',
+          deviceType: 'desktop',
+          isTouchDevice: false,
+          userAgent: navigator.userAgent,
+          pixelRatio: 1
+        });
+      }
     };
 
     // Initial detection

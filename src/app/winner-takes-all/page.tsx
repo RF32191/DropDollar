@@ -589,36 +589,47 @@ export default function WinnerTakesAllPage() {
     }
 
     // DEVICE VALIDATION: Check if user's device matches game requirements
-    const isMobileDevice = deviceInfo.isMobile;
-    const isDesktopDevice = deviceInfo.isDesktop;
+    // Wait for device info to be ready
+    if (!deviceInfo || deviceInfo.deviceType === undefined) {
+      console.log('⏳ [Device Check] Waiting for device detection...');
+      setMessage({ type: 'error', text: 'Please wait while we detect your device...' });
+      setTimeout(() => handleJoinSession(configId), 500);
+      return;
+    }
+    
+    const isMobileDevice = deviceInfo.isMobile || deviceInfo.deviceType === 'mobile';
+    const isDesktopDevice = deviceInfo.isDesktop || deviceInfo.deviceType === 'desktop';
     const isMobileCompatible = MOBILE_COMPATIBLE_GAMES.includes(config.game_type);
     const isDesktopOnly = DESKTOP_ONLY_GAMES.includes(config.game_type);
     
     console.log('📱 [Device Check]', {
+      deviceType: deviceInfo.deviceType,
       isMobileDevice,
       isDesktopDevice,
+      isMobile: deviceInfo.isMobile,
+      isDesktop: deviceInfo.isDesktop,
       gameType: config.game_type,
       isMobileCompatible,
-      isDesktopOnly
+      isDesktopOnly,
+      userAgent: deviceInfo.userAgent
     });
     
-    // Prevent mobile users from playing desktop-only games
+    // STRICT: Prevent mobile users from playing desktop-only games
     if (isMobileDevice && isDesktopOnly) {
       setMessage({ 
         type: 'error', 
-        text: '❌ This game requires a desktop/laptop computer. Please use a desktop device to play this game. Mobile devices cannot play desktop-only games.' 
+        text: '❌ BLOCKED: This game requires a desktop/laptop computer. Mobile devices cannot play desktop-only games. Please use a desktop device.' 
       });
       return;
     }
     
-    // Warn desktop users trying to play mobile-optimized games (but allow it)
+    // STRICT: Prevent desktop users from playing mobile-only games
     if (isDesktopDevice && isMobileCompatible && !isDesktopOnly) {
-      const proceed = window.confirm(
-        '⚠️ This game is optimized for mobile devices. You are on a desktop/laptop. Do you want to continue?'
-      );
-      if (!proceed) {
-        return;
-      }
+      setMessage({ 
+        type: 'error', 
+        text: '❌ BLOCKED: This game is optimized for mobile devices only. You are on a desktop/laptop. Please use a mobile device to play this game.' 
+      });
+      return;
     }
 
     let session = sessions.find(s => s.config_id === configId);
