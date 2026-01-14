@@ -356,6 +356,7 @@ export default function CoinPlayPage() {
     });
     
     // STRICT: Prevent mobile users from playing desktop-only games
+    // Desktop users can play ALL games (mobile and desktop)
     if (isMobileDevice && isDesktopOnly) {
       setMessage({ 
         type: 'error', 
@@ -364,14 +365,8 @@ export default function CoinPlayPage() {
       return;
     }
     
-    // STRICT: Prevent desktop users from playing mobile-only games
-    if (isDesktopDevice && isMobileCompatible && !isDesktopOnly) {
-      setMessage({ 
-        type: 'error', 
-        text: '❌ BLOCKED: This game is optimized for mobile devices only. You are on a desktop/laptop. Please use a mobile device to play this game.' 
-      });
-      return;
-    }
+    // Desktop users can play any game - no restrictions
+    // Mobile users are only blocked from desktop-only games (handled above)
 
     // Show warning before joining
     const confirmJoin = window.confirm(
