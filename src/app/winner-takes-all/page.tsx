@@ -556,13 +556,21 @@ export default function WinnerTakesAllPage() {
           if (!createError && createData) {
             console.log('✅ [Winner Takes All] Session created on-demand:', createData);
             // Reload sessions to get the newly created one
-            await loadSessions();
-            session = sessions.find(s => s.config_id === configId);
-            if (!session) {
-              // Try one more time after a brief delay
-              await new Promise(resolve => setTimeout(resolve, 500));
-              await loadSessions();
-              session = sessions.find(s => s.config_id === configId);
+            const { data: reloadedData, error: reloadError } = await supabase.rpc('get_all_winner_takes_all_sessions');
+            if (!reloadError && reloadedData) {
+              const reloadedSessions = (reloadedData || []).filter((s: WinnerTakesAllSession) => {
+                if (s.status === 'completed' && s.completed_at) {
+                  const completedTime = new Date(s.completed_at).getTime();
+                  const now = Date.now();
+                  return now - completedTime < 30000;
+                }
+                return !completedSessionsToHide.has(s.config_id);
+              });
+              setSessions(reloadedSessions);
+              session = reloadedSessions.find((s: WinnerTakesAllSession) => s.config_id === configId);
+              if (session) {
+                console.log('✅ [Winner Takes All] Session found after on-demand creation:', session);
+              }
             }
           } else {
             console.error('❌ [Winner Takes All] Error creating session:', createError);
