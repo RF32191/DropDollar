@@ -492,8 +492,8 @@ export default function WinnerTakesAllPage() {
     
     console.log('✅ [Winner Takes All] Found config and session:', { config, session });
 
-    // Check if user already joined
-    const hasJoined = session.participants.some(p => p.user_id === user.id);
+    // Check if user already joined (but not if session is completed - participants cleared)
+    const hasJoined = session.status !== 'completed' && session.participants.some(p => p.user_id === user.id);
     if (hasJoined) {
       setMessage({ type: 'error', text: 'You have already joined this tournament!' });
       return;
