@@ -139,6 +139,9 @@ export default function WizardWarzGame({
   const opponentGlowRef = useRef<THREE.Mesh | null>(null);
   const opponentStaffRef = useRef<THREE.Group | null>(null);
   const opponentShieldRef = useRef<THREE.Mesh | null>(null);
+  // Label refs for username sprites - must be declared at component level
+  const playerNameLabelRef = useRef<THREE.Sprite | null>(null);
+  const opponentNameLabelRef = useRef<THREE.Sprite | null>(null);
   const addPopupRef = useRef(addPopup);
   const userIdRef = useRef(user?.id);
   
@@ -1101,25 +1104,21 @@ export default function WizardWarzGame({
       }
       
       // Update username labels to follow wizards
-      if (playerNameLabelRef.current && playerWizardRef.current && cameraRef.current) {
-        try {
-          playerNameLabelRef.current.position.copy(playerWizardRef.current.position);
-          playerNameLabelRef.current.position.y = 4.5;
-          // Make label always face camera
+      if (playerNameLabelRef.current && playerWizardRef.current) {
+        playerNameLabelRef.current.position.copy(playerWizardRef.current.position);
+        playerNameLabelRef.current.position.y = 4.5;
+        // Make label always face camera
+        if (cameraRef.current) {
           playerNameLabelRef.current.lookAt(cameraRef.current.position);
-        } catch (error) {
-          console.warn('⚠️ [Wizard Warz] Error updating player label:', error);
         }
       }
       
-      if (opponentNameLabelRef.current && opponentWizardRef.current && cameraRef.current) {
-        try {
-          opponentNameLabelRef.current.position.copy(opponentWizardRef.current.position);
-          opponentNameLabelRef.current.position.y = 4.5;
-          // Make label always face camera
+      if (opponentNameLabelRef.current && opponentWizardRef.current) {
+        opponentNameLabelRef.current.position.copy(opponentWizardRef.current.position);
+        opponentNameLabelRef.current.position.y = 4.5;
+        // Make label always face camera
+        if (cameraRef.current) {
           opponentNameLabelRef.current.lookAt(cameraRef.current.position);
-        } catch (error) {
-          console.warn('⚠️ [Wizard Warz] Error updating opponent label:', error);
         }
       }
       

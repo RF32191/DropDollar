@@ -166,7 +166,7 @@ import LazyVideo from '@/components/video/LazyVideo';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { XPService } from '@/lib/supabase/xpService';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import SoundEffects from '@/lib/SoundEffects';
 import { useAuth } from '@/contexts/AuthContext';
@@ -778,28 +778,77 @@ export default function GamesPage() {
 
   // Check if user is a seller
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     const checkSellerStatus = async () => {
-      if (user && isAuthenticated) {
-        try {
-          const { data, error } = await supabase
-            .from('seller_profiles')
-            .select('status')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (!error && data && data.status === 'approved') {
-            setIsSeller(true);
+      // Skip if not authenticated or no user
+      if (!user || !isAuthenticated) {
+        if (isMounted) setIsSeller(false);
+        return;
+      }
+
+      try {
+        // Ensure we have a valid session before querying
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+          if (isMounted) setIsSeller(false);
+          return;
+        }
+
+        // Small delay to ensure session is fully ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const { data, error } = await supabase
+          .from('seller_profiles')
+          .select('status')
+          .eq('user_id', user.id)
+          .single();
+        
+        // Handle case where no seller profile exists (PGRST116 = no rows returned)
+        // Also handle 406 errors gracefully (RLS blocking - expected in some cases)
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // No seller profile exists - this is fine
+            if (isMounted) setIsSeller(false);
+          } else if (error.message?.includes('406') || error.code === 'PGRST301') {
+            // 406 or RLS policy blocking - silently fail, user might not have access
+            if (isMounted) setIsSeller(false);
           } else {
-            setIsSeller(false);
+            // Other errors - log but don't break the app
+            console.warn('Seller status check error (non-critical):', error.message || error.code);
+            if (isMounted) setIsSeller(false);
           }
-        } catch (err) {
-          console.error('Error checking seller status:', err);
+          return;
+        }
+        
+        if (isMounted && data && data.status === 'approved') {
+          setIsSeller(true);
+        } else if (isMounted) {
           setIsSeller(false);
+        }
+      } catch (err: any) {
+        // Silently handle errors - don't break the game experience
+        if (err?.message?.includes('406') || err?.status === 406) {
+          // 406 error - expected in some auth states, just set to false
+          if (isMounted) setIsSeller(false);
+        } else {
+          console.warn('Seller status check error (non-critical):', err);
+          if (isMounted) setIsSeller(false);
         }
       }
     };
     
-    checkSellerStatus();
+    // Debounce the check slightly to avoid race conditions
+    timeoutId = setTimeout(() => {
+      checkSellerStatus();
+    }, 200);
+    
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [user, isAuthenticated]);
 
   // Auto-launch game if tournament/competition entry
