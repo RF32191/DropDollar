@@ -43,6 +43,8 @@ export interface HotSellSession {
   config_id: string;
   game_id?: string;
   current_pot: number;
+  prize_pool?: number;
+  base_price?: number;
   target_pot: number;
   participants_count: number;
   status: 'waiting' | 'hot_sell' | 'active' | 'completed';
@@ -50,6 +52,10 @@ export interface HotSellSession {
   hot_sell_started_at?: string;
   expires_at: string;
   created_at: string;
+  first_place_prize?: number | null;
+  second_place_prize?: number | null;
+  third_place_prize?: number | null;
+  platform_fee?: number | null;
 }
 
 export interface FixedGameParticipant {
