@@ -113,6 +113,17 @@ export default function HotSellPage() {
   // Device detection hook
   const deviceInfo = useDeviceDetection();
   
+  // Auto-detect device type on load and set filter accordingly
+  useEffect(() => {
+    if (deviceInfo && currentDeviceTypeFilter === 'all') {
+      if (deviceInfo.isMobile) {
+        setCurrentDeviceTypeFilter('mobile');
+      } else if (deviceInfo.isDesktop) {
+        setCurrentDeviceTypeFilter('desktop');
+      }
+    }
+  }, [deviceInfo?.isMobile, deviceInfo?.isDesktop, currentDeviceTypeFilter]);
+  
   // Location verification hook
   const {
     locationVerified,
