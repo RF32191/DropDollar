@@ -1400,9 +1400,9 @@ export default function HotSellPage() {
                   <TrophyIcon className="w-8 h-8 text-yellow-400" />
                 </div>
 
-                {/* Prize Breakdown - Based on Base Price (Listing Price) */}
+                {/* Final Payout Breakdown - Based on Base Price (When Contest is Filled) */}
                 <div className="mb-4 p-3 bg-black/30 rounded-lg border border-orange-500/20">
-                  <div className="text-xs font-semibold text-orange-300 mb-2 text-center">💰 Prize Distribution</div>
+                  <div className="text-xs font-semibold text-orange-300 mb-2 text-center">🏆 Final Payout (When Filled)</div>
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-yellow-300">🥇 1st Place (50%)</span>
@@ -1480,8 +1480,9 @@ export default function HotSellPage() {
                         : 'Waiting for first player'}
                     </p>
                     
-                    {/* Prize Breakdown - Based on Base Price (Listing Price) */}
+                    {/* Current Prize Pool Breakdown - Based on Current Prize Pool */}
                     <div className="bg-black/30 rounded-lg p-3 mb-2">
+                      <div className="text-[10px] font-semibold text-yellow-200 mb-1.5 text-center">💰 Current Pool Split</div>
                       <div className="space-y-1.5 text-xs">
                         {/* 1st Place */}
                         <div className="flex justify-between items-center">
@@ -1490,7 +1491,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">1st Place (50%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount(session?.first_place_prize ?? (config.base_price * 0.50))}
+                            {formatAmount((session?.prize_pool || 0) * 0.50)}
                           </span>
                         </div>
                         
@@ -1501,7 +1502,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">2nd Place (20%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount(session?.second_place_prize ?? (config.base_price * 0.20))}
+                            {formatAmount((session?.prize_pool || 0) * 0.20)}
                           </span>
                         </div>
                         
@@ -1512,12 +1513,59 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">3rd Place (15%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount(session?.third_place_prize ?? (config.base_price * 0.15))}
+                            {formatAmount((session?.prize_pool || 0) * 0.15)}
                           </span>
                         </div>
                         
                         {/* Platform Fee */}
                         <div className="flex justify-between items-center pt-1.5 border-t border-yellow-500/30">
+                          <span className="text-red-300 text-[10px]">Platform Fee (-15%)</span>
+                          <span className="font-bold text-red-300">
+                            -{formatAmount((session?.prize_pool || 0) * 0.15)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Final Payout Breakdown - Based on Base Price (When Contest is Filled) */}
+                    <div className="bg-green-900/20 rounded-lg p-3 mb-2 border border-green-500/30">
+                      <div className="text-[10px] font-semibold text-green-300 mb-1.5 text-center">🏆 Final Payout (When Filled)</div>
+                      <div className="space-y-1.5 text-xs">
+                        {/* 1st Place */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-yellow-400">🥇</span>
+                            <span className="text-green-200">1st Place (50%)</span>
+                          </div>
+                          <span className="font-bold text-green-300">
+                            {formatAmount(session?.first_place_prize ?? (config.base_price * 0.50))}
+                          </span>
+                        </div>
+                        
+                        {/* 2nd Place */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-gray-300">🥈</span>
+                            <span className="text-green-200">2nd Place (20%)</span>
+                          </div>
+                          <span className="font-bold text-green-300">
+                            {formatAmount(session?.second_place_prize ?? (config.base_price * 0.20))}
+                          </span>
+                        </div>
+                        
+                        {/* 3rd Place */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-orange-400">🥉</span>
+                            <span className="text-green-200">3rd Place (15%)</span>
+                          </div>
+                          <span className="font-bold text-green-300">
+                            {formatAmount(session?.third_place_prize ?? (config.base_price * 0.15))}
+                          </span>
+                        </div>
+                        
+                        {/* Platform Fee */}
+                        <div className="flex justify-between items-center pt-1.5 border-t border-green-500/30">
                           <span className="text-red-300 text-[10px]">Platform Fee (-15%)</span>
                           <span className="font-bold text-red-300">
                             -{formatAmount(session?.platform_fee ?? (config.base_price * 0.15))}
