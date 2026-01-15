@@ -180,7 +180,7 @@ export default function WizardWarzGame({
   }, []);
   
   // Create username label sprite
-  const createUsernameLabel = useCallback((username: string, color: number): THREE.Sprite => {
+  const createUsernameLabel = (username: string, color: number): THREE.Sprite => {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 128;
@@ -207,7 +207,7 @@ export default function WizardWarzGame({
     sprite.position.y = 4.5; // Above wizard head
     
     return sprite;
-  }, []);
+  };
   
   // Create detailed wizard
   const createWizard = useCallback((scene: THREE.Scene, color: number, isPlayer: boolean) => {
