@@ -1400,7 +1400,128 @@ export default function WizardWarzGame({
     };
   }, [gameState, createWizard, createShield, createCastleEnvironment, createSpellMesh, gameMode]);
   
-  // Fire spell with cooldown
+  // Create beam spell mesh (heavy shot)
+  const createBeamSpellMesh = useCallback((element: Element) => {
+    const beam = new THREE.Group();
+    const data = ELEMENTS[element];
+    
+    // Main beam cylinder
+    const beamGeo = new THREE.CylinderGeometry(0.15, 0.25, 2.5, 16);
+    const beamMat = new THREE.MeshStandardMaterial({
+      color: data.color,
+      emissive: data.glowColor,
+      emissiveIntensity: 2.0,
+      transparent: true,
+      opacity: 0.9
+    });
+    const mainBeam = new THREE.Mesh(beamGeo, beamMat);
+    beam.add(mainBeam);
+    
+    // Core glow
+    const coreGeo = new THREE.SphereGeometry(0.4, 16, 16);
+    const coreMat = new THREE.MeshBasicMaterial({
+      color: data.glowColor,
+      transparent: true,
+      opacity: 0.8
+    });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    core.position.y = 1.25;
+    beam.add(core);
+    
+    // Outer glow rings
+    for (let i = 0; i < 3; i++) {
+      const ringGeo = new THREE.TorusGeometry(0.3 + i * 0.1, 0.05, 8, 16);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: data.glowColor,
+        transparent: true,
+        opacity: 0.4 - i * 0.1
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.y = 1.25;
+      ring.rotation.x = Math.PI / 2;
+      beam.add(ring);
+    }
+    
+    // Energy particles along beam
+    for (let i = 0; i < 12; i++) {
+      const particleGeo = new THREE.SphereGeometry(0.08, 8, 8);
+      const particleMat = new THREE.MeshBasicMaterial({ color: data.color, transparent: true, opacity: 0.7 });
+      const particle = new THREE.Mesh(particleGeo, particleMat);
+      particle.position.set(
+        (Math.random() - 0.5) * 0.3,
+        (i / 12) * 2.5,
+        (Math.random() - 0.5) * 0.3
+      );
+      beam.add(particle);
+    }
+    
+    return beam;
+  }, []);
+
+  // Start holding spell (for heavy shot)
+  const startHoldSpell = useCallback(() => {
+    if (!gameActiveRef.current || isHoldingSpellRef.current) return;
+    isHoldingSpellRef.current = true;
+    spellHoldStartRef.current = Date.now();
+  }, []);
+
+  // Release spell (fire normal or heavy based on hold time)
+  const releaseSpell = useCallback(() => {
+    if (!gameActiveRef.current || !sceneRef.current || !playerWizardRef.current) {
+      isHoldingSpellRef.current = false;
+      spellHoldStartRef.current = null;
+      return;
+    }
+    
+    if (!isHoldingSpellRef.current || spellHoldStartRef.current === null) {
+      return;
+    }
+    
+    const holdDuration = Date.now() - spellHoldStartRef.current;
+    const isHeavyShot = holdDuration > 1000; // 1 second = heavy beam
+    
+    // Check spell cooldown
+    const now = Date.now();
+    if (now - lastSpellTimeRef.current < SPELL_COOLDOWN) {
+      isHoldingSpellRef.current = false;
+      spellHoldStartRef.current = null;
+      return;
+    }
+    
+    lastSpellTimeRef.current = now;
+    spellCooldownRef.current = SPELL_COOLDOWN;
+    setSpellCooldown(SPELL_COOLDOWN);
+    
+    const spellMesh = isHeavyShot 
+      ? createBeamSpellMesh(currentElementRef.current)
+      : createSpellMesh(currentElementRef.current);
+    const startPos = playerWizardRef.current.position.clone();
+    startPos.y += 2.5;
+    
+    const direction = opponentPositionRef.current.clone().sub(startPos).normalize();
+    
+    const spell: Spell = {
+      id: `player-${Date.now()}`,
+      mesh: spellMesh,
+      element: currentElementRef.current,
+      position: startPos,
+      velocity: direction.multiplyScalar(isHeavyShot ? SPELL_SPEED * 1.5 : SPELL_SPEED), // Beam is faster
+      ownerId: userIdRef.current || '',
+      damage: isHeavyShot ? SPELL_DAMAGE * 2 : SPELL_DAMAGE, // Beam does more damage
+      createdAt: Date.now(),
+      isBeam: isHeavyShot
+    };
+    
+    spellMesh.position.copy(startPos);
+    sceneRef.current.add(spellMesh);
+    spellsRef.current.push(spell);
+    
+    // Reset hold state
+    isHoldingSpellRef.current = false;
+    spellHoldStartRef.current = null;
+  }, [createSpellMesh, createBeamSpellMesh]);
+
+  // Fire spell with cooldown (instant cast, for F key)
   const fireSpell = useCallback(() => {
     if (!gameActiveRef.current || !sceneRef.current || !playerWizardRef.current) return;
     
