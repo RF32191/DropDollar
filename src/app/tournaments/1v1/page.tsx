@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
@@ -15,6 +15,7 @@ import LocationBanner from '@/components/location/LocationBanner';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import LazyVideo from '@/components/video/LazyVideo';
+import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import {
   TrophyIcon,
   UsersIcon,
@@ -70,6 +71,10 @@ interface Message {
   text: string;
 }
 
+// Define which games are mobile-compatible vs desktop-only - OUTSIDE component to avoid scope issues
+const MOBILE_COMPATIBLE_GAMES = ['multi_target_reaction', 'quick_click', 'color_sequence', 'falling_object'];
+const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack', 'laser_dodge', 'sword_parry'];
+
 export default function OneVOnePage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
@@ -99,8 +104,28 @@ export default function OneVOnePage() {
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string>('all');
+  const [currentDeviceTypeFilter, setCurrentDeviceTypeFilter] = useState<'all' | 'desktop' | 'mobile'>('all');
   const [payoutTimers, setPayoutTimers] = useState<Record<string, number>>({});
   const [countdownIntervals, setCountdownIntervals] = useState<Record<string, NodeJS.Timeout>>({});
+  
+  // Device detection hook
+  const deviceInfo = useDeviceDetection();
+  
+  // Wrapper for setDeviceFilter to maintain compatibility with onClick handlers
+  const setDeviceFilter = useCallback((value: 'all' | 'desktop' | 'mobile') => {
+    setCurrentDeviceTypeFilter(value);
+  }, []);
+  
+  // Auto-detect device type on load and set filter accordingly
+  useEffect(() => {
+    if (deviceInfo && currentDeviceTypeFilter === 'all') {
+      if (deviceInfo.isMobile) {
+        setCurrentDeviceTypeFilter('mobile');
+      } else if (deviceInfo.isDesktop) {
+        setCurrentDeviceTypeFilter('desktop');
+      }
+    }
+  }, [deviceInfo?.isMobile, deviceInfo?.isDesktop, currentDeviceTypeFilter]);
 
   // Wallet display state (prevent flickering)
   const [displayTokens, setDisplayTokens] = useState<number>(0);
@@ -304,6 +329,32 @@ export default function OneVOnePage() {
     if (!locationVerified) {
       console.log('❌ [1v1] Location not allowed');
       setMessage({ type: 'error', text: 'Gaming not allowed in your location. Please check our terms and conditions.' });
+      return;
+    }
+
+    // Device compatibility check
+    try {
+      if (!deviceInfo || deviceInfo.deviceType === undefined) {
+        console.log('⏳ [Device Check] Waiting for device detection...');
+        setMessage({ type: 'error', text: 'Please wait while we detect your device...' });
+        setTimeout(() => handleJoinSession(config), 500);
+        return;
+      }
+    } catch (error) {
+      console.error('❌ [Device Check] Error checking device:', error);
+    }
+
+    const isMobileDevice = deviceInfo?.isMobile || deviceInfo?.deviceType === 'mobile';
+    const isDesktopDevice = deviceInfo?.isDesktop || deviceInfo?.deviceType === 'desktop';
+    const isMobileCompatible = MOBILE_COMPATIBLE_GAMES.includes(config.game_type);
+    const isDesktopOnly = DESKTOP_ONLY_GAMES.includes(config.game_type);
+    
+    // STRICT: Prevent mobile users from playing desktop-only games
+    if (isMobileDevice && isDesktopOnly) {
+      setMessage({ 
+        type: 'error', 
+        text: 'This game requires a desktop device. Please use a computer to play.' 
+      });
       return;
     }
 
@@ -578,12 +629,66 @@ export default function OneVOnePage() {
   };
 
   // Group configs by game type
-  const gameTypes = Array.from(new Set(configs.map(c => c.game_type)));
+  // Filter configs by device compatibility
+  const filterConfigsByDevice = useCallback((filterValue: 'all' | 'desktop' | 'mobile', configsList: OneVOneConfig[] | undefined | null): OneVOneConfig[] => {
+    if (!configsList || !Array.isArray(configsList)) {
+      return [];
+    }
+    return configsList.filter(config => {
+      if (!config || !config.game_type) return false;
+      if (filterValue === 'all') return true;
+      if (filterValue === 'mobile') {
+        return MOBILE_COMPATIBLE_GAMES.includes(config.game_type);
+      }
+      if (filterValue === 'desktop') {
+        return !MOBILE_COMPATIBLE_GAMES.includes(config.game_type) || DESKTOP_ONLY_GAMES.includes(config.game_type);
+      }
+      return true;
+    });
+  }, []);
+  
+  // Use useMemo with direct state access - currentDeviceTypeFilter is always defined
+  // Ensure deviceFilteredConfigs is always an array, never undefined
+  const deviceFilteredConfigs: OneVOneConfig[] = useMemo((): OneVOneConfig[] => {
+    try {
+      // Ensure configs is an array
+      if (!configs || !Array.isArray(configs)) {
+        return [];
+      }
+      // Get current filter value - always use currentDeviceTypeFilter directly
+      const currentFilter: 'all' | 'desktop' | 'mobile' = currentDeviceTypeFilter || 'all';
+      const filtered = filterConfigsByDevice(currentFilter, configs);
+      // Double-check result is an array
+      return Array.isArray(filtered) ? filtered : [];
+    } catch (error) {
+      console.error('❌ [1v1] Error filtering configs by device:', error);
+      return [];
+    }
+  }, [configs, currentDeviceTypeFilter, filterConfigsByDevice]);
+  
+  // Safe reference for current device filter in JSX
+  const getCurrentDeviceFilter = useCallback((): 'all' | 'desktop' | 'mobile' => {
+    return currentDeviceTypeFilter || 'all';
+  }, [currentDeviceTypeFilter]);
+  
+  const gameTypes = useMemo((): string[] => {
+    try {
+      if (!deviceFilteredConfigs || !Array.isArray(deviceFilteredConfigs)) {
+        return [];
+      }
+      return Array.from(new Set(deviceFilteredConfigs.map(c => c?.game_type).filter(Boolean))) as string[];
+    } catch (error) {
+      console.error('❌ [1v1] Error computing game types:', error);
+      return [];
+    }
+  }, [deviceFilteredConfigs]);
   
   // Filter game types based on selection
-  const filteredGameTypes = selectedGame === 'all' 
-    ? gameTypes 
-    : gameTypes.filter(g => g === selectedGame);
+  const filteredGameTypes = useMemo(() => {
+    return selectedGame === 'all' 
+      ? gameTypes 
+      : gameTypes.filter(g => g === selectedGame);
+  }, [gameTypes, selectedGame]);
 
   const getGameInfo = (type: string) => {
     switch(type) {
@@ -688,8 +793,44 @@ export default function OneVOnePage() {
             </div>
           )}
 
+          {/* Device Filter - Mobile/Desktop/All */}
+          {!loadingConfigs && (
+            <div className="mb-6 flex flex-wrap gap-3 justify-center">
+              <button
+                onClick={() => setDeviceFilter('all')}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                  getCurrentDeviceFilter() === 'all'
+                    ? 'bg-blue-500 text-white shadow-lg scale-105'
+                    : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
+                }`}
+              >
+                📱💻 All Devices ({configs.length})
+              </button>
+              <button
+                onClick={() => setDeviceFilter('mobile')}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                  getCurrentDeviceFilter() === 'mobile'
+                    ? 'bg-green-500 text-white shadow-lg scale-105'
+                    : 'bg-green-800/50 text-green-200 hover:bg-green-700/50'
+                }`}
+              >
+                📱 Mobile ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && MOBILE_COMPATIBLE_GAMES.includes(c.game_type)).length : 0})
+              </button>
+              <button
+                onClick={() => setDeviceFilter('desktop')}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                  getCurrentDeviceFilter() === 'desktop'
+                    ? 'bg-purple-500 text-white shadow-lg scale-105'
+                    : 'bg-purple-800/50 text-purple-200 hover:bg-purple-700/50'
+                }`}
+              >
+                💻 Desktop ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && (!MOBILE_COMPATIBLE_GAMES.includes(c.game_type) || DESKTOP_ONLY_GAMES.includes(c.game_type))).length : 0})
+              </button>
+            </div>
+          )}
+
           {/* Game Filter */}
-          {!loadingConfigs && configs.length > 0 && (
+          {!loadingConfigs && Array.isArray(deviceFilteredConfigs) && deviceFilteredConfigs.length > 0 && (
             <div className="mb-8 flex flex-wrap gap-3 justify-center">
               <button
                 onClick={() => setSelectedGame('all')}
@@ -699,11 +840,11 @@ export default function OneVOnePage() {
                     : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
                 }`}
               >
-                All Games ({configs.length})
+                All Games ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.length : 0})
               </button>
-              {gameTypes.map(gameType => {
+              {Array.isArray(gameTypes) && gameTypes.map(gameType => {
                 const gameInfo = getGameInfo(gameType);
-                const count = configs.filter(c => c.game_type === gameType).length;
+                const count = Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && c.game_type === gameType).length : 0;
                 return (
                   <button
                     key={gameType}
