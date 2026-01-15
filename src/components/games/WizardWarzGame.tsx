@@ -646,8 +646,8 @@ export default function WizardWarzGame({
       scene.add(orb);
     });
     
-    // Center arena light - brighter for huge arena
-    const centerLight = new THREE.PointLight(0xffffff, 2.5, 80);
+    // Center arena light - dimmer for darker aesthetic
+    const centerLight = new THREE.PointLight(0x664422, 1.2, 80); // Dim orange glow
     centerLight.position.set(0, 20, 0);
     scene.add(centerLight);
     
@@ -829,18 +829,18 @@ export default function WizardWarzGame({
       }
     }, 100);
     
-    // Brighter lighting - can see the arena clearly
-    const ambientLight = new THREE.AmbientLight(0x404060, 0.7);
+    // Darker, moodier lighting for darker castle aesthetic
+    const ambientLight = new THREE.AmbientLight(0x1a1a2a, 0.3); // Much darker ambient
     scene.add(ambientLight);
     
-    const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const mainLight = new THREE.DirectionalLight(0x444444, 0.4); // Dimmer main light
     mainLight.position.set(10, 20, 10);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
     mainLight.shadow.mapSize.height = 2048;
     scene.add(mainLight);
     
-    const moonLight = new THREE.DirectionalLight(0x8888ff, 0.3);
+    const moonLight = new THREE.DirectionalLight(0x332244, 0.15); // Very dim moonlight
     moonLight.position.set(-10, 15, -5);
     scene.add(moonLight);
     
