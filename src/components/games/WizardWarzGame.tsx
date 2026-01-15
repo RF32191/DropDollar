@@ -60,6 +60,7 @@ interface Spell {
   ownerId: string;
   damage: number;
   createdAt: number;
+  isBeam?: boolean; // Heavy beam spell that weakens shields
 }
 
 interface WizardWarzGameProps {
@@ -135,6 +136,8 @@ export default function WizardWarzGame({
   const spellCooldownRef = useRef(0);
   const lastSpellTimeRef = useRef(0);
   const currentElementRef = useRef<Element>('fire');
+  const spellHoldStartRef = useRef<number | null>(null); // Track when spell button is held down
+  const isHoldingSpellRef = useRef(false);
   const playerGlowRef = useRef<THREE.Mesh | null>(null);
   const opponentGlowRef = useRef<THREE.Mesh | null>(null);
   const opponentStaffRef = useRef<THREE.Group | null>(null);
@@ -1036,23 +1039,51 @@ export default function WizardWarzGame({
               setScore(scoreRef.current);
               spellsToRemoveRef.current.push(spell.id);
             } else if (shieldActiveRef.current) {
-              // Shield ALWAYS deflects spell toward opponent
-              const shieldTime = Date.now() - shieldStartTimeRef.current;
-              const isPerfect = shieldTime < PARRY_WINDOW;
-              
-              // Redirect spell toward opponent
-              const toOpponent = opponentPositionRef.current.clone().sub(spell.position).normalize();
-              spell.velocity.copy(toOpponent.multiplyScalar(SPELL_SPEED * (isPerfect ? 1.8 : 1.2)));
-              spell.ownerId = userIdRef.current || '';
-              
-              if (isPerfect) {
-                addPopupRef.current(200, 50, 40, 'perfect', '⚔️ DEFLECT!');
-                scoreRef.current += 200;
-                setScore(scoreRef.current);
+              // Check if it's a beam spell (weakens shield)
+              if (spell.isBeam) {
+                // Beam weakens shield - reduce shield duration and pass through with reduced damage
+                const shieldTimeRemaining = SHIELD_DURATION - (Date.now() - shieldStartTimeRef.current);
+                const weakenedDuration = Math.max(500, shieldTimeRemaining * 0.5); // Reduce shield duration by 50%
+                shieldStartTimeRef.current = Date.now() - (SHIELD_DURATION - weakenedDuration);
+                
+                addPopupRef.current(100, 50, 40, 'critical', '💥 SHIELD WEAKENED!');
+                
+                // Beam passes through shield with reduced damage
+                const { damage, type } = calculateDamage(spell.element, currentElementRef.current);
+                const reducedDamage = Math.max(1, Math.floor(damage * 0.5)); // 50% damage through shield
+                
+                if (reducedDamage > 0) {
+                  heartsRef.current = Math.max(0, heartsRef.current - reducedDamage);
+                  setHearts(Math.ceil(heartsRef.current));
+                  addPopupRef.current(0, 50, 30, 'damage', `-${reducedDamage}❤️`);
+                  
+                  if (heartsRef.current <= 0) {
+                    gameActiveRef.current = false;
+                    setWinner('opponent');
+                    setGameState('ended');
+                  }
+                }
+                
+                spellsToRemoveRef.current.push(spell.id);
               } else {
-                addPopupRef.current(50, 50, 40, 'bonus', '🛡️ DEFLECT!');
-                scoreRef.current += 50;
-                setScore(scoreRef.current);
+                // Normal spell - Shield ALWAYS deflects spell toward opponent
+                const shieldTime = Date.now() - shieldStartTimeRef.current;
+                const isPerfect = shieldTime < PARRY_WINDOW;
+                
+                // Redirect spell toward opponent
+                const toOpponent = opponentPositionRef.current.clone().sub(spell.position).normalize();
+                spell.velocity.copy(toOpponent.multiplyScalar(SPELL_SPEED * (isPerfect ? 1.8 : 1.2)));
+                spell.ownerId = userIdRef.current || '';
+                
+                if (isPerfect) {
+                  addPopupRef.current(200, 50, 40, 'perfect', '⚔️ DEFLECT!');
+                  scoreRef.current += 200;
+                  setScore(scoreRef.current);
+                } else {
+                  addPopupRef.current(50, 50, 40, 'bonus', '🛡️ DEFLECT!');
+                  scoreRef.current += 50;
+                  setScore(scoreRef.current);
+                }
               }
             } else {
               // No shield - take damage based on elements
@@ -1487,10 +1518,16 @@ export default function WizardWarzGame({
     if (gameState !== 'playing') return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === ' ' || e.key === 'f' || e.key === 'F') {
+      if (e.key === ' ') {
+        // Space bar = Shield (desktop)
+        e.preventDefault();
+        activateShield();
+      } else if (e.key === 'f' || e.key === 'F') {
+        // F key = Fire spell (instant)
         e.preventDefault();
         fireSpell();
       } else if (e.key === 'e' || e.key === 'E' || e.key === 'Shift') {
+        // E/Shift = Shield (alternative, keep for compatibility)
         e.preventDefault();
         activateShield();
       } else if (e.key >= '1' && e.key <= '7') {
@@ -1508,7 +1545,8 @@ export default function WizardWarzGame({
     };
     
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'e' || e.key === 'E' || e.key === 'Shift') {
+      if (e.key === ' ' || e.key === 'e' || e.key === 'E' || e.key === 'Shift') {
+        // Release shield
         deactivateShield();
       }
     };
@@ -1592,7 +1630,7 @@ export default function WizardWarzGame({
           {/* Controls */}
           <div className="mt-6 text-gray-400 text-sm space-y-1">
             <p>❤️ 10 Hearts each • Perfect parry deflects spells!</p>
-            <p>Space/F: Cast • E/Shift: Shield • Q/R: Switch Element</p>
+            <p>Space: Shield • F: Cast • Hold Cast: Heavy Beam (weakens shield) • Q/R: Switch Element</p>
           </div>
         </div>
       </div>
@@ -1670,9 +1708,35 @@ export default function WizardWarzGame({
                   key={el}
                   onClick={() => {
                     changeElement(el);
-                    // Cast spell when clicking selected element
+                    // Cast spell when clicking selected element (instant cast)
                     if (currentElement === el && spellCooldown === 0) {
                       fireSpell();
+                    }
+                  }}
+                  onMouseDown={() => {
+                    // Start holding for heavy shot
+                    if (currentElement === el && spellCooldown === 0) {
+                      startHoldSpell();
+                    }
+                  }}
+                  onMouseUp={() => {
+                    // Release to fire (normal or heavy based on hold time)
+                    if (currentElement === el) {
+                      releaseSpell();
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    // Start holding for heavy shot
+                    if (currentElement === el && spellCooldown === 0) {
+                      startHoldSpell();
+                    }
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    // Release to fire (normal or heavy based on hold time)
+                    if (currentElement === el) {
+                      releaseSpell();
                     }
                   }}
                   disabled={spellCooldown > 0 && currentElement === el}
@@ -1680,6 +1744,8 @@ export default function WizardWarzGame({
                     currentElement === el 
                       ? spellCooldown > 0
                         ? 'bg-gray-700/80 scale-100 ring-2 ring-gray-500' 
+                        : isHoldingSpellRef.current
+                        ? 'bg-gradient-to-t from-red-700 to-red-500 scale-110 ring-4 ring-red-400 shadow-lg shadow-red-500/50' // Red when charging heavy shot
                         : 'bg-gradient-to-t from-orange-700 to-orange-500 scale-110 ring-4 ring-orange-400 shadow-lg shadow-orange-500/50'
                       : 'bg-white/10 active:bg-white/30 hover:bg-white/20'
                   }`}
