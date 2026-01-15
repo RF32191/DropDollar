@@ -33,22 +33,46 @@ DECLARE
 BEGIN
     RAISE NOTICE '🏆 [WTA PAYOUT] Starting payout for config: %', config_id_param;
     
-    -- Get active session
+    -- Get active session - try multiple ways to match config_id
     SELECT * INTO v_session
     FROM public.winner_takes_all_sessions
-    WHERE config_id = config_id_param
-    AND status IN ('active', 'waiting')
+    WHERE (
+        config_id::TEXT = config_id_param::TEXT
+        OR config_id = config_id_param::UUID
+        OR config_id::TEXT = config_id_param
+    )
+    AND status IN ('active', 'waiting', 'completed')
     ORDER BY created_at DESC
     LIMIT 1
     FOR UPDATE;
     
+    -- If still not found, try without status filter
     IF NOT FOUND THEN
-        RAISE NOTICE '❌ No active session found';
+        SELECT * INTO v_session
+        FROM public.winner_takes_all_sessions
+        WHERE (
+            config_id::TEXT = config_id_param::TEXT
+            OR config_id = config_id_param::UUID
+            OR config_id::TEXT = config_id_param
+        )
+        ORDER BY created_at DESC
+        LIMIT 1
+        FOR UPDATE;
+    END IF;
+    
+    IF NOT FOUND THEN
+        RAISE NOTICE '❌ No session found for config: %', config_id_param;
+        -- Return more detailed error for debugging
         RETURN jsonb_build_object(
             'success', false,
-            'message', 'No active session found'
+            'message', format('Session not found for config: %s. Please refresh the page.', config_id_param),
+            'config_id', config_id_param,
+            'error_type', 'session_not_found'
         );
     END IF;
+    
+    RAISE NOTICE '✅ Found session: % (status: %, participants: %)', 
+        v_session.id, v_session.status, v_session.participants_count;
     
     -- Check if already paid out
     IF v_session.winner_user_id IS NOT NULL THEN

@@ -871,7 +871,16 @@ export default function WinnerTakesAllPage() {
       
       if (error) {
         console.error('❌ [Winner Takes All] Payout error:', error);
-        setMessage({ type: 'error', text: `Payout failed: ${error.message}` });
+        // Use the error message from the function if available, otherwise use generic message
+        const errorMessage = error.message || data?.message || 'Payout failed. Please refresh the page and try again.';
+        setMessage({ type: 'error', text: errorMessage });
+        
+        // If it's a "session not found" error, reload sessions
+        if (errorMessage.includes('Session not found') || errorMessage.includes('session_not_found')) {
+          console.log('🔄 [Winner Takes All] Reloading sessions due to session not found error...');
+          await loadSessions();
+        }
+        return;
       } else if (data && data.grace_period) {
         // Grace period - waiting for all scores to be recorded
         console.log('⏳ [Winner Takes All] Grace period active:', data);
