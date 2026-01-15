@@ -9,6 +9,7 @@
 -- STEP 1: Create function to generate deterministic RNG seed from session ID
 -- ============================================================================
 
+-- Create overloaded functions to handle both UUID and TEXT session IDs
 CREATE OR REPLACE FUNCTION generate_deterministic_rng_seed(session_id UUID)
 RETURNS INTEGER
 LANGUAGE plpgsql
@@ -28,30 +29,54 @@ BEGIN
 END;
 $$;
 
+-- Overload for TEXT session IDs (for tables that use TEXT instead of UUID)
+CREATE OR REPLACE FUNCTION generate_deterministic_rng_seed(session_id TEXT)
+RETURNS INTEGER
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  seed_hash BIGINT;
+  uuid_val UUID;
+BEGIN
+  -- Try to convert TEXT to UUID first
+  BEGIN
+    uuid_val := session_id::UUID;
+    -- If successful, use UUID version
+    RETURN generate_deterministic_rng_seed(uuid_val);
+  EXCEPTION WHEN OTHERS THEN
+    -- If not a valid UUID, treat as string and hash it
+    seed_hash := ('x' || substr(md5(session_id), 1, 16))::bit(64)::bigint;
+    RETURN (ABS(seed_hash) % 2147483647) + 1;
+  END;
+END;
+$$;
+
 -- ============================================================================
 -- STEP 2: Update all existing sessions with deterministic seeds
 -- ============================================================================
 
 -- Hot Sell Sessions
+-- Handle both UUID and TEXT id types
 UPDATE public.hot_sell_sessions
-SET rng_seed = generate_deterministic_rng_seed(id)
+SET rng_seed = generate_deterministic_rng_seed(id::TEXT)
 WHERE rng_seed IS NULL OR rng_seed = 0;
 
 -- Winner Takes All Sessions
 UPDATE public.winner_takes_all_sessions
-SET rng_seed = generate_deterministic_rng_seed(id)
+SET rng_seed = generate_deterministic_rng_seed(id::TEXT)
 WHERE rng_seed IS NULL OR rng_seed = 0;
 
 -- 1v1 Sessions
 UPDATE public.one_v_one_sessions
-SET rng_seed = generate_deterministic_rng_seed(id)
+SET rng_seed = generate_deterministic_rng_seed(id::TEXT)
 WHERE rng_seed IS NULL OR rng_seed = 0;
 
 -- Coin Play Sessions (if table exists)
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'coin_play_sessions') THEN
-    EXECUTE 'UPDATE public.coin_play_sessions SET rng_seed = generate_deterministic_rng_seed(id) WHERE rng_seed IS NULL OR rng_seed = 0';
+    EXECUTE 'UPDATE public.coin_play_sessions SET rng_seed = generate_deterministic_rng_seed(id::TEXT) WHERE rng_seed IS NULL OR rng_seed = 0';
     RAISE NOTICE '✅ Updated coin_play_sessions with deterministic seeds';
   END IF;
 END $$;
@@ -67,7 +92,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF NEW.rng_seed IS NULL OR NEW.rng_seed = 0 THEN
-    NEW.rng_seed := generate_deterministic_rng_seed(NEW.id);
+    NEW.rng_seed := generate_deterministic_rng_seed(NEW.id::TEXT);
   END IF;
   RETURN NEW;
 END;
@@ -86,7 +111,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF NEW.rng_seed IS NULL OR NEW.rng_seed = 0 THEN
-    NEW.rng_seed := generate_deterministic_rng_seed(NEW.id);
+    NEW.rng_seed := generate_deterministic_rng_seed(NEW.id::TEXT);
   END IF;
   RETURN NEW;
 END;
@@ -105,7 +130,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF NEW.rng_seed IS NULL OR NEW.rng_seed = 0 THEN
-    NEW.rng_seed := generate_deterministic_rng_seed(NEW.id);
+    NEW.rng_seed := generate_deterministic_rng_seed(NEW.id::TEXT);
   END IF;
   RETURN NEW;
 END;
@@ -128,7 +153,7 @@ BEGIN
       AS $func$
       BEGIN
         IF NEW.rng_seed IS NULL OR NEW.rng_seed = 0 THEN
-          NEW.rng_seed := generate_deterministic_rng_seed(NEW.id);
+          NEW.rng_seed := generate_deterministic_rng_seed(NEW.id::TEXT);
         END IF;
         RETURN NEW;
       END;
@@ -217,7 +242,7 @@ SELECT
   'Hot Sell Sample' as sample_type,
   id,
   config_id,
-  generate_deterministic_rng_seed(id) as deterministic_seed,
+  generate_deterministic_rng_seed(id::TEXT) as deterministic_seed,
   rng_seed as current_seed,
   CASE 
     WHEN rng_seed = generate_deterministic_rng_seed(id) THEN '✅ Match'
@@ -230,7 +255,7 @@ SELECT
   'WTA Sample' as sample_type,
   id,
   config_id,
-  generate_deterministic_rng_seed(id) as deterministic_seed,
+  generate_deterministic_rng_seed(id::TEXT) as deterministic_seed,
   rng_seed as current_seed,
   CASE 
     WHEN rng_seed = generate_deterministic_rng_seed(id) THEN '✅ Match'
@@ -243,7 +268,7 @@ SELECT
   '1v1 Sample' as sample_type,
   id,
   config_id,
-  generate_deterministic_rng_seed(id) as deterministic_seed,
+  generate_deterministic_rng_seed(id::TEXT) as deterministic_seed,
   rng_seed as current_seed,
   CASE 
     WHEN rng_seed = generate_deterministic_rng_seed(id) THEN '✅ Match'
