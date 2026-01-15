@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
@@ -81,6 +81,10 @@ interface Message {
   text: string;
 }
 
+// Define which games are mobile-compatible vs desktop-only - OUTSIDE component to avoid scope issues
+const MOBILE_COMPATIBLE_GAMES = ['multi_target_reaction', 'quick_click', 'color_sequence', 'falling_object'];
+const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack', 'laser_dodge', 'sword_parry'];
+
 export default function HotSellPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
@@ -97,7 +101,17 @@ export default function HotSellPage() {
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string>('all');
+  // Device filter state - use completely different name to avoid any conflicts
+  const [currentDeviceTypeFilter, setCurrentDeviceTypeFilter] = useState<'all' | 'desktop' | 'mobile'>('all');
   const [expandedScoreboards, setExpandedScoreboards] = useState<Record<string, boolean>>({});
+  
+  // Wrapper for setDeviceFilter to maintain compatibility with onClick handlers
+  const setDeviceFilter = useCallback((value: 'all' | 'desktop' | 'mobile') => {
+    setCurrentDeviceTypeFilter(value);
+  }, []);
+  
+  // Device detection hook
+  const deviceInfo = useDeviceDetection();
   
   // Location verification hook
   const {
@@ -544,10 +558,6 @@ export default function HotSellPage() {
       setIsLoading(false);
     }
   }, [isAuthenticated, authLoading, loadSessions]);
-
-  // Define which games are mobile-compatible vs desktop-only (needed for validation)
-  const MOBILE_COMPATIBLE_GAMES = ['laser_dodge', 'multi_target_reaction', 'sword_parry', 'quick_click', 'color_sequence', 'falling_object'];
-  const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack'];
 
   const handleJoinSession = async (config: HotSellConfig) => {
     if (!user || !isAuthenticated) {
@@ -1006,25 +1016,63 @@ export default function HotSellPage() {
     }
   };
 
-  // Filter configs by device compatibility (using constants defined above)
-  const deviceFilteredConfigs = configs.filter(config => {
-    if (deviceFilter === 'all') return true;
-    if (deviceFilter === 'mobile') {
-      return MOBILE_COMPATIBLE_GAMES.includes(config.game_type);
+  // Filter configs by device compatibility
+  // Create a helper function that safely accesses the filter state
+  const filterConfigsByDevice = useCallback((filterValue: 'all' | 'desktop' | 'mobile', configsList: HotSellConfig[] | undefined | null): HotSellConfig[] => {
+    if (!configsList || !Array.isArray(configsList)) {
+      return [];
     }
-    if (deviceFilter === 'desktop') {
-      return !MOBILE_COMPATIBLE_GAMES.includes(config.game_type) || DESKTOP_ONLY_GAMES.includes(config.game_type);
+    return configsList.filter(config => {
+      if (!config || !config.game_type) return false;
+      if (filterValue === 'all') return true;
+      if (filterValue === 'mobile') {
+        return MOBILE_COMPATIBLE_GAMES.includes(config.game_type);
+      }
+      if (filterValue === 'desktop') {
+        return !MOBILE_COMPATIBLE_GAMES.includes(config.game_type) || DESKTOP_ONLY_GAMES.includes(config.game_type);
+      }
+      return true;
+    });
+  }, []);
+  
+  // Use useMemo with direct state access - currentDeviceTypeFilter is always defined
+  // Ensure deviceFilteredConfigs is always an array, never undefined
+  const deviceFilteredConfigs = useMemo((): HotSellConfig[] => {
+    try {
+      // Get current filter value - always use currentDeviceTypeFilter directly
+      const currentFilter: 'all' | 'desktop' | 'mobile' = currentDeviceTypeFilter || 'all';
+      const filtered = filterConfigsByDevice(currentFilter, configs);
+      return Array.isArray(filtered) ? filtered : [];
+    } catch (error) {
+      console.error('❌ [Hot Sell] Error filtering configs by device:', error);
+      return [];
     }
-    return true;
-  });
+  }, [configs, currentDeviceTypeFilter, filterConfigsByDevice]);
+  
+  // Safe reference for current device filter in JSX - use state directly
+  const getCurrentDeviceFilter = useCallback((): 'all' | 'desktop' | 'mobile' => {
+    return currentDeviceTypeFilter || 'all';
+  }, [currentDeviceTypeFilter]);
 
-  // Group configs by game type
-  const gameTypes = Array.from(new Set(deviceFilteredConfigs.map(c => c.game_type)));
+  // Group configs by game type - ensure it's always an array
+  const gameTypes = useMemo((): string[] => {
+    try {
+      if (!deviceFilteredConfigs || !Array.isArray(deviceFilteredConfigs)) {
+        return [];
+      }
+      return Array.from(new Set(deviceFilteredConfigs.map(c => c?.game_type).filter(Boolean))) as string[];
+    } catch (error) {
+      console.error('❌ [Hot Sell] Error computing game types:', error);
+      return [];
+    }
+  }, [deviceFilteredConfigs]);
   
   // Filter game types based on selection
-  const filteredGameTypes = selectedGame === 'all' 
-    ? gameTypes 
-    : gameTypes.filter(g => g === selectedGame);
+  const filteredGameTypes = useMemo(() => {
+    return selectedGame === 'all' 
+      ? gameTypes 
+      : gameTypes.filter(g => g === selectedGame);
+  }, [gameTypes, selectedGame]);
 
   if (isLoading) {
     return (
@@ -1208,7 +1256,7 @@ export default function HotSellPage() {
           <button
             onClick={() => setDeviceFilter('all')}
             className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              deviceFilter === 'all'
+              getCurrentDeviceFilter() === 'all'
                 ? 'bg-blue-500 text-white shadow-lg scale-105'
                 : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
             }`}
@@ -1218,22 +1266,22 @@ export default function HotSellPage() {
           <button
             onClick={() => setDeviceFilter('mobile')}
             className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              deviceFilter === 'mobile'
+              getCurrentDeviceFilter() === 'mobile'
                 ? 'bg-green-500 text-white shadow-lg scale-105'
                 : 'bg-green-800/50 text-green-200 hover:bg-green-700/50'
             }`}
           >
-            📱 Mobile ({deviceFilteredConfigs.filter(c => MOBILE_COMPATIBLE_GAMES.includes(c.game_type)).length})
+            📱 Mobile ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && MOBILE_COMPATIBLE_GAMES.includes(c.game_type)).length : 0})
           </button>
           <button
             onClick={() => setDeviceFilter('desktop')}
             className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              deviceFilter === 'desktop'
+              getCurrentDeviceFilter() === 'desktop'
                 ? 'bg-purple-500 text-white shadow-lg scale-105'
                 : 'bg-purple-800/50 text-purple-200 hover:bg-purple-700/50'
             }`}
           >
-            💻 Desktop ({deviceFilteredConfigs.filter(c => !MOBILE_COMPATIBLE_GAMES.includes(c.game_type) || DESKTOP_ONLY_GAMES.includes(c.game_type)).length})
+            💻 Desktop ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && (!MOBILE_COMPATIBLE_GAMES.includes(c.game_type) || DESKTOP_ONLY_GAMES.includes(c.game_type))).length : 0})
           </button>
         </div>
 
@@ -1248,11 +1296,11 @@ export default function HotSellPage() {
                   : 'bg-orange-800/50 text-orange-200 hover:bg-orange-700/50'
               }`}
             >
-              All Games ({deviceFilteredConfigs.length})
+              All Games ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.length : 0})
             </button>
-            {gameTypes.map(gameType => {
+            {Array.isArray(gameTypes) && gameTypes.map(gameType => {
               const gameInfo = getGameInfo(gameType);
-              const count = deviceFilteredConfigs.filter(c => c.game_type === gameType).length;
+              const count = Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && c.game_type === gameType).length : 0;
               return (
                 <button
                   key={gameType}
