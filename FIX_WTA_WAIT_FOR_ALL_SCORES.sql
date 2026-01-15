@@ -254,7 +254,7 @@ BEGIN
         RAISE NOTICE '⚠️ Could not save to game_history: %', SQLERRM;
     END;
     
-    -- Mark session as completed
+    -- Mark session as completed (temporarily for record keeping)
     UPDATE public.winner_takes_all_sessions
     SET 
         status = 'completed',
@@ -267,16 +267,44 @@ BEGIN
     
     RAISE NOTICE '✅ [WTA PAYOUT] Winner paid and session marked completed';
     
+    -- CRITICAL: Clear participants from completed session
+    DELETE FROM public.winner_takes_all_participants
+    WHERE session_id = v_session.id;
+    
+    RAISE NOTICE '🧹 [WTA PAYOUT] Cleared participants from completed session';
+    
+    -- CRITICAL: Reset session to waiting state IMMEDIATELY so next payout can find it
+    UPDATE public.winner_takes_all_sessions
+    SET 
+        status = 'waiting',
+        participants_count = 0,
+        current_pot = 0,
+        prize_pool = 0,
+        timer_started_at = NULL,
+        timer_duration = NULL,
+        winner_user_id = NULL,
+        winner_prize = NULL,
+        prize_amount = NULL,
+        platform_fee = NULL,
+        platform_fee_amount = NULL,
+        completed_at = NULL,
+        rng_seed = floor(random() * 99999 + 1)::integer,
+        updated_at = NOW()
+    WHERE id = v_session.id;
+    
+    RAISE NOTICE '🔄 [WTA PAYOUT] Session reset to waiting state - ready for next game';
+    
     -- Return success
     RETURN jsonb_build_object(
         'success', true,
-        'message', 'Winner paid successfully',
+        'message', 'Winner paid successfully and session reset',
         'winner_username', v_winner.username,
         'winner_score', v_winner.score,
         'payout_amount', v_winner_payout,
         'platform_fee', v_platform_fee,
         'total_participants', v_total_participants,
-        'completed_count', v_completed_count
+        'completed_count', v_completed_count,
+        'session_reset', true
     );
     
 EXCEPTION WHEN OTHERS THEN
