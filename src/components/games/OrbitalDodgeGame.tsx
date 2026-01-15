@@ -97,8 +97,8 @@ export default function OrbitalDodgeGame({
   const gameActiveRef = useRef(false);
   const scoreRef = useRef(0);
   const playerAngleRef = useRef(0);
-  const playerRadiusRef = useRef(5);
-  const targetRadiusRef = useRef(5);
+  const playerRadiusRef = useRef(8); // More spacious starting radius
+  const targetRadiusRef = useRef(8);
   const speedRef = useRef(1);
   const hazardsDodgedRef = useRef(0);
   const orbitsRef = useRef(0);
@@ -185,14 +185,15 @@ export default function OrbitalDodgeGame({
     scene.background = new THREE.Color(colors.background);
     sceneRef.current = scene;
     
-    // Camera - top-down view
+    // Camera - 3D angled view for better depth perception
     const camera = new THREE.PerspectiveCamera(
-      60,
+      75, // Wider FOV for more spacious feel
       containerRef.current.clientWidth / containerRef.current.clientHeight,
       0.1,
-      100
+      200 // Increased far plane for more spacious view
     );
-    camera.position.set(0, 15, 0);
+    // Position camera at an angle to show 3D depth
+    camera.position.set(0, 20, 25); // Higher and further back for 3D view
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
     
@@ -234,8 +235,8 @@ export default function OrbitalDodgeGame({
     const coreGlow = new THREE.Mesh(coreGlowGeometry, coreGlowMaterial);
     scene.add(coreGlow);
     
-    // Orbital rings (visual guides)
-    for (let r = 3; r <= 8; r += 1) {
+    // Orbital rings (visual guides) - more spacious
+    for (let r = 5; r <= 15; r += 2) { // Wider range: 5-15 instead of 3-8
       const ringGeometry = new THREE.RingGeometry(r - 0.02, r + 0.02, 64);
       const ringMaterial = new THREE.MeshBasicMaterial({
         color: colors.ring,
@@ -258,7 +259,7 @@ export default function OrbitalDodgeGame({
       roughness: 0.3
     });
     const player = new THREE.Mesh(playerGeometry, playerMaterial);
-    player.position.set(5, 0.3, 0);
+    player.position.set(8, 0.3, 0); // Start at more spacious radius
     scene.add(player);
     playerRef.current = player;
     
@@ -294,9 +295,9 @@ export default function OrbitalDodgeGame({
     const types: ('block' | 'laser' | 'pulse')[] = ['block', 'block', 'laser', 'pulse'];
     const type = types[rng.nextInt(0, types.length - 1)];
     
-    // Random position on orbit
+    // Random position on orbit - more spacious
     const angle = rng.next() * Math.PI * 2;
-    const radius = 3 + rng.next() * 5; // Between radius 3 and 8
+    const radius = 5 + rng.next() * 10; // Between radius 5 and 15 (more spacious)
     
     let geometry: THREE.BufferGeometry;
     let material: THREE.MeshStandardMaterial;
@@ -368,7 +369,7 @@ export default function OrbitalDodgeGame({
     const type = types[rng.nextInt(0, types.length - 1)];
     
     const angle = rng.next() * Math.PI * 2;
-    const radius = 4 + rng.next() * 3;
+      const radius = 6 + rng.next() * 8; // More spacious power-up spawn range
     
     const geometry = new THREE.OctahedronGeometry(0.25);
     const material = new THREE.MeshStandardMaterial({
@@ -652,7 +653,7 @@ export default function OrbitalDodgeGame({
     // Smoothly adjust orbital radius (gravity effect or jump)
     if (!isJumpingRef.current) {
       const radiusChange = gravityRef.current * 0.05;
-      targetRadiusRef.current = Math.max(3, Math.min(8, targetRadiusRef.current + radiusChange * 0.1));
+      targetRadiusRef.current = Math.max(5, Math.min(15, targetRadiusRef.current + radiusChange * 0.1)); // More spacious range
     }
     // Smooth interpolation to target radius (faster when jumping)
     const lerpSpeed = isJumpingRef.current ? 0.3 : 0.1;

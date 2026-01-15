@@ -399,21 +399,29 @@ export default function NeonRailRunnerGame({
     scene.fog = new THREE.Fog(colors.background, 30, 100);
     sceneRef.current = scene;
     
-    // Camera with wider FOV for dynamic feel
+    // Camera with improved FOV and resolution
     const camera = new THREE.PerspectiveCamera(
-      75,
+      70, // Slightly narrower FOV for better resolution
       containerRef.current.clientWidth / containerRef.current.clientHeight,
       0.1,
-      250
+      300 // Increased far plane for better view distance
     );
-    camera.position.set(0, 6, 10);
+    camera.position.set(0, 7, 12); // Slightly higher and further back for better view
     camera.lookAt(0, 0, -5);
     cameraRef.current = camera;
     
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true, 
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Higher pixel ratio for better resolution
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Better shadow quality
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better color rendering
+    renderer.toneMappingExposure = 1.2; // Slightly brighter
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
@@ -550,7 +558,7 @@ export default function NeonRailRunnerGame({
     return { scene, camera, renderer };
   }, [getThemeColors, generateRails, spawnObstacle, spawnCollectible]);
 
-  // Handle jump (now with double jump!)
+    // Handle jump (now with double jump!) - Improved jumping mechanics
   const handleJump = useCallback(() => {
     if (!gameActiveRef.current) return;
     
@@ -561,13 +569,13 @@ export default function NeonRailRunnerGame({
     jumpsRemainingRef.current--;
     setJumpsRemaining(jumpsRemainingRef.current);
     
-    // Start or boost jump
+    // Start or boost jump - improved jump mechanics
     if (!isJumpingRef.current) {
       isJumpingRef.current = true;
       jumpHeightRef.current = 0;
     } else {
-      // Double jump - reset jump progress for extra height
-      jumpHeightRef.current = Math.max(0.2, jumpHeightRef.current - 0.3);
+      // Double jump - reset jump progress for extra height (more responsive)
+      jumpHeightRef.current = Math.max(0.1, jumpHeightRef.current - 0.4); // More responsive double jump
     }
     
     const points = jumpsRemainingRef.current === 0 ? 50 : 25;
@@ -725,12 +733,12 @@ export default function NeonRailRunnerGame({
     const moveSpeed = 0.006 * speedRef.current;
     railProgressRef.current += moveSpeed;
     
-    // Handle jumping physics with smooth arc
+    // Handle jumping physics with smooth arc - improved jump height and responsiveness
     if (isJumpingRef.current) {
       const jumpPhase = Math.sin(jumpHeightRef.current * Math.PI);
-      const maxHeight = jumpsRemainingRef.current === 0 ? 4.5 : 3.5; // Higher for double jump
+      const maxHeight = jumpsRemainingRef.current === 0 ? 5.5 : 4.0; // Higher for double jump, more noticeable
       playerRef.current.position.y = 0.5 + jumpPhase * maxHeight;
-      jumpHeightRef.current += 0.035;
+      jumpHeightRef.current += 0.04; // Slightly faster jump animation for better responsiveness
       
       // Smooth flip rotation
       if (isFlipping) {
