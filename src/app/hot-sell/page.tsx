@@ -1037,11 +1037,17 @@ export default function HotSellPage() {
   
   // Use useMemo with direct state access - currentDeviceTypeFilter is always defined
   // Ensure deviceFilteredConfigs is always an array, never undefined
-  const deviceFilteredConfigs = useMemo((): HotSellConfig[] => {
+  // Initialize with empty array to prevent undefined errors
+  const deviceFilteredConfigs: HotSellConfig[] = useMemo((): HotSellConfig[] => {
     try {
+      // Ensure configs is an array
+      if (!configs || !Array.isArray(configs)) {
+        return [];
+      }
       // Get current filter value - always use currentDeviceTypeFilter directly
       const currentFilter: 'all' | 'desktop' | 'mobile' = currentDeviceTypeFilter || 'all';
       const filtered = filterConfigsByDevice(currentFilter, configs);
+      // Double-check result is an array
       return Array.isArray(filtered) ? filtered : [];
     } catch (error) {
       console.error('❌ [Hot Sell] Error filtering configs by device:', error);
