@@ -1678,7 +1678,7 @@ export default function WizardWarzGame({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [gameState, fireSpell, activateShield, deactivateShield, changeElement]);
+  }, [gameState, fireSpell, activateShield, deactivateShield, changeElement, startHoldSpell, releaseSpell]);
   
   // Render hearts - simplified for mobile
   const renderHearts = (count: number, max: number, color: string) => {
