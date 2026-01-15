@@ -1169,21 +1169,24 @@ export default function WizardWarzGame({
         }
       }
       
-      // MAIN CAMERA TRACKING - Overhead zoom view, locked on enemy
+      // MAIN CAMERA TRACKING - Split screen view showing both players
       if (cameraRef.current && playerWizardRef.current && opponentWizardRef.current) {
         const camera = cameraRef.current;
         const playerPos = playerWizardRef.current.position;
         const opponentPos = opponentWizardRef.current.position;
         
-        // Calculate midpoint between player and enemy for better view
+        // Calculate midpoint between both players
         const midpoint = new THREE.Vector3()
           .addVectors(playerPos, opponentPos)
           .multiplyScalar(0.5);
         
-        // Position camera to show both players clearly
-        // Lower height and closer distance to see player better
-        const cameraHeight = 18; // Lower overhead height to see player better
-        const zoomDistance = 15; // Closer zoom to see player better
+        // Calculate distance between players to adjust camera for split screen
+        const playerDistance = playerPos.distanceTo(opponentPos);
+        
+        // Camera height and distance adjusted to show both players (split screen)
+        const cameraHeight = 22 + (playerDistance * 0.3); // Higher when players are far apart
+        const zoomDistance = 20 + (playerDistance * 0.5); // Further back to show both
+        
         const targetCamPos = new THREE.Vector3(
           midpoint.x,
           cameraHeight,
@@ -1193,7 +1196,7 @@ export default function WizardWarzGame({
         // Smooth camera movement
         camera.position.lerp(targetCamPos, 0.05);
         
-        // Look at midpoint between player and enemy so both are visible
+        // Look at midpoint between players for split screen view
         const lookAtPoint = midpoint.clone();
         lookAtPoint.y = 3; // Look at wizard height
         camera.lookAt(lookAtPoint);
