@@ -179,6 +179,36 @@ export default function WizardWarzGame({
     return { damage: DAMAGE_NEUTRAL, type: '' };
   }, []);
   
+  // Create username label sprite
+  const createUsernameLabel = useCallback((username: string, color: number): THREE.Sprite => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Background with shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+    
+    // Text with glow
+    ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = `#${color.toString(16).padStart(6, '0')}`;
+    ctx.shadowBlur = 10;
+    ctx.fillText(username.substring(0, 15), canvas.width / 2, canvas.height / 2);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(3, 0.75, 1);
+    sprite.position.y = 4.5; // Above wizard head
+    
+    return sprite;
+  }, []);
+  
   // Create detailed wizard
   const createWizard = useCallback((scene: THREE.Scene, color: number, isPlayer: boolean) => {
     const wizard = new THREE.Group();
@@ -735,8 +765,8 @@ export default function WizardWarzGame({
     camera.position.set(0, 8, 15); // Behind and above player, will be updated dynamically
     cameraRef.current = camera;
     
-    // Enemy view camera for sub-screen - focused on opponent wizard
-    const enemyCamera = new THREE.PerspectiveCamera(60, 200 / 150, 0.1, 1000);
+    // Enemy view camera for sub-screen - focused on opponent wizard (bigger size)
+    const enemyCamera = new THREE.PerspectiveCamera(60, 350 / 260, 0.1, 1000);
     enemyCamera.position.set(0, 10, 20);
     enemyCameraRef.current = enemyCamera;
     
@@ -747,15 +777,15 @@ export default function WizardWarzGame({
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Enemy view renderer for sub-screen
-    if (enemyViewRef.current) {
-      const enemyRenderer = new THREE.WebGLRenderer({ antialias: true });
-      enemyRenderer.setSize(200, 150);
-      enemyRenderer.shadowMap.enabled = true;
-      enemyRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      enemyViewRef.current.appendChild(enemyRenderer.domElement);
-      enemyRendererRef.current = enemyRenderer;
-    }
+      // Enemy view renderer for sub-screen (bigger size)
+      if (enemyViewRef.current) {
+        const enemyRenderer = new THREE.WebGLRenderer({ antialias: true });
+        enemyRenderer.setSize(350, 260);
+        enemyRenderer.shadowMap.enabled = true;
+        enemyRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        enemyViewRef.current.appendChild(enemyRenderer.domElement);
+        enemyRendererRef.current = enemyRenderer;
+      }
     
     // Brighter lighting - can see the arena clearly
     const ambientLight = new THREE.AmbientLight(0x404060, 0.7);
@@ -780,9 +810,25 @@ export default function WizardWarzGame({
     playerWizard.position.copy(playerPositionRef.current);
     playerWizardRef.current = playerWizard;
     
+    // Create player username label
+    const playerUsername = user?.email?.split('@')[0] || 'Guest';
+    const playerLabel = createUsernameLabel(playerUsername, 0x00aaff);
+    playerLabel.position.copy(playerPositionRef.current);
+    playerLabel.position.y = 4.5;
+    scene.add(playerLabel);
+    playerNameLabelRef.current = playerLabel;
+    
     const opponentWizard = createWizard(scene, 0xff4400, false);
     opponentWizard.position.copy(opponentPositionRef.current);
     opponentWizardRef.current = opponentWizard;
+    
+    // Create opponent username label (AI or opponent name)
+    const opponentUsername = gameMode === 'solo' ? 'AI' : (lobby.opponent?.username || 'Enemy');
+    const opponentLabel = createUsernameLabel(opponentUsername, 0xff4400);
+    opponentLabel.position.copy(opponentPositionRef.current);
+    opponentLabel.position.y = 4.5;
+    scene.add(opponentLabel);
+    opponentNameLabelRef.current = opponentLabel;
     
     // ENEMY INDICATOR - Big red arrow floating above enemy
     const enemyIndicatorGroup = new THREE.Group();
@@ -1050,6 +1096,25 @@ export default function WizardWarzGame({
         enemyIndicator.position.z = opponentWizardRef.current.position.z;
         enemyIndicator.position.y = 10 + Math.sin(currentTime * 0.003) * 1.5; // Bob up/down
         enemyIndicator.rotation.y += 0.02; // Spin slowly
+      }
+      
+      // Update username labels to follow wizards
+      if (playerNameLabelRef.current && playerWizardRef.current) {
+        playerNameLabelRef.current.position.copy(playerWizardRef.current.position);
+        playerNameLabelRef.current.position.y = 4.5;
+        // Make label always face camera
+        if (cameraRef.current) {
+          playerNameLabelRef.current.lookAt(cameraRef.current.position);
+        }
+      }
+      
+      if (opponentNameLabelRef.current && opponentWizardRef.current) {
+        opponentNameLabelRef.current.position.copy(opponentWizardRef.current.position);
+        opponentNameLabelRef.current.position.y = 4.5;
+        // Make label always face camera
+        if (cameraRef.current) {
+          opponentNameLabelRef.current.lookAt(cameraRef.current.position);
+        }
       }
       
       // MAIN CAMERA TRACKING - Overhead zoom view, locked on enemy
@@ -1470,10 +1535,10 @@ export default function WizardWarzGame({
     <div className="fixed inset-0 z-50 bg-gray-900 overflow-hidden">
       <div ref={containerRef} className="absolute inset-0" />
       
-      {/* Enemy View Sub-Screen - Top Right Corner */}
+      {/* Enemy View Sub-Screen - Top Right Corner - BIGGER */}
       {gameState === 'playing' && (
-        <div className="absolute top-20 right-4 z-40 w-[200px] h-[150px] bg-black/90 border-2 border-orange-500/50 rounded-lg overflow-hidden shadow-2xl">
-          <div className="absolute top-1 left-2 text-xs text-orange-400 font-bold">ENEMY VIEW</div>
+        <div className="absolute top-20 right-4 z-40 w-[350px] h-[260px] bg-black/90 border-2 border-orange-500/50 rounded-lg overflow-hidden shadow-2xl">
+          <div className="absolute top-1 left-2 text-sm text-orange-400 font-bold z-10">ENEMY VIEW</div>
           <div ref={enemyViewRef} className="absolute inset-0" />
         </div>
       )}
