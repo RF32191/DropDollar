@@ -454,7 +454,13 @@ export default function NeonRailRunnerGame({
     boardShape.bezierCurveTo(-0.4, 0.1, 0.4, 0.1, 0.4, 0);
     boardShape.bezierCurveTo(0.4, -0.1, -0.4, -0.1, -0.4, 0);
     
-    const boardGeometry = new THREE.ExtrudeGeometry(boardShape, { depth: 1.6, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05 });
+    const boardGeometry = new THREE.ExtrudeGeometry(boardShape, { 
+      depth: 1.8, 
+      bevelEnabled: true, 
+      bevelThickness: 0.08, 
+      bevelSize: 0.08,
+      curveSegments: 32 // Higher quality curves for better graphics
+    });
     boardGeometry.rotateX(Math.PI / 2);
     boardGeometry.translate(0, 0, -0.8);
     
