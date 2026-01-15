@@ -653,7 +653,13 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
   const updateAI = useCallback((now: number) => {
     const ai = aiPlayerRef.current;
     const player = localPlayerRef.current;
-    if (!ai || !ai.isAlive) return;
+    if (!ai || !ai.isAlive || !player || !player.isAlive) {
+      // If AI doesn't exist but should, recreate it
+      if (gameMode === 'ai' && !ai && sceneRef.current) {
+        createAIPlayer();
+      }
+      return;
+    }
     
     // AI thinks every interval
     if (now - aiLastActionRef.current > AI_THINK_INTERVAL) {
@@ -1302,6 +1308,12 @@ const TILE_WARNING_DURATION = 800; // Time tile glows before falling
     aiLastActionRef.current = 0;
     aiLastShootRef.current = 0;
     clockRef.current = new THREE.Clock();
+    
+    // Clear AI player if it exists
+    if (aiPlayerRef.current?.mesh && sceneRef.current) {
+      sceneRef.current.remove(aiPlayerRef.current.mesh);
+      aiPlayerRef.current = null;
+    }
   }, [buildArena, initScene]);
 
   // Start solo game (practice - just you)
