@@ -977,15 +977,14 @@ export default function HotSellPage() {
   };
 
   const calculatePrizes = (config: HotSellConfig, currentPot: number) => {
-    // Calculate prizes based on FULL POOL (base_price), not current pot
-    // This shows what prizes WILL BE when pool is full
-    const fullPool = config.base_price;
+    // Calculate prizes based on CURRENT PRIZE POOL (actual amount collected)
+    // Prize percentages: 1st (50%) + 2nd (20%) + 3rd (15%) + Platform Fee (15%) = 100%
+    const prizePool = currentPot || 0;
     
-    // Prize percentages (50% + 20% + 15% + 15% = 100%)
-    const firstPlace = fullPool * 0.50;   // 50%
-    const secondPlace = fullPool * 0.20;  // 20%
-    const thirdPlace = fullPool * 0.15;   // 15%
-    const platformFee = fullPool * 0.15;  // 15%
+    const firstPlace = prizePool * 0.50;   // 50% for 1st place
+    const secondPlace = prizePool * 0.20;  // 20% for 2nd place
+    const thirdPlace = prizePool * 0.15;   // 15% for 3rd place
+    const platformFee = prizePool * 0.15;  // 15% platform fee
     
     return {
       firstPlace,
@@ -1401,24 +1400,27 @@ export default function HotSellPage() {
                   <TrophyIcon className="w-8 h-8 text-yellow-400" />
                 </div>
 
-                {/* Prize Breakdown */}
-                <div className="mb-4 space-y-2">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-orange-300">🥇 1st Place (50%)</span>
-                    <span className="text-yellow-400 font-bold">{formatAmount(prizes.firstPlace)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-orange-300">🥈 2nd Place (20%)</span>
-                    <span className="text-gray-300 font-bold">{formatAmount(prizes.secondPlace)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-orange-300">🥉 3rd Place (15%)</span>
-                    <span className="text-orange-400 font-bold">{formatAmount(prizes.thirdPlace)}</span>
-                  </div>
-                  <div className="border-t border-orange-500/30 pt-2 mt-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-orange-400">Platform Fee (15%)</span>
-                      <span className="text-red-300">-{formatAmount(prizes.platformFee)}</span>
+                {/* Prize Breakdown - Based on Current Prize Pool */}
+                <div className="mb-4 p-3 bg-black/30 rounded-lg border border-orange-500/20">
+                  <div className="text-xs font-semibold text-orange-300 mb-2 text-center">💰 Prize Distribution</div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-yellow-300">🥇 1st Place (50%)</span>
+                      <span className="text-yellow-400 font-bold">{formatAmount((session?.prize_pool || 0) * 0.50)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-300">🥈 2nd Place (20%)</span>
+                      <span className="text-gray-300 font-bold">{formatAmount((session?.prize_pool || 0) * 0.20)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-orange-300">🥉 3rd Place (15%)</span>
+                      <span className="text-orange-400 font-bold">{formatAmount((session?.prize_pool || 0) * 0.15)}</span>
+                    </div>
+                    <div className="border-t border-orange-500/30 pt-1.5 mt-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-red-300">Platform Fee (-15%)</span>
+                        <span className="text-red-300 font-bold">-{formatAmount((session?.prize_pool || 0) * 0.15)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
