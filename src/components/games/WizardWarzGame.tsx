@@ -481,36 +481,63 @@ export default function WizardWarzGame({
   
   // Create castle environment (HUGE ARENA)
   const createCastleEnvironment = useCallback((scene: THREE.Scene) => {
-    // Stone floor (HUGE - 70 radius)
+    // Concrete tile floor base (HUGE - 70 radius)
     const floorGeo = new THREE.CircleGeometry(70, 64);
     const floorMat = new THREE.MeshStandardMaterial({ 
-      color: 0x4a4a4a,
-      roughness: 0.9,
-      metalness: 0.1
+      color: 0x6a6a6a, // Lighter gray for concrete
+      roughness: 0.7,
+      metalness: 0.05
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
     
-    // Floor pattern - stone tiles (HUGE AREA)
-    for (let x = -65; x <= 65; x += 4) {
-      for (let z = -65; z <= 65; z += 4) {
+    // Concrete tile pattern - realistic concrete tiles with grout lines (HUGE AREA)
+    const tileSize = 4;
+    const groutWidth = 0.1;
+    const tileHeight = 0.15;
+    
+    for (let x = -65; x <= 65; x += tileSize) {
+      for (let z = -65; z <= 65; z += tileSize) {
         if (Math.sqrt(x*x + z*z) < 68) {
-          const tileGeo = new THREE.BoxGeometry(3.8, 0.1, 3.8);
+          // Concrete tile - slightly varied colors for realism
+          const tileGeo = new THREE.BoxGeometry(tileSize - groutWidth, tileHeight, tileSize - groutWidth);
+          const baseColor = 0x7a7a7a; // Concrete gray
+          const variation = (Math.random() - 0.5) * 0x151515; // Slight color variation
           const tileMat = new THREE.MeshStandardMaterial({ 
-            color: 0x3a3a3a + Math.random() * 0x101010,
-            roughness: 0.95
+            color: baseColor + variation,
+            roughness: 0.6, // Slightly shiny concrete
+            metalness: 0.1
           });
           const tile = new THREE.Mesh(tileGeo, tileMat);
-          tile.position.set(x, 0.05, z);
+          tile.position.set(x, tileHeight / 2, z);
+          tile.castShadow = true;
+          tile.receiveShadow = true;
           scene.add(tile);
+          
+          // Grout lines (darker lines between tiles)
+          if (Math.random() > 0.3) { // Not all tiles need grout for performance
+            const groutGeo = new THREE.BoxGeometry(groutWidth, tileHeight * 0.5, tileSize);
+            const groutMat = new THREE.MeshStandardMaterial({ 
+              color: 0x4a4a4a, // Dark gray grout
+              roughness: 0.9
+            });
+            // Vertical grout
+            const groutV = new THREE.Mesh(groutGeo, groutMat);
+            groutV.position.set(x + tileSize/2, tileHeight * 0.25, z);
+            scene.add(groutV);
+            // Horizontal grout
+            const groutH = new THREE.Mesh(new THREE.BoxGeometry(tileSize, tileHeight * 0.5, groutWidth), groutMat);
+            groutH.position.set(x, tileHeight * 0.25, z + tileSize/2);
+            scene.add(groutH);
+          }
         }
       }
     }
     
-    // Castle walls (HUGE)
-    const wallHeight = 20;
+    // Castle walls (HUGE) - Stone castle walls
+    const wallHeight = 22;
     const wallRadius = 72;
     const wallSegments = 48;
     
@@ -519,15 +546,18 @@ export default function WizardWarzGame({
       const x = Math.cos(angle) * wallRadius;
       const z = Math.sin(angle) * wallRadius;
       
-      // Wall segment
-      const wallGeo = new THREE.BoxGeometry(5.5, wallHeight, 1.5);
+      // Wall segment - stone texture
+      const wallGeo = new THREE.BoxGeometry(5.5, wallHeight, 1.8);
       const wallMat = new THREE.MeshStandardMaterial({ 
-        color: 0x5a5a5a,
-        roughness: 0.85
+        color: 0x6a5a4a, // Stone color
+        roughness: 0.9,
+        metalness: 0.05
       });
       const wall = new THREE.Mesh(wallGeo, wallMat);
       wall.position.set(x, wallHeight / 2, z);
       wall.rotation.y = angle + Math.PI / 2;
+      wall.castShadow = true;
+      wall.receiveShadow = true;
       scene.add(wall);
       
       // Battlements (crenellations)
@@ -550,18 +580,28 @@ export default function WizardWarzGame({
       const x = Math.cos(angle) * wallRadius;
       const z = Math.sin(angle) * wallRadius;
       
-      // Tower base
+      // Tower base - stone castle tower
       const towerGeo = new THREE.CylinderGeometry(3, 3.5, wallHeight + 4, 12);
-      const towerMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.8 });
+      const towerMat = new THREE.MeshStandardMaterial({ 
+        color: 0x6a5a4a, // Stone color matching walls
+        roughness: 0.9,
+        metalness: 0.05
+      });
       const tower = new THREE.Mesh(towerGeo, towerMat);
       tower.position.set(x, (wallHeight + 4) / 2, z);
+      tower.castShadow = true;
+      tower.receiveShadow = true;
       scene.add(tower);
       
-      // Tower roof
+      // Tower roof - dark stone/conical roof
       const roofGeo = new THREE.ConeGeometry(3.5, 5, 12);
-      const roofMat = new THREE.MeshStandardMaterial({ color: 0x2a1a1a, roughness: 0.7 });
+      const roofMat = new THREE.MeshStandardMaterial({ 
+        color: 0x3a2a1a, // Darker stone for roof
+        roughness: 0.8 
+      });
       const roof = new THREE.Mesh(roofGeo, roofMat);
       roof.position.set(x, wallHeight + 6.5, z);
+      roof.castShadow = true;
       scene.add(roof);
       
       // Tower windows with glow
@@ -963,12 +1003,22 @@ export default function WizardWarzGame({
         spell.mesh.rotation.x += 0.05;
         spell.mesh.rotation.y += 0.05;
         
-        // Check collision
+        // Check collision - use actual wizard positions, not ref positions
         const isPlayerSpell = spell.ownerId === userIdRef.current;
-        const targetPos = isPlayerSpell ? opponentPositionRef.current : playerPositionRef.current;
+        let targetPos: THREE.Vector3;
+        if (isPlayerSpell) {
+          // Player spell hitting opponent
+          targetPos = opponentWizardRef.current?.position.clone() || opponentPositionRef.current.clone();
+        } else {
+          // Enemy spell hitting player
+          targetPos = playerWizardRef.current?.position.clone() || playerPositionRef.current.clone();
+        }
+        // Set Y to match spell Y for better collision
+        targetPos.y = spell.position.y;
         const dist = spell.position.distanceTo(targetPos);
         
-        if (dist < 1.8) {
+        // Increased collision radius from 1.8 to 3.0 for better hit detection
+        if (dist < 3.0) {
           if (!isPlayerSpell) {
             // Spell hitting PLAYER
             // Check teleport invincibility
