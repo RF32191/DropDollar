@@ -763,9 +763,11 @@ export default function WizardWarzGame({
     scene.fog = new THREE.Fog(0x1a1025, 100, 200); // Push fog way back for huge arena
     sceneRef.current = scene;
     
-    // Main camera - focused on player wizard, looking forward from player's perspective
+    // Main camera - focused on showing both players
     const camera = new THREE.PerspectiveCamera(70, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
-    camera.position.set(0, 8, 15); // Behind and above player, will be updated dynamically
+    // Start camera positioned to see both players
+    camera.position.set(0, 18, 15); // Overhead view, will be updated dynamically
+    camera.lookAt(0, 0, 0); // Look at center initially
     cameraRef.current = camera;
     
     // Enemy view camera for sub-screen - focused on opponent wizard (bigger size)
@@ -1133,9 +1135,10 @@ export default function WizardWarzGame({
           .addVectors(playerPos, opponentPos)
           .multiplyScalar(0.5);
         
-        // Position camera almost overhead, zoomed in
-        const cameraHeight = 25; // Overhead height
-        const zoomDistance = 18; // Zoomed in closer
+        // Position camera to show both players clearly
+        // Lower height and closer distance to see player better
+        const cameraHeight = 18; // Lower overhead height to see player better
+        const zoomDistance = 15; // Closer zoom to see player better
         const targetCamPos = new THREE.Vector3(
           midpoint.x,
           cameraHeight,
@@ -1145,10 +1148,10 @@ export default function WizardWarzGame({
         // Smooth camera movement
         camera.position.lerp(targetCamPos, 0.05);
         
-        // Lock camera on enemy (primary focus)
-        const lookAtEnemy = opponentPos.clone();
-        lookAtEnemy.y = 3; // Look at wizard height
-        camera.lookAt(lookAtEnemy);
+        // Look at midpoint between player and enemy so both are visible
+        const lookAtPoint = midpoint.clone();
+        lookAtPoint.y = 3; // Look at wizard height
+        camera.lookAt(lookAtPoint);
       }
       
       // ENEMY VIEW CAMERA - Sub-screen showing opponent wizard
