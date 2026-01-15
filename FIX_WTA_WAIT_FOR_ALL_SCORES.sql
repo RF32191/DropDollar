@@ -33,31 +33,55 @@ DECLARE
 BEGIN
     RAISE NOTICE '🏆 [WTA PAYOUT] Starting payout for config: %', config_id_param;
     
-    -- Get active session - try multiple ways to match config_id
+    -- Get active session - properly handle TEXT/UUID conversion
+    -- First, try to match as TEXT (most common case)
     SELECT * INTO v_session
     FROM public.winner_takes_all_sessions
-    WHERE (
-        config_id::TEXT = config_id_param::TEXT
-        OR config_id = config_id_param::UUID
-        OR config_id::TEXT = config_id_param
-    )
+    WHERE config_id::TEXT = config_id_param::TEXT
     AND status IN ('active', 'waiting', 'completed')
     ORDER BY created_at DESC
     LIMIT 1
     FOR UPDATE;
     
-    -- If still not found, try without status filter
+    -- If not found, try matching as UUID (if config_id is UUID type)
+    IF NOT FOUND THEN
+        BEGIN
+            SELECT * INTO v_session
+            FROM public.winner_takes_all_sessions
+            WHERE config_id = config_id_param::UUID
+            AND status IN ('active', 'waiting', 'completed')
+            ORDER BY created_at DESC
+            LIMIT 1
+            FOR UPDATE;
+        EXCEPTION WHEN OTHERS THEN
+            -- If UUID cast fails, continue to next attempt
+            NULL;
+        END;
+    END IF;
+    
+    -- If still not found, try without status filter (TEXT match)
     IF NOT FOUND THEN
         SELECT * INTO v_session
         FROM public.winner_takes_all_sessions
-        WHERE (
-            config_id::TEXT = config_id_param::TEXT
-            OR config_id = config_id_param::UUID
-            OR config_id::TEXT = config_id_param
-        )
+        WHERE config_id::TEXT = config_id_param::TEXT
         ORDER BY created_at DESC
         LIMIT 1
         FOR UPDATE;
+    END IF;
+    
+    -- Last attempt: try UUID match without status filter
+    IF NOT FOUND THEN
+        BEGIN
+            SELECT * INTO v_session
+            FROM public.winner_takes_all_sessions
+            WHERE config_id = config_id_param::UUID
+            ORDER BY created_at DESC
+            LIMIT 1
+            FOR UPDATE;
+        EXCEPTION WHEN OTHERS THEN
+            -- If UUID cast fails, v_session will remain NULL
+            NULL;
+        END;
     END IF;
     
     IF NOT FOUND THEN

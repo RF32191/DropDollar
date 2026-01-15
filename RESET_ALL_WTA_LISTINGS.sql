@@ -10,7 +10,7 @@
 DELETE FROM public.winner_takes_all_participants;
 
 -- ============================================================================
--- STEP 2: Reset all WTA sessions
+-- STEP 2: Reset all WTA sessions (clear all fields)
 -- ============================================================================
 UPDATE public.winner_takes_all_sessions
 SET 
@@ -19,10 +19,14 @@ SET
     current_pot = 0,
     prize_pool = 0,
     timer_started_at = NULL,
+    timer_duration = NULL,
     winner_user_id = NULL,
     winner_prize = NULL,
+    prize_amount = NULL,
     platform_fee = NULL,
+    platform_fee_amount = NULL,
     completed_at = NULL,
+    rng_seed = floor(random() * 99999 + 1)::integer,
     updated_at = NOW();
 
 -- ============================================================================
