@@ -794,8 +794,8 @@ export default function WizardWarzGame({
     if (!containerRef.current || gameState !== 'playing') return;
     
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1025); // Dark purple, not pitch black
-    scene.fog = new THREE.Fog(0x1a1025, 100, 200); // Push fog way back for huge arena
+    scene.background = new THREE.Color(0x0a0a15); // Very dark background
+    scene.fog = new THREE.Fog(0x0a0a15, 80, 180); // Darker fog for moodier atmosphere
     sceneRef.current = scene;
     
     // Main camera - split screen view showing both players
@@ -817,8 +817,8 @@ export default function WizardWarzGame({
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Enemy view renderer for sub-screen (bigger size) - create after a small delay to ensure DOM is ready
-    setTimeout(() => {
+    // Enemy view renderer for sub-screen (bigger size) - create immediately and retry if needed
+    const initEnemyRenderer = () => {
       if (enemyViewRef.current && !enemyRendererRef.current) {
         const enemyRenderer = new THREE.WebGLRenderer({ antialias: true });
         enemyRenderer.setSize(350, 260);
@@ -826,8 +826,21 @@ export default function WizardWarzGame({
         enemyRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
         enemyViewRef.current.appendChild(enemyRenderer.domElement);
         enemyRendererRef.current = enemyRenderer;
+        return true;
       }
-    }, 100);
+      return false;
+    };
+    
+    // Try immediately, then retry after delay if needed
+    if (!initEnemyRenderer()) {
+      setTimeout(() => {
+        initEnemyRenderer();
+      }, 100);
+      // Also retry after a longer delay in case DOM isn't ready
+      setTimeout(() => {
+        initEnemyRenderer();
+      }, 500);
+    }
     
     // Darker, moodier lighting for darker castle aesthetic
     const ambientLight = new THREE.AmbientLight(0x1a1a2a, 0.3); // Much darker ambient
