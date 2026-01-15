@@ -245,7 +245,7 @@ SELECT
   generate_deterministic_rng_seed(id::TEXT) as deterministic_seed,
   rng_seed as current_seed,
   CASE 
-    WHEN rng_seed = generate_deterministic_rng_seed(id) THEN '✅ Match'
+    WHEN rng_seed = generate_deterministic_rng_seed(id::TEXT) THEN '✅ Match'
     ELSE '⚠️ Mismatch'
   END as seed_status
 FROM public.hot_sell_sessions
@@ -258,7 +258,7 @@ SELECT
   generate_deterministic_rng_seed(id::TEXT) as deterministic_seed,
   rng_seed as current_seed,
   CASE 
-    WHEN rng_seed = generate_deterministic_rng_seed(id) THEN '✅ Match'
+    WHEN rng_seed = generate_deterministic_rng_seed(id::TEXT) THEN '✅ Match'
     ELSE '⚠️ Mismatch'
   END as seed_status
 FROM public.winner_takes_all_sessions
@@ -271,7 +271,7 @@ SELECT
   generate_deterministic_rng_seed(id::TEXT) as deterministic_seed,
   rng_seed as current_seed,
   CASE 
-    WHEN rng_seed = generate_deterministic_rng_seed(id) THEN '✅ Match'
+    WHEN rng_seed = generate_deterministic_rng_seed(id::TEXT) THEN '✅ Match'
     ELSE '⚠️ Mismatch'
   END as seed_status
 FROM public.one_v_one_sessions
