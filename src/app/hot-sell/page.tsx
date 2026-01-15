@@ -16,6 +16,7 @@ import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import LazyVideo from '@/components/video/LazyVideo';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
+import { getRngSeedForSession } from '@/lib/deterministicSeedGenerator';
 import {
   FireIcon,
   TrophyIcon,
