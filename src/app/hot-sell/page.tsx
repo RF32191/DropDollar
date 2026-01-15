@@ -1480,7 +1480,7 @@ export default function HotSellPage() {
                         : 'Waiting for first player'}
                     </p>
                     
-                    {/* Prize Breakdown - Based on actual current pool */}
+                    {/* Prize Breakdown - Based on Base Price (Listing Price) */}
                     <div className="bg-black/30 rounded-lg p-3 mb-2">
                       <div className="space-y-1.5 text-xs">
                         {/* 1st Place */}
@@ -1490,7 +1490,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">1st Place (50%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount((session?.prize_pool || 0) * 0.50)}
+                            {formatAmount(session?.first_place_prize ?? (config.base_price * 0.50))}
                           </span>
                         </div>
                         
@@ -1501,7 +1501,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">2nd Place (20%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount((session?.prize_pool || 0) * 0.20)}
+                            {formatAmount(session?.second_place_prize ?? (config.base_price * 0.20))}
                           </span>
                         </div>
                         
@@ -1512,7 +1512,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">3rd Place (15%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount((session?.prize_pool || 0) * 0.15)}
+                            {formatAmount(session?.third_place_prize ?? (config.base_price * 0.15))}
                           </span>
                         </div>
                         
@@ -1520,7 +1520,7 @@ export default function HotSellPage() {
                         <div className="flex justify-between items-center pt-1.5 border-t border-yellow-500/30">
                           <span className="text-red-300 text-[10px]">Platform Fee (-15%)</span>
                           <span className="font-bold text-red-300">
-                            -{formatAmount((session?.prize_pool || 0) * 0.15)}
+                            -{formatAmount(session?.platform_fee ?? (config.base_price * 0.15))}
                           </span>
                         </div>
                       </div>
