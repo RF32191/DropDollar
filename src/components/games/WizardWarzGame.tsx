@@ -108,9 +108,12 @@ export default function WizardWarzGame({
   
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
+  const enemyViewRef = useRef<HTMLDivElement>(null); // Sub-screen for enemy view
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const enemyCameraRef = useRef<THREE.PerspectiveCamera | null>(null); // Camera for enemy sub-screen
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const enemyRendererRef = useRef<THREE.WebGLRenderer | null>(null); // Renderer for enemy sub-screen
   const playerWizardRef = useRef<THREE.Group | null>(null);
   const opponentWizardRef = useRef<THREE.Group | null>(null);
   const playerStaffRef = useRef<THREE.Group | null>(null);
@@ -727,11 +730,15 @@ export default function WizardWarzGame({
     scene.fog = new THREE.Fog(0x1a1025, 100, 200); // Push fog way back for huge arena
     sceneRef.current = scene;
     
-    // Camera tracks the enemy - positioned behind player looking at opponent
-    const camera = new THREE.PerspectiveCamera(75, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
-    camera.position.set(0, 30, 50); // Will be updated dynamically
-    camera.lookAt(opponentPositionRef.current);
+    // Main camera - focused on player wizard, looking forward from player's perspective
+    const camera = new THREE.PerspectiveCamera(70, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
+    camera.position.set(0, 8, 15); // Behind and above player, will be updated dynamically
     cameraRef.current = camera;
+    
+    // Enemy view camera for sub-screen - focused on opponent wizard
+    const enemyCamera = new THREE.PerspectiveCamera(60, 200 / 150, 0.1, 1000);
+    enemyCamera.position.set(0, 10, 20);
+    enemyCameraRef.current = enemyCamera;
     
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
@@ -739,6 +746,16 @@ export default function WizardWarzGame({
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+    
+    // Enemy view renderer for sub-screen
+    if (enemyViewRef.current) {
+      const enemyRenderer = new THREE.WebGLRenderer({ antialias: true });
+      enemyRenderer.setSize(200, 150);
+      enemyRenderer.shadowMap.enabled = true;
+      enemyRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      enemyViewRef.current.appendChild(enemyRenderer.domElement);
+      enemyRendererRef.current = enemyRenderer;
+    }
     
     // Brighter lighting - can see the arena clearly
     const ambientLight = new THREE.AmbientLight(0x404060, 0.7);
@@ -1035,31 +1052,56 @@ export default function WizardWarzGame({
         enemyIndicator.rotation.y += 0.02; // Spin slowly
       }
       
-      // CAMERA TRACKING - Always look at the enemy from behind player
-      if (cameraRef.current && playerWizardRef.current && opponentWizardRef.current) {
+      // MAIN CAMERA TRACKING - Focused on player wizard, looking forward from player's perspective
+      if (cameraRef.current && playerWizardRef.current) {
+        const camera = cameraRef.current;
         const playerPos = playerWizardRef.current.position;
-        const opponentPos = opponentWizardRef.current.position;
+        const playerRotation = playerWizardRef.current.rotation.y;
         
-        // Calculate direction from player to opponent
-        const dirToOpponent = new THREE.Vector3()
-          .subVectors(opponentPos, playerPos)
-          .normalize();
-        
-        // Position camera behind and above player, looking toward opponent
-        const cameraOffset = dirToOpponent.clone().multiplyScalar(-25); // Behind player
+        // Position camera behind and above player wizard
+        const cameraDistance = 12; // Closer for better view
+        const cameraHeight = 6; // Lower for better view of action
         const targetCamPos = new THREE.Vector3(
-          playerPos.x + cameraOffset.x,
-          35, // Fixed height above
-          playerPos.z + cameraOffset.z + 20 // Slightly behind
+          playerPos.x - Math.sin(playerRotation) * cameraDistance,
+          playerPos.y + cameraHeight,
+          playerPos.z - Math.cos(playerRotation) * cameraDistance
         );
         
         // Smooth camera movement
-        camera.position.lerp(targetCamPos, 0.03);
+        camera.position.lerp(targetCamPos, 0.05);
         
-        // Always look at opponent
-        const lookTarget = opponentPos.clone();
-        lookTarget.y = 3; // Look at wizard height
-        camera.lookAt(lookTarget);
+        // Look forward from player's perspective (slightly ahead of player)
+        const lookAhead = new THREE.Vector3(
+          playerPos.x - Math.sin(playerRotation) * 5,
+          playerPos.y + 2,
+          playerPos.z - Math.cos(playerRotation) * 5
+        );
+        camera.lookAt(lookAhead);
+      }
+      
+      // ENEMY VIEW CAMERA - Sub-screen showing opponent wizard
+      if (enemyCameraRef.current && opponentWizardRef.current && enemyRendererRef.current && sceneRef.current) {
+        const enemyCamera = enemyCameraRef.current;
+        const enemyRenderer = enemyRendererRef.current;
+        const opponentPos = opponentWizardRef.current.position;
+        
+        // Position camera to view opponent from side/above
+        const enemyCamPos = new THREE.Vector3(
+          opponentPos.x + 8,
+          opponentPos.y + 8,
+          opponentPos.z + 8
+        );
+        
+        // Smooth camera movement
+        enemyCamera.position.lerp(enemyCamPos, 0.05);
+        
+        // Look at opponent wizard
+        const lookAtOpponent = opponentPos.clone();
+        lookAtOpponent.y = 3; // Look at wizard height
+        enemyCamera.lookAt(lookAtOpponent);
+        
+        // Render enemy view
+        enemyRenderer.render(sceneRef.current, enemyCamera);
       }
       
       // Update spell cooldown
@@ -1170,7 +1212,10 @@ export default function WizardWarzGame({
         }
       }
       
-      renderer.render(scene, camera);
+      // Render main view
+      if (rendererRef.current && cameraRef.current) {
+        rendererRef.current.render(scene, cameraRef.current);
+      }
     };
     
     animate();
@@ -1422,6 +1467,14 @@ export default function WizardWarzGame({
   return (
     <div className="fixed inset-0 z-50 bg-gray-900 overflow-hidden">
       <div ref={containerRef} className="absolute inset-0" />
+      
+      {/* Enemy View Sub-Screen - Top Right Corner */}
+      {gameState === 'playing' && (
+        <div className="absolute top-20 right-4 z-40 w-[200px] h-[150px] bg-black/90 border-2 border-orange-500/50 rounded-lg overflow-hidden shadow-2xl">
+          <div className="absolute top-1 left-2 text-xs text-orange-400 font-bold">ENEMY VIEW</div>
+          <div ref={enemyViewRef} className="absolute inset-0" />
+        </div>
+      )}
       
       {/* HUD */}
       {gameState === 'playing' && (
