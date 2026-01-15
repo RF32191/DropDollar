@@ -805,40 +805,38 @@ export default function OneVOnePage() {
           )}
 
           {/* Device Filter - Mobile/Desktop/All */}
-          {!loadingConfigs && (
-            <div className="mb-6 flex flex-wrap gap-3 justify-center">
-              <button
-                onClick={() => setDeviceFilter('all')}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
-                  getCurrentDeviceFilter() === 'all'
-                    ? 'bg-blue-500 text-white shadow-lg scale-105'
-                    : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
-                }`}
-              >
-                📱💻 All Devices ({configs.length})
-              </button>
-              <button
-                onClick={() => setDeviceFilter('mobile')}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
-                  getCurrentDeviceFilter() === 'mobile'
-                    ? 'bg-green-500 text-white shadow-lg scale-105'
-                    : 'bg-green-800/50 text-green-200 hover:bg-green-700/50'
-                }`}
-              >
-                📱 Mobile ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && MOBILE_COMPATIBLE_GAMES.includes(c.game_type)).length : 0})
-              </button>
-              <button
-                onClick={() => setDeviceFilter('desktop')}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
-                  getCurrentDeviceFilter() === 'desktop'
-                    ? 'bg-purple-500 text-white shadow-lg scale-105'
-                    : 'bg-purple-800/50 text-purple-200 hover:bg-purple-700/50'
-                }`}
-              >
-                💻 Desktop ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && (!MOBILE_COMPATIBLE_GAMES.includes(c.game_type) || DESKTOP_ONLY_GAMES.includes(c.game_type))).length : 0})
-              </button>
-            </div>
-          )}
+          <div className="mb-6 flex flex-wrap gap-3 justify-center">
+            <button
+              onClick={() => setDeviceFilter('all')}
+              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                getCurrentDeviceFilter() === 'all'
+                  ? 'bg-blue-500 text-white shadow-lg scale-105'
+                  : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
+              }`}
+            >
+              📱💻 All Devices ({Array.isArray(configs) ? configs.length : 0})
+            </button>
+            <button
+              onClick={() => setDeviceFilter('mobile')}
+              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                getCurrentDeviceFilter() === 'mobile'
+                  ? 'bg-green-500 text-white shadow-lg scale-105'
+                  : 'bg-green-800/50 text-green-200 hover:bg-green-700/50'
+              }`}
+            >
+              📱 Mobile ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && MOBILE_COMPATIBLE_GAMES.includes(c.game_type)).length : 0})
+            </button>
+            <button
+              onClick={() => setDeviceFilter('desktop')}
+              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                getCurrentDeviceFilter() === 'desktop'
+                  ? 'bg-purple-500 text-white shadow-lg scale-105'
+                  : 'bg-purple-800/50 text-purple-200 hover:bg-purple-700/50'
+              }`}
+            >
+              💻 Desktop ({Array.isArray(deviceFilteredConfigs) ? deviceFilteredConfigs.filter(c => c && (!MOBILE_COMPATIBLE_GAMES.includes(c.game_type) || DESKTOP_ONLY_GAMES.includes(c.game_type))).length : 0})
+            </button>
+          </div>
 
           {/* Game Filter */}
           {!loadingConfigs && Array.isArray(deviceFilteredConfigs) && deviceFilteredConfigs.length > 0 && (
