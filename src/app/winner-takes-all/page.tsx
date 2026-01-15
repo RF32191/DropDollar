@@ -18,6 +18,7 @@ import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import LazyVideo from '@/components/video/LazyVideo';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useRouter } from 'next/navigation';
+import { getRngSeedForSession } from '@/lib/deterministicSeedGenerator';
 import {
   TrophyIcon,
   ClockIcon,
@@ -42,11 +43,13 @@ interface WinnerTakesAllSession {
   winner_user_id: string | null;
   winner_username?: string | null;
   winner_prize?: number | null;
+  winner_score?: number | null;
   prize_amount: number | null;
   platform_fee: number | null;
   completed_at?: string | null;
   created_at: string;
   updated_at: string;
+  rng_seed?: number; // RNG seed for deterministic gameplay
   participants: Array<{
     id: string;
     user_id: string;
@@ -439,31 +442,14 @@ export default function WinnerTakesAllPage() {
         setConfigs(fallbackConfigs);
       } else if (data && data.length > 0) {
         console.log(`✅ [Winner Takes All] Loaded ${data.length} configs from database`);
-        // Filter out laser_dodge and other mobile-only games from desktop competitive
-        const filteredConfigs = (data as WinnerTakesAllConfig[]).filter(config => {
-          // Exclude laser_dodge and other games not suitable for competitive desktop play
-          const excludedGames = ['laser_dodge'];
-          return !excludedGames.includes(config.game_type);
-        });
-        console.log(`✅ [Winner Takes All] Filtered to ${filteredConfigs.length} desktop-compatible configs`);
-        setConfigs(filteredConfigs);
+        setConfigs(data as WinnerTakesAllConfig[]);
       } else {
         console.warn('⚠️ [Winner Takes All] No configs found in DB, using fallback');
-        // Filter fallback configs too
-        const filteredFallback = fallbackConfigs.filter(config => {
-          const excludedGames = ['laser_dodge'];
-          return !excludedGames.includes(config.game_type);
-        });
-        setConfigs(filteredFallback);
+        setConfigs(fallbackConfigs);
       }
     } catch (err) {
       console.error('❌ [Winner Takes All] Error loading configs:', err);
-      // Filter fallback configs on error too
-      const filteredFallback = fallbackConfigs.filter(config => {
-        const excludedGames = ['laser_dodge'];
-        return !excludedGames.includes(config.game_type);
-      });
-      setConfigs(filteredFallback);
+      setConfigs(fallbackConfigs);
     } finally {
       setLoadingConfigs(false);
     }
@@ -886,6 +872,25 @@ export default function WinnerTakesAllPage() {
       if (error) {
         console.error('❌ [Winner Takes All] Payout error:', error);
         setMessage({ type: 'error', text: `Payout failed: ${error.message}` });
+      } else if (data && data.grace_period) {
+        // Grace period - waiting for all scores to be recorded
+        console.log('⏳ [Winner Takes All] Grace period active:', data);
+        setMessage({ 
+          type: 'info', 
+          text: `⏳ Waiting for all players to finish... (${data.scores_recorded}/${data.total_participants} scores recorded). Please wait ${Math.round(data.time_remaining)} more seconds.` 
+        });
+        
+        // Reload sessions to get updated scores
+        setTimeout(() => {
+          loadSessions();
+        }, 2000); // Check again in 2 seconds
+        
+        // Retry payout after grace period
+        setTimeout(() => {
+          handleManualPayout(configId);
+        }, (data.time_remaining + 1) * 1000);
+        
+        return;
       } else if (data && data.success) {
         console.log('✅ [Winner Takes All] Payout successful:', data);
         
@@ -1035,7 +1040,13 @@ export default function WinnerTakesAllPage() {
   // Render game flow view
   if (currentView === 'game' && selectedGameFlow) {
     const gameConfig = configs.find(c => c.id === selectedGameFlow.configId);
-    const rngSeed = gameConfig?.rng_seed || 1;
+    const session = sessions.find(s => s.id === selectedGameFlow.sessionId);
+    // Get RNG seed: session seed > deterministic from session ID > config seed > fallback
+    const rngSeed = getRngSeedForSession(
+      selectedGameFlow.sessionId,
+      session?.rng_seed,
+      gameConfig?.rng_seed
+    );
     
     return (
       <ErrorBoundary>
@@ -1065,8 +1076,8 @@ export default function WinnerTakesAllPage() {
   }
 
   // Define which games are mobile-compatible vs desktop-only
-  const MOBILE_COMPATIBLE_GAMES = ['laser_dodge', 'multi_target_reaction', 'sword_parry', 'quick_click', 'color_sequence', 'falling_object'];
-  const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack']; // Games that require mouse/precision
+  const MOBILE_COMPATIBLE_GAMES = ['multi_target_reaction', 'quick_click', 'color_sequence', 'falling_object'];
+  const DESKTOP_ONLY_GAMES = ['blade_bounce', 'cash_stack', 'laser_dodge', 'sword_parry']; // Games that require mouse/precision or work better on desktop
   
   // Filter configs by device compatibility
   const deviceFilteredConfigs = configs.filter(config => {
@@ -1098,12 +1109,13 @@ export default function WinnerTakesAllPage() {
     : sortedGames.filter(g => g === selectedGame);
 
   const GAME_NAMES: { [key: string]: string } = {
+    'multi_target_reaction': 'Multi-Target Reaction',
     'multi_target': 'Multi-Target Reaction',
     'falling_object': 'Falling Objects',
     'color_sequence': 'Color Sequence',
     'laser_dodge': 'Laser Dodge',
     'quick_click': 'Quick Click',
-    'sword_parry': 'Sword Parry',
+    'sword_parry': 'Sword Slash',
     'blade_bounce': 'Blade Bounce',
     'cash_stack': 'Cash Stack',
     'penny_passer': 'Penny Passer'
@@ -1380,9 +1392,63 @@ export default function WinnerTakesAllPage() {
                         <p className="text-4xl font-black text-red-100 mb-2 animate-pulse">
                           {formatTimeRemaining(timeRemaining.hours, timeRemaining.minutes, timeRemaining.seconds)}
                         </p>
-                        <p className="text-lg text-red-200 font-semibold animate-pulse">Timer started! Winner will be announced in 10 seconds!</p>
+                        <p className="text-lg text-red-200 font-semibold animate-pulse">Timer started! Winner will be announced after all scores are recorded!</p>
                         
                         {/* Auto-payout will trigger when timer expires - no manual button needed */}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Grace Period Scoreboard - Show when timer expired but payout hasn't happened yet */}
+                  {timeRemaining && timeRemaining.total <= 0 && session?.status !== 'completed' && session?.participants && session.participants.filter(p => p.score !== null && p.completed_at !== null).length > 0 && (
+                    <div className="mb-6 bg-gradient-to-r from-yellow-900/80 to-orange-900/80 border-4 border-yellow-400/80 rounded-lg p-6 shadow-2xl">
+                      <div className="flex items-center justify-center gap-3 mb-4">
+                        <ClockIcon className="w-8 h-8 text-yellow-400 animate-pulse" />
+                        <span className="text-2xl font-black text-yellow-300">⏳ RECORDING FINAL SCORES</span>
+                      </div>
+                      <p className="text-center text-yellow-200 mb-4 font-semibold">
+                        Timer expired! Waiting for all players to finish and save their scores...
+                      </p>
+                      <div className="bg-white/10 rounded-xl p-4">
+                        <h4 className="text-lg font-bold text-white mb-3 text-center">
+                          📊 Final Scoreboard ({session.participants.filter(p => p.score !== null && p.completed_at !== null).length} / {session.participants_count || 0} scores recorded)
+                        </h4>
+                        <div className="space-y-2">
+                          {session.participants
+                            .filter(p => p.score !== null && p.completed_at !== null)
+                            .sort((a, b) => (b.score || 0) - (a.score || 0))
+                            .map((participant, index) => {
+                              const isCurrentUser = participant.user_id === user?.id;
+                              const displayName = isCurrentUser ? 'You' : (participant.username || `Player ${index + 1}`);
+                              return (
+                                <div key={participant.id} className={`rounded-lg p-3 ${
+                                  index === 0 ? 'bg-gradient-to-r from-yellow-500/30 to-orange-500/30 border-2 border-yellow-400/50' :
+                                  isCurrentUser ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50' : 'bg-white/5'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                        index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-gray-600'
+                                      }`}>
+                                        <span className="text-sm font-bold text-white">{index + 1}</span>
+                                      </div>
+                                      <span className={`text-base ${index === 0 ? 'text-yellow-300 font-bold' : isCurrentUser ? 'text-purple-300 font-semibold' : 'text-white'}`}>
+                                        {displayName}
+                                      </span>
+                                    </div>
+                                    <span className={`text-lg font-bold ${index === 0 ? 'text-yellow-300' : isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
+                                      {participant.score}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                        {session.participants.filter(p => p.score === null || p.completed_at === null).length > 0 && (
+                          <div className="mt-4 text-center text-yellow-300 text-sm font-semibold">
+                            ⏳ {session.participants.filter(p => p.score === null || p.completed_at === null).length} player(s) still finishing...
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

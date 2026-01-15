@@ -15,6 +15,7 @@ import LocationVerificationModal from '@/components/modals/LocationVerificationM
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import LazyVideo from '@/components/video/LazyVideo';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
+import { getRngSeedForSession } from '@/lib/deterministicSeedGenerator';
 import {
   TrophyIcon,
   ClockIcon,
@@ -45,6 +46,7 @@ interface CoinPlaySession {
   winner_username?: string | null;
   completed_at?: string | null;
   created_at: string;
+  rng_seed?: number; // RNG seed for deterministic gameplay
 }
 
 interface Message {
@@ -774,6 +776,14 @@ export default function CoinPlayPage() {
   }
 
   if (currentView === 'game' && selectedGameFlow) {
+    // Get RNG seed: session seed > deterministic from session ID > fallback
+    const session = sessions.find(s => s.id === selectedGameFlow.sessionId);
+    const rngSeed = getRngSeedForSession(
+      selectedGameFlow.sessionId,
+      session?.rng_seed,
+      undefined // Coin Play doesn't have config rng_seed
+    );
+    
     return (
       <ErrorBoundary>
         <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-800 to-amber-900">
@@ -782,7 +792,7 @@ export default function CoinPlayPage() {
             gameType={selectedGameFlow.gameType}
             sessionId={selectedGameFlow.sessionId}
             configId={selectedGameFlow.configId}
-            rngSeed={1}
+            rngSeed={rngSeed}
             onComplete={(score: number) => handleGameComplete(score)}
             onCancel={handleExitGame}
           />

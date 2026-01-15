@@ -1109,9 +1109,13 @@ export default function HotSellPage() {
   if (currentView === 'game' && selectedGameFlow) {
     const gameConfig = configs.find(c => c.id === selectedGameFlow.configId);
     
-    // Get RNG seed from session first (most current), fallback to config, then generate random
+    // Get RNG seed: session seed > deterministic from session ID > config seed > fallback
     const session = sessions.find(s => s.id === selectedGameFlow.sessionId);
-    const rngSeed = session?.rng_seed || gameConfig?.rng_seed || Math.floor(Math.random() * 1000000) + 1;
+    const rngSeed = getRngSeedForSession(
+      selectedGameFlow.sessionId,
+      session?.rng_seed,
+      gameConfig?.rng_seed
+    );
     
     console.log('🎮 [Hot Sell] Starting game with RNG seed:', {
       sessionId: selectedGameFlow.sessionId,

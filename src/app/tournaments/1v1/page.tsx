@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { getRngSeedForSession } from '@/lib/deterministicSeedGenerator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
@@ -380,12 +381,17 @@ export default function OneVOnePage() {
       if (hasJoined) {
         // Already joined, start the game
         console.log('✅ [1v1] Already joined, starting game...');
+        const rngSeed = getRngSeedForSession(
+          session.id,
+          session.rng_seed,
+          config.rng_seed
+        );
         setSelectedGameFlow({
           gameType: config.game_type,
           sessionId: session.id,
           configId: config.id,
           entryFee: config.entry_fee,
-          rngSeed: config.rng_seed
+          rngSeed: rngSeed
         });
         setCurrentView('game');
         return;
@@ -421,13 +427,18 @@ export default function OneVOnePage() {
       await refreshTokens();
       await loadSessions();
       
-      // Start the game
+      // Start the game - use deterministic seed from session ID
+      const rngSeed = getRngSeedForSession(
+        session.id,
+        session.rng_seed,
+        config.rng_seed
+      );
       setSelectedGameFlow({
         gameType: config.game_type,
         sessionId: session.id,
         configId: config.id,
         entryFee: config.entry_fee,
-        rngSeed: config.rng_seed
+        rngSeed: rngSeed
       });
       setCurrentView('game');
       
