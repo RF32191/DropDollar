@@ -863,9 +863,9 @@ export default function OneVOnePage() {
           )}
 
           {/* 1v1 Games - Organized by Game Type */}
-          {!loadingConfigs && configs.length > 0 && filteredGameTypes.map(gameType => {
-            const gameConfigs = configs.filter(c => c.game_type === gameType);
-            if (gameConfigs.length === 0) return null;
+          {!loadingConfigs && Array.isArray(deviceFilteredConfigs) && deviceFilteredConfigs.length > 0 && Array.isArray(filteredGameTypes) && filteredGameTypes.map(gameType => {
+            const gameConfigs = (deviceFilteredConfigs || []).filter(c => c && c.game_type === gameType);
+            if (!gameConfigs || gameConfigs.length === 0) return null;
 
             const gameInfo = getGameInfo(gameType);
 
