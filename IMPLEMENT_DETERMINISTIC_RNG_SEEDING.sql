@@ -53,7 +53,69 @@ END;
 $$;
 
 -- ============================================================================
--- STEP 2: Update all existing sessions with deterministic seeds
+-- STEP 2: Add rng_seed columns if they don't exist
+-- ============================================================================
+
+-- Add rng_seed column to hot_sell_sessions if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'hot_sell_sessions' 
+    AND column_name = 'rng_seed'
+  ) THEN
+    ALTER TABLE public.hot_sell_sessions ADD COLUMN rng_seed INTEGER;
+    RAISE NOTICE '✅ Added rng_seed column to hot_sell_sessions';
+  END IF;
+END $$;
+
+-- Add rng_seed column to winner_takes_all_sessions if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'winner_takes_all_sessions' 
+    AND column_name = 'rng_seed'
+  ) THEN
+    ALTER TABLE public.winner_takes_all_sessions ADD COLUMN rng_seed INTEGER;
+    RAISE NOTICE '✅ Added rng_seed column to winner_takes_all_sessions';
+  END IF;
+END $$;
+
+-- Add rng_seed column to one_v_one_sessions if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'one_v_one_sessions' 
+    AND column_name = 'rng_seed'
+  ) THEN
+    ALTER TABLE public.one_v_one_sessions ADD COLUMN rng_seed INTEGER;
+    RAISE NOTICE '✅ Added rng_seed column to one_v_one_sessions';
+  END IF;
+END $$;
+
+-- Add rng_seed column to coin_play_sessions if it doesn't exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'coin_play_sessions') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'coin_play_sessions' 
+      AND column_name = 'rng_seed'
+    ) THEN
+      ALTER TABLE public.coin_play_sessions ADD COLUMN rng_seed INTEGER;
+      RAISE NOTICE '✅ Added rng_seed column to coin_play_sessions';
+    END IF;
+  END IF;
+END $$;
+
+-- ============================================================================
+-- STEP 3: Update all existing sessions with deterministic seeds
 -- ============================================================================
 
 -- Hot Sell Sessions
@@ -76,13 +138,22 @@ WHERE rng_seed IS NULL OR rng_seed = 0;
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'coin_play_sessions') THEN
-    EXECUTE 'UPDATE public.coin_play_sessions SET rng_seed = generate_deterministic_rng_seed(id::TEXT) WHERE rng_seed IS NULL OR rng_seed = 0';
-    RAISE NOTICE '✅ Updated coin_play_sessions with deterministic seeds';
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'coin_play_sessions' 
+      AND column_name = 'rng_seed'
+    ) THEN
+      UPDATE public.coin_play_sessions 
+      SET rng_seed = generate_deterministic_rng_seed(id::TEXT) 
+      WHERE rng_seed IS NULL OR rng_seed = 0;
+      RAISE NOTICE '✅ Updated coin_play_sessions with deterministic seeds';
+    END IF;
   END IF;
 END $$;
 
 -- ============================================================================
--- STEP 3: Create triggers to auto-generate seeds on session creation
+-- STEP 4: Create triggers to auto-generate seeds on session creation
 -- ============================================================================
 
 -- Hot Sell Sessions Trigger
@@ -170,7 +241,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 4: Update session creation functions to use deterministic seeds
+-- STEP 5: Update session creation functions to use deterministic seeds
 -- ============================================================================
 
 -- Update Hot Sell session creation functions
@@ -194,7 +265,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 5: Verification - Check all sessions have proper seeds
+-- STEP 6: Verification - Check all sessions have proper seeds
 -- ============================================================================
 
 SELECT 
@@ -222,7 +293,7 @@ SELECT
 FROM public.one_v_one_sessions;
 
 -- ============================================================================
--- STEP 6: Test the deterministic seed function
+-- STEP 7: Test the deterministic seed function
 -- ============================================================================
 
 -- Test: Same UUID should always produce same seed
