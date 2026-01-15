@@ -741,7 +741,13 @@ export default function LaserBattleGame({
       
       // Simple AI: dodge lasers and shoot at players
       const rng = rngRef.current;
-      if (!rng) return;
+      if (!rng) {
+        // Initialize RNG if missing
+        const today = new Date();
+        const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+        rngRef.current = new SeededRandom(seed);
+        return;
+      }
       
       // Random movement with laser avoidance
       if (rng.next() < 0.03) {
