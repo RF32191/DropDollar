@@ -1052,31 +1052,33 @@ export default function WizardWarzGame({
         enemyIndicator.rotation.y += 0.02; // Spin slowly
       }
       
-      // MAIN CAMERA TRACKING - Focused on player wizard, looking forward from player's perspective
-      if (cameraRef.current && playerWizardRef.current) {
+      // MAIN CAMERA TRACKING - Overhead zoom view, locked on enemy
+      if (cameraRef.current && playerWizardRef.current && opponentWizardRef.current) {
         const camera = cameraRef.current;
         const playerPos = playerWizardRef.current.position;
-        const playerRotation = playerWizardRef.current.rotation.y;
+        const opponentPos = opponentWizardRef.current.position;
         
-        // Position camera behind and above player wizard
-        const cameraDistance = 12; // Closer for better view
-        const cameraHeight = 6; // Lower for better view of action
+        // Calculate midpoint between player and enemy for better view
+        const midpoint = new THREE.Vector3()
+          .addVectors(playerPos, opponentPos)
+          .multiplyScalar(0.5);
+        
+        // Position camera almost overhead, zoomed in
+        const cameraHeight = 25; // Overhead height
+        const zoomDistance = 18; // Zoomed in closer
         const targetCamPos = new THREE.Vector3(
-          playerPos.x - Math.sin(playerRotation) * cameraDistance,
-          playerPos.y + cameraHeight,
-          playerPos.z - Math.cos(playerRotation) * cameraDistance
+          midpoint.x,
+          cameraHeight,
+          midpoint.z + zoomDistance
         );
         
         // Smooth camera movement
         camera.position.lerp(targetCamPos, 0.05);
         
-        // Look forward from player's perspective (slightly ahead of player)
-        const lookAhead = new THREE.Vector3(
-          playerPos.x - Math.sin(playerRotation) * 5,
-          playerPos.y + 2,
-          playerPos.z - Math.cos(playerRotation) * 5
-        );
-        camera.lookAt(lookAhead);
+        // Lock camera on enemy (primary focus)
+        const lookAtEnemy = opponentPos.clone();
+        lookAtEnemy.y = 3; // Look at wizard height
+        camera.lookAt(lookAtEnemy);
       }
       
       // ENEMY VIEW CAMERA - Sub-screen showing opponent wizard
@@ -1526,46 +1528,50 @@ export default function WizardWarzGame({
             {isShielding && <span className="text-cyan-400 animate-pulse ml-1 md:ml-2">🛡️</span>}
           </div>
           
-          {/* Element selector - Mobile: scrollable horizontal, bigger buttons */}
-          <div className="absolute bottom-36 md:bottom-32 left-2 right-2 md:left-1/2 md:-translate-x-1/2 md:right-auto overflow-x-auto">
-            <div className="bg-black/80 backdrop-blur-sm rounded-xl p-1.5 md:p-2 flex gap-1 md:gap-1 w-max mx-auto">
+          {/* Element selector + Cast buttons - Combined, closer to bottom */}
+          <div className="absolute bottom-20 md:bottom-24 left-1/2 -translate-x-1/2 overflow-x-auto">
+            <div className="bg-black/90 backdrop-blur-sm rounded-xl p-2 md:p-2.5 flex gap-2 md:gap-2 w-max mx-auto border-2 border-white/20">
               {ELEMENT_ORDER.map((el) => (
                 <button
                   key={el}
-                  onClick={() => changeElement(el)}
-                  className={`w-12 h-12 md:w-11 md:h-11 rounded-lg flex items-center justify-center text-2xl md:text-xl transition-all touch-manipulation ${
+                  onClick={() => {
+                    changeElement(el);
+                    // Cast spell when clicking selected element
+                    if (currentElement === el && spellCooldown === 0) {
+                      fireSpell();
+                    }
+                  }}
+                  disabled={spellCooldown > 0 && currentElement === el}
+                  className={`w-16 h-16 md:w-14 md:h-14 rounded-xl flex flex-col items-center justify-center text-2xl md:text-xl transition-all touch-manipulation relative ${
                     currentElement === el 
-                      ? 'bg-white/30 scale-105 ring-2 ring-white' 
-                      : 'bg-white/10 active:bg-white/30'
+                      ? spellCooldown > 0
+                        ? 'bg-gray-700/80 scale-100 ring-2 ring-gray-500' 
+                        : 'bg-gradient-to-t from-orange-700 to-orange-500 scale-110 ring-4 ring-orange-400 shadow-lg shadow-orange-500/50'
+                      : 'bg-white/10 active:bg-white/30 hover:bg-white/20'
                   }`}
                 >
-                  {ELEMENTS[el].emoji}
+                  <span>{ELEMENTS[el].emoji}</span>
+                  {currentElement === el && spellCooldown > 0 && (
+                    <>
+                      <div className="text-[10px] font-bold text-white mt-0.5">
+                        {(spellCooldown / 1000).toFixed(1)}s
+                      </div>
+                      <div 
+                        className="absolute bottom-0 left-0 h-1 bg-orange-400 rounded-b-xl transition-all"
+                        style={{ width: `${(1 - spellCooldown / SPELL_COOLDOWN) * 100}%` }}
+                      />
+                    </>
+                  )}
+                  {currentElement === el && spellCooldown === 0 && (
+                    <div className="text-[9px] font-bold text-white mt-0.5">CAST</div>
+                  )}
                 </button>
               ))}
             </div>
           </div>
           
-          {/* Action buttons - MUCH BIGGER for mobile */}
-          <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4 flex gap-2 md:gap-3">
-            <button
-              onClick={fireSpell}
-              disabled={spellCooldown > 0}
-              className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl font-bold transition-all active:scale-90 shadow-lg touch-manipulation relative ${
-                spellCooldown > 0 
-                  ? 'bg-gray-700 text-gray-400' 
-                  : 'bg-gradient-to-t from-orange-700 to-orange-500 text-white shadow-orange-500/30'
-              }`}
-            >
-              <div className="text-3xl md:text-4xl">🔮</div>
-              <div className="text-xs font-bold">{spellCooldown > 0 ? `${(spellCooldown / 1000).toFixed(1)}s` : 'CAST'}</div>
-              {spellCooldown > 0 && (
-                <div 
-                  className="absolute bottom-0 left-0 h-1 bg-orange-400 rounded-b-2xl transition-all"
-                  style={{ width: `${(1 - spellCooldown / SPELL_COOLDOWN) * 100}%` }}
-                />
-              )}
-            </button>
-            
+          {/* Shield button - Closer to bottom */}
+          <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4">
             <button
               onMouseDown={activateShield}
               onMouseUp={deactivateShield}
