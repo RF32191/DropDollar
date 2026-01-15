@@ -501,14 +501,14 @@ export default function WizardWarzGame({
     for (let x = -65; x <= 65; x += tileSize) {
       for (let z = -65; z <= 65; z += tileSize) {
         if (Math.sqrt(x*x + z*z) < 68) {
-          // Concrete tile - slightly varied colors for realism
+          // Dark stone tile - darker colors
           const tileGeo = new THREE.BoxGeometry(tileSize - groutWidth, tileHeight, tileSize - groutWidth);
-          const baseColor = 0x7a7a7a; // Concrete gray
-          const variation = (Math.random() - 0.5) * 0x151515; // Slight color variation
+          const baseColor = 0x2a2a2a; // Dark gray/black stone
+          const variation = (Math.random() - 0.5) * 0x080808; // Very subtle dark variation
           const tileMat = new THREE.MeshStandardMaterial({ 
             color: baseColor + variation,
-            roughness: 0.6, // Slightly shiny concrete
-            metalness: 0.1
+            roughness: 0.95, // Very rough dark stone
+            metalness: 0.0
           });
           const tile = new THREE.Mesh(tileGeo, tileMat);
           tile.position.set(x, tileHeight / 2, z);
@@ -516,12 +516,12 @@ export default function WizardWarzGame({
           tile.receiveShadow = true;
           scene.add(tile);
           
-          // Grout lines (darker lines between tiles)
+          // Grout lines (very dark lines between tiles)
           if (Math.random() > 0.3) { // Not all tiles need grout for performance
             const groutGeo = new THREE.BoxGeometry(groutWidth, tileHeight * 0.5, tileSize);
             const groutMat = new THREE.MeshStandardMaterial({ 
-              color: 0x4a4a4a, // Dark gray grout
-              roughness: 0.9
+              color: 0x1a1a1a, // Very dark grout
+              roughness: 0.95
             });
             // Vertical grout
             const groutV = new THREE.Mesh(groutGeo, groutMat);
@@ -546,12 +546,12 @@ export default function WizardWarzGame({
       const x = Math.cos(angle) * wallRadius;
       const z = Math.sin(angle) * wallRadius;
       
-      // Wall segment - stone texture
+      // Wall segment - dark stone texture
       const wallGeo = new THREE.BoxGeometry(5.5, wallHeight, 1.8);
       const wallMat = new THREE.MeshStandardMaterial({ 
-        color: 0x6a5a4a, // Stone color
-        roughness: 0.9,
-        metalness: 0.05
+        color: 0x2a2520, // Dark stone color
+        roughness: 0.95,
+        metalness: 0.0
       });
       const wall = new THREE.Mesh(wallGeo, wallMat);
       wall.position.set(x, wallHeight / 2, z);
@@ -580,12 +580,12 @@ export default function WizardWarzGame({
       const x = Math.cos(angle) * wallRadius;
       const z = Math.sin(angle) * wallRadius;
       
-      // Tower base - stone castle tower
+      // Tower base - dark stone castle tower
       const towerGeo = new THREE.CylinderGeometry(3, 3.5, wallHeight + 4, 12);
       const towerMat = new THREE.MeshStandardMaterial({ 
-        color: 0x6a5a4a, // Stone color matching walls
-        roughness: 0.9,
-        metalness: 0.05
+        color: 0x2a2520, // Dark stone color matching walls
+        roughness: 0.95,
+        metalness: 0.0
       });
       const tower = new THREE.Mesh(towerGeo, towerMat);
       tower.position.set(x, (wallHeight + 4) / 2, z);
@@ -593,20 +593,20 @@ export default function WizardWarzGame({
       tower.receiveShadow = true;
       scene.add(tower);
       
-      // Tower roof - dark stone/conical roof
+      // Tower roof - very dark stone/conical roof
       const roofGeo = new THREE.ConeGeometry(3.5, 5, 12);
       const roofMat = new THREE.MeshStandardMaterial({ 
-        color: 0x3a2a1a, // Darker stone for roof
-        roughness: 0.8 
+        color: 0x1a1510, // Very dark stone for roof
+        roughness: 0.95 
       });
       const roof = new THREE.Mesh(roofGeo, roofMat);
       roof.position.set(x, wallHeight + 6.5, z);
       roof.castShadow = true;
       scene.add(roof);
       
-      // Tower windows with glow
+      // Tower windows with dim glow
       const windowGeo = new THREE.BoxGeometry(0.8, 1.5, 0.5);
-      const windowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+      const windowMat = new THREE.MeshBasicMaterial({ color: 0x664422 }); // Dim orange glow
       for (let w = 0; w < 4; w++) {
         const wAngle = (w / 4) * Math.PI * 2;
         const win = new THREE.Mesh(windowGeo, windowMat);
@@ -620,32 +620,27 @@ export default function WizardWarzGame({
       }
     }
     
-    // Arena corner lights (no pillars blocking view) - spread out for huge arena
+    // Dark atmospheric lights - dim and moody
     const cornerLights = [
-      { x: 30, z: 30, color: 0xff6600 },
-      { x: -30, z: 30, color: 0x00ff66 },
-      { x: 30, z: -30, color: 0x6600ff },
-      { x: -30, z: -30, color: 0xff0066 },
-      // Additional lights for huge arena
-      { x: 50, z: 0, color: 0xff9900 },
-      { x: -50, z: 0, color: 0x00ffaa },
-      { x: 0, z: 50, color: 0x9900ff },
-      { x: 0, z: -50, color: 0xff0099 },
-      // Extra corner lights
-      { x: 45, z: 25, color: 0xffaa00 },
-      { x: -45, z: 25, color: 0x00aaff },
-      { x: 45, z: -25, color: 0xaa00ff },
-      { x: -45, z: -25, color: 0xff00aa },
+      { x: 30, z: 30, color: 0x442200, intensity: 0.5 },
+      { x: -30, z: 30, color: 0x442200, intensity: 0.5 },
+      { x: 30, z: -30, color: 0x442200, intensity: 0.5 },
+      { x: -30, z: -30, color: 0x442200, intensity: 0.5 },
+      // Additional dim lights for huge arena
+      { x: 50, z: 0, color: 0x332211, intensity: 0.4 },
+      { x: -50, z: 0, color: 0x332211, intensity: 0.4 },
+      { x: 0, z: 50, color: 0x332211, intensity: 0.4 },
+      { x: 0, z: -50, color: 0x332211, intensity: 0.4 },
     ];
     
-    cornerLights.forEach(({ x, z, color }) => {
-      const light = new THREE.PointLight(color, 2, 40);
+    cornerLights.forEach(({ x, z, color, intensity }) => {
+      const light = new THREE.PointLight(color, intensity, 40);
       light.position.set(x, 10, z);
       scene.add(light);
       
-      // Small glowing orb to show light source
-      const orbGeo = new THREE.SphereGeometry(0.6, 16, 16);
-      const orbMat = new THREE.MeshBasicMaterial({ color });
+      // Small dim glowing orb to show light source
+      const orbGeo = new THREE.SphereGeometry(0.4, 16, 16);
+      const orbMat = new THREE.MeshBasicMaterial({ color, opacity: 0.3, transparent: true });
       const orb = new THREE.Mesh(orbGeo, orbMat);
       orb.position.set(x, 10, z);
       scene.add(orb);
@@ -803,10 +798,10 @@ export default function WizardWarzGame({
     scene.fog = new THREE.Fog(0x1a1025, 100, 200); // Push fog way back for huge arena
     sceneRef.current = scene;
     
-    // Main camera - focused on showing both players
-    const camera = new THREE.PerspectiveCamera(70, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
-    // Start camera positioned to see both players
-    camera.position.set(0, 18, 15); // Overhead view, will be updated dynamically
+    // Main camera - split screen view showing both players
+    const camera = new THREE.PerspectiveCamera(75, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
+    // Start camera positioned higher and further back to see both players
+    camera.position.set(0, 25, 30); // Higher overhead view for split screen
     camera.lookAt(0, 0, 0); // Look at center initially
     cameraRef.current = camera;
     
