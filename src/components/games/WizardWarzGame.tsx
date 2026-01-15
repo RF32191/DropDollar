@@ -777,8 +777,9 @@ export default function WizardWarzGame({
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-      // Enemy view renderer for sub-screen (bigger size)
-      if (enemyViewRef.current) {
+    // Enemy view renderer for sub-screen (bigger size) - create after a small delay to ensure DOM is ready
+    setTimeout(() => {
+      if (enemyViewRef.current && !enemyRendererRef.current) {
         const enemyRenderer = new THREE.WebGLRenderer({ antialias: true });
         enemyRenderer.setSize(350, 260);
         enemyRenderer.shadowMap.enabled = true;
@@ -786,6 +787,7 @@ export default function WizardWarzGame({
         enemyViewRef.current.appendChild(enemyRenderer.domElement);
         enemyRendererRef.current = enemyRenderer;
       }
+    }, 100);
     
     // Brighter lighting - can see the arena clearly
     const ambientLight = new THREE.AmbientLight(0x404060, 0.7);
@@ -1099,21 +1101,25 @@ export default function WizardWarzGame({
       }
       
       // Update username labels to follow wizards
-      if (playerNameLabelRef.current && playerWizardRef.current) {
-        playerNameLabelRef.current.position.copy(playerWizardRef.current.position);
-        playerNameLabelRef.current.position.y = 4.5;
-        // Make label always face camera
-        if (cameraRef.current) {
+      if (playerNameLabelRef.current && playerWizardRef.current && cameraRef.current) {
+        try {
+          playerNameLabelRef.current.position.copy(playerWizardRef.current.position);
+          playerNameLabelRef.current.position.y = 4.5;
+          // Make label always face camera
           playerNameLabelRef.current.lookAt(cameraRef.current.position);
+        } catch (error) {
+          console.warn('⚠️ [Wizard Warz] Error updating player label:', error);
         }
       }
       
-      if (opponentNameLabelRef.current && opponentWizardRef.current) {
-        opponentNameLabelRef.current.position.copy(opponentWizardRef.current.position);
-        opponentNameLabelRef.current.position.y = 4.5;
-        // Make label always face camera
-        if (cameraRef.current) {
+      if (opponentNameLabelRef.current && opponentWizardRef.current && cameraRef.current) {
+        try {
+          opponentNameLabelRef.current.position.copy(opponentWizardRef.current.position);
+          opponentNameLabelRef.current.position.y = 4.5;
+          // Make label always face camera
           opponentNameLabelRef.current.lookAt(cameraRef.current.position);
+        } catch (error) {
+          console.warn('⚠️ [Wizard Warz] Error updating opponent label:', error);
         }
       }
       
