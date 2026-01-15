@@ -1039,23 +1039,25 @@ export default function WizardWarzGame({
               setScore(scoreRef.current);
               spellsToRemoveRef.current.push(spell.id);
             } else if (shieldActiveRef.current) {
-              // Check if it's a beam spell (weakens shield)
+              // Check if it's a beam spell (breaks shield completely)
               if (spell.isBeam) {
-                // Beam weakens shield - reduce shield duration and pass through with reduced damage
-                const shieldTimeRemaining = SHIELD_DURATION - (Date.now() - shieldStartTimeRef.current);
-                const weakenedDuration = Math.max(500, shieldTimeRemaining * 0.5); // Reduce shield duration by 50%
-                shieldStartTimeRef.current = Date.now() - (SHIELD_DURATION - weakenedDuration);
+                // Beam BREAKS shield completely - deactivate shield and set 5 second cooldown
+                shieldActiveRef.current = false;
+                shieldMeshRef.current?.setVisible(false);
+                setIsShielding(false);
+                setShieldCooldown(5000); // 5 second cooldown after being broken
+                setTimeout(() => setShieldCooldown(0), 5000);
                 
-                addPopupRef.current(100, 50, 40, 'critical', '💥 SHIELD WEAKENED!');
+                addPopupRef.current(100, 50, 40, 'critical', '💥 SHIELD BROKEN!');
                 
-                // Beam passes through shield with reduced damage
+                // Beam passes through broken shield with full damage
                 const { damage, type } = calculateDamage(spell.element, currentElementRef.current);
-                const reducedDamage = Math.max(1, Math.floor(damage * 0.5)); // 50% damage through shield
+                const fullDamage = damage * 2; // Beam does 2x damage
                 
-                if (reducedDamage > 0) {
-                  heartsRef.current = Math.max(0, heartsRef.current - reducedDamage);
+                if (fullDamage > 0) {
+                  heartsRef.current = Math.max(0, heartsRef.current - fullDamage);
                   setHearts(Math.ceil(heartsRef.current));
-                  addPopupRef.current(0, 50, 30, 'damage', `-${reducedDamage}❤️`);
+                  addPopupRef.current(0, 50, 30, 'damage', `-${fullDamage}❤️`);
                   
                   if (heartsRef.current <= 0) {
                     gameActiveRef.current = false;
@@ -1323,31 +1325,48 @@ export default function WizardWarzGame({
               (opponentShieldRef.current.material as THREE.MeshBasicMaterial).opacity = 0.5;
             }
           } else if (action < 0.8 && botTeleportCooldownRef.current <= 0) {
-            // BOT TELEPORT!
-            const randomZone = TELEPORT_ZONES[Math.floor(Math.random() * TELEPORT_ZONES.length)];
-            opponentPositionRef.current.set(randomZone.x, 0, randomZone.z);
-            if (opponentWizardRef.current) {
-              opponentWizardRef.current.position.copy(opponentPositionRef.current);
-            }
+            // BOT TELEPORT! - Check that player isn't on the platform
+            let attempts = 0;
+            let randomZone;
+            let zonePos;
+            let playerPos;
+            let distanceToPlayer;
             
-            // Change element and update glow
-            botElementRef.current = randomZone.element;
-            if (opponentGlowRef.current) {
-              (opponentGlowRef.current.material as THREE.MeshBasicMaterial).color.setHex(
-                ELEMENTS[randomZone.element].glowColor
-              );
-            }
-            if (opponentStaffRef.current) {
-              const orbGlow = opponentStaffRef.current.getObjectByName('staffOrbGlow') as THREE.Mesh;
-              if (orbGlow) {
-                (orbGlow.material as THREE.MeshBasicMaterial).color.setHex(
+            // Try to find a platform that player isn't on (max 10 attempts)
+            do {
+              randomZone = TELEPORT_ZONES[Math.floor(Math.random() * TELEPORT_ZONES.length)];
+              zonePos = new THREE.Vector3(randomZone.x, 0, randomZone.z);
+              playerPos = playerWizardRef.current?.position || playerPositionRef.current;
+              distanceToPlayer = zonePos.distanceTo(playerPos);
+              attempts++;
+            } while (distanceToPlayer < 5 && attempts < 10); // Platform radius is about 2.5, so 5 is safe distance
+            
+            // Only teleport if we found a safe platform
+            if (distanceToPlayer >= 5) {
+              opponentPositionRef.current.set(randomZone.x, 0, randomZone.z);
+              if (opponentWizardRef.current) {
+                opponentWizardRef.current.position.copy(opponentPositionRef.current);
+              }
+              
+              // Change element and update glow
+              botElementRef.current = randomZone.element;
+              if (opponentGlowRef.current) {
+                (opponentGlowRef.current.material as THREE.MeshBasicMaterial).color.setHex(
                   ELEMENTS[randomZone.element].glowColor
                 );
               }
+              if (opponentStaffRef.current) {
+                const orbGlow = opponentStaffRef.current.getObjectByName('staffOrbGlow') as THREE.Mesh;
+                if (orbGlow) {
+                  (orbGlow.material as THREE.MeshBasicMaterial).color.setHex(
+                    ELEMENTS[randomZone.element].glowColor
+                  );
+                }
+              }
+              
+              botTeleportCooldownRef.current = TELEPORT_COOLDOWN;
+              botLastActionRef.current = currentTime;
             }
-            
-            botTeleportCooldownRef.current = TELEPORT_COOLDOWN;
-            botLastActionRef.current = currentTime;
           }
         }
         
@@ -1613,6 +1632,17 @@ export default function WizardWarzGame({
     
     const zone = TELEPORT_ZONES.find(z => z.id === zoneId);
     if (!zone) return;
+    
+    // Check if opponent is already on this platform - prevent same platform
+    const zonePos = new THREE.Vector3(zone.x, 0, zone.z);
+    const opponentPos = opponentWizardRef.current?.position || opponentPositionRef.current;
+    const distanceToOpponent = zonePos.distanceTo(opponentPos);
+    
+    // If opponent is too close (on same platform), don't allow teleport
+    if (distanceToOpponent < 5) { // Platform radius is about 2.5, so 5 is safe distance
+      addPopup(0, 50, 30, 'bonus', '⚠️ Opponent on platform!');
+      return;
+    }
     
     // Move to zone
     const newPos = new THREE.Vector3(zone.x, 0, zone.z);
