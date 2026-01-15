@@ -1043,7 +1043,9 @@ export default function WizardWarzGame({
               if (spell.isBeam) {
                 // Beam BREAKS shield completely - deactivate shield and set 5 second cooldown
                 shieldActiveRef.current = false;
-                shieldMeshRef.current?.setVisible(false);
+                if (shieldMeshRef.current) {
+                  shieldMeshRef.current.visible = false;
+                }
                 setIsShielding(false);
                 setShieldCooldown(5000); // 5 second cooldown after being broken
                 setTimeout(() => setShieldCooldown(0), 5000);
