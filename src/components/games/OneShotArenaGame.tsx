@@ -547,7 +547,38 @@ export default function OneShotArenaGame({
 
   // Initialize scene
   const initScene = useCallback(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      console.warn('Container ref not available for initScene');
+      return;
+    }
+    
+    // Clean up existing scene if it exists
+    if (rendererRef.current && containerRef.current) {
+      try {
+        if (containerRef.current.contains(rendererRef.current.domElement)) {
+          containerRef.current.removeChild(rendererRef.current.domElement);
+        }
+        rendererRef.current.dispose();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+    
+    if (sceneRef.current) {
+      // Clean up existing scene objects
+      while (sceneRef.current.children.length > 0) {
+        const child = sceneRef.current.children[0];
+        sceneRef.current.remove(child);
+        if (child instanceof THREE.Mesh) {
+          child.geometry?.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else {
+            child.material?.dispose();
+          }
+        }
+      }
+    }
     
     const colors = getThemeColors();
     
