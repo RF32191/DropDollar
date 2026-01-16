@@ -130,6 +130,9 @@ export default function OneShotArenaGame({
   const swayTimeRef = useRef(0);
   const breathRef = useRef(100);
   const scopeZoomRef = useRef(1);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isDraggingPowerRef = useRef(false);
+  const powerSliderRef = useRef<HTMLDivElement>(null);
   
   // Arena dimensions
   const ARENA_WIDTH = 20;
