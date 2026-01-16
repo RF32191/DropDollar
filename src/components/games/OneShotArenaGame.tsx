@@ -1477,41 +1477,6 @@ export default function OneShotArenaGame({
     };
   }, [gameState, fireProjectile]);
 
-  // Touch controls
-  useEffect(() => {
-    if (gameState !== 'aiming') return;
-    
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!containerRef.current) return;
-      e.preventDefault();
-      
-      const touch = e.touches[0];
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = ((touch.clientX - rect.left) / rect.width - 0.5) * 2;
-      const y = ((rect.bottom - touch.clientY) / rect.height) * 1.5;
-      
-      setAimAngle({
-        x: x * 0.8,
-        y: Math.max(0.1, Math.min(1.2, y))
-      });
-    };
-    
-    const handleTouchEnd = () => {
-      // Only fire if no active projectile exists
-      if (!projectileRef.current || !projectileRef.current.active) {
-        fireProjectile();
-      }
-    };
-    
-    containerRef.current?.addEventListener('touchmove', handleTouchMove, { passive: false });
-    containerRef.current?.addEventListener('touchend', handleTouchEnd);
-    
-    return () => {
-      containerRef.current?.removeEventListener('touchmove', handleTouchMove);
-      containerRef.current?.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [gameState, fireProjectile]);
-
   // Start game
   const startGame = useCallback(() => {
     setGameState('aiming');
