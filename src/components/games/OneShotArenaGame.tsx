@@ -1924,6 +1924,130 @@ export default function OneShotArenaGame({
       {/* Game Canvas */}
       <div ref={containerRef} className="absolute inset-0" />
       
+      {/* Object Manipulation Mode Toggle */}
+      {gameState === 'aiming' && (
+        <div className="absolute top-4 right-4 z-30 pointer-events-auto">
+          <button
+            onClick={() => {
+              setIsManipulationMode(prev => !prev);
+              if (isManipulationMode) {
+                setSelectedObject(null);
+                setSelectedFace(null);
+                setSelectedEdges([]);
+              }
+            }}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+              isManipulationMode 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-black/70 backdrop-blur-sm border border-white/10 text-gray-300'
+            }`}
+          >
+            {isManipulationMode ? '✕ EXIT EDIT' : '✏️ EDIT MODE'}
+          </button>
+        </div>
+      )}
+      
+      {/* Object Manipulation Controls */}
+      {gameState === 'aiming' && isManipulationMode && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+          <div className="bg-black/90 backdrop-blur-sm rounded-xl p-4 border border-white/20 max-w-2xl">
+            <div className="text-sm text-white mb-3 text-center">
+              {selectedObject ? `Selected: ${selectedObject.name || 'Object'}` : 'Click an object to select'}
+              {selectedFace !== null && ` • Face: ${selectedFace}`}
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+              {/* Extrusion Controls */}
+              <div className="space-y-1">
+                <label className="text-xs text-gray-400">Extrusion</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={extrusionAmount}
+                  onChange={(e) => setExtrusionAmount(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+                <button
+                  onClick={() => {
+                    if (selectedObject && selectedFace !== null) {
+                      extrudeFace(selectedObject, selectedFace, extrusionAmount);
+                    }
+                  }}
+                  disabled={!selectedObject || selectedFace === null}
+                  className="w-full px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  EXTRUDE
+                </button>
+              </div>
+              
+              {/* Bevel Controls */}
+              <div className="space-y-1">
+                <label className="text-xs text-gray-400">Bevel Amount</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.5"
+                  step="0.01"
+                  value={bevelAmount}
+                  onChange={(e) => setBevelAmount(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+                <button
+                  onClick={() => {
+                    if (selectedObject && selectedEdges.length > 0) {
+                      bevelEdges(selectedObject, selectedEdges, bevelAmount);
+                    }
+                  }}
+                  disabled={!selectedObject || selectedEdges.length === 0}
+                  className="w-full px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  BEVEL
+                </button>
+              </div>
+              
+              {/* Flatten Controls */}
+              <div className="space-y-1">
+                <label className="text-xs text-gray-400">Flatten Edges</label>
+                <div className="h-8"></div>
+                <button
+                  onClick={() => {
+                    if (selectedObject && selectedEdges.length > 0) {
+                      flattenEdges(selectedObject, selectedEdges);
+                    }
+                  }}
+                  disabled={!selectedObject || selectedEdges.length === 0}
+                  className="w-full px-3 py-1.5 bg-yellow-600 text-white rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  FLATTEN
+                </button>
+              </div>
+              
+              {/* Clear Selection */}
+              <div className="space-y-1">
+                <label className="text-xs text-gray-400">Selection</label>
+                <div className="h-8"></div>
+                <button
+                  onClick={() => {
+                    setSelectedObject(null);
+                    setSelectedFace(null);
+                    setSelectedEdges([]);
+                  }}
+                  className="w-full px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold"
+                >
+                  CLEAR
+                </button>
+              </div>
+            </div>
+            
+            <div className="text-xs text-gray-400 text-center">
+              Click objects to select • Selected face highlighted in red • Use controls to manipulate
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* HUD */}
       {(gameState === 'aiming' || gameState === 'flying' || gameState === 'result') && (
         <div className="absolute top-0 left-0 right-0 p-4 pointer-events-none">
