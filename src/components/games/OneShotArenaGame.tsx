@@ -1435,32 +1435,56 @@ export default function OneShotArenaGame({
 
   // Initialize
   useEffect(() => {
-    if (gameState === 'instructions') {
-      initScene();
+    if (gameState === 'instructions' && containerRef.current) {
+      try {
+        initScene();
+      } catch (error) {
+        console.error('Error initializing scene:', error);
+      }
     }
     
     return () => {
       cancelAnimationFrame(animationRef.current);
       if (rendererRef.current && containerRef.current) {
-        containerRef.current.removeChild(rendererRef.current.domElement);
+        try {
+          containerRef.current.removeChild(rendererRef.current.domElement);
+        } catch (e) {
+          // Element may have already been removed
+        }
         rendererRef.current.dispose();
       }
       if (audioRef.current) {
         audioRef.current.pause();
       }
     };
-  }, []);
+  }, [gameState, initScene]);
 
   // Continuous render loop
   useEffect(() => {
-    if (gameState === 'instructions') return;
+    if (gameState === 'instructions' || !sceneRef.current || !rendererRef.current || !cameraRef.current) {
+      return;
+    }
     
+    let isActive = true;
     const render = () => {
-      gameLoop();
+      if (!isActive || !sceneRef.current || !rendererRef.current || !cameraRef.current) {
+        return;
+      }
+      try {
+        gameLoop();
+        if (isActive) {
+          animationRef.current = requestAnimationFrame(render);
+        }
+      } catch (error) {
+        console.error('Error in game loop:', error);
+      }
     };
     animationRef.current = requestAnimationFrame(render);
     
-    return () => cancelAnimationFrame(animationRef.current);
+    return () => {
+      isActive = false;
+      cancelAnimationFrame(animationRef.current);
+    };
   }, [gameState, gameLoop]);
 
   // Handle resize
