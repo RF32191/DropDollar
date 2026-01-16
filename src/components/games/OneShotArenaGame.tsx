@@ -1063,11 +1063,16 @@ export default function OneShotArenaGame({
       const swayedAimX = aimAngle.x + swayRef.current.x;
       const swayedAimY = aimAngle.y + swayRef.current.y;
       
+      // Use same power-to-speed calculation as fireProjectile
+      const minSpeed = 0.12;
+      const maxSpeed = 0.6;
+      const speed = minSpeed + (power - 20) / 80 * (maxSpeed - minSpeed);
+      
       const direction = new THREE.Vector3(
         Math.sin(swayedAimX) * Math.cos(swayedAimY),
         Math.sin(swayedAimY),
         -Math.cos(swayedAimX) * Math.cos(swayedAimY)
-      ).multiplyScalar(power * 0.15);
+      ).multiplyScalar(speed * 10); // Scale for visual line length
       
       const end = start.clone().add(direction);
       
@@ -1306,7 +1311,8 @@ export default function OneShotArenaGame({
     
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      setPower(prev => Math.max(20, Math.min(100, prev - e.deltaY * 0.1)));
+      // More responsive power changes - 2 units per scroll step
+      setPower(prev => Math.max(20, Math.min(100, prev - e.deltaY * 0.2)));
     };
     
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1317,8 +1323,8 @@ export default function OneShotArenaGame({
           fireProjectile();
         }
       }
-      if (e.code === 'ArrowUp') setPower(prev => Math.min(100, prev + 5));
-      if (e.code === 'ArrowDown') setPower(prev => Math.max(20, prev - 5));
+      if (e.code === 'ArrowUp') setPower(prev => Math.min(100, prev + 2));
+      if (e.code === 'ArrowDown') setPower(prev => Math.max(20, prev - 2));
       // Hold breath for steady aim
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         if (breathRef.current > 10) {
@@ -1524,11 +1530,18 @@ export default function OneShotArenaGame({
             <div className="text-xs text-gray-400 mb-2 text-center">POWER</div>
             <div className="w-5 h-28 bg-gray-800 rounded-full overflow-hidden relative mx-auto">
               <div 
-                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-orange-600 via-yellow-500 to-green-400 transition-all"
-                style={{ height: `${power}%` }}
+                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-orange-600 via-yellow-500 to-green-400 transition-all duration-100"
+                style={{ height: `${((power - 20) / 80) * 100}%` }}
               />
+              {/* Power level markers */}
+              <div className="absolute top-0 left-0 right-0 h-full flex flex-col justify-between py-1">
+                <div className="w-full h-px bg-white/20"></div>
+                <div className="w-full h-px bg-white/20"></div>
+                <div className="w-full h-px bg-white/20"></div>
+                <div className="w-full h-px bg-white/20"></div>
+              </div>
             </div>
-            <div className="text-sm font-bold text-white mt-2 text-center">{power}%</div>
+            <div className="text-sm font-bold text-white mt-2 text-center">{Math.round(power)}%</div>
           </div>
           
           {/* Breath/Stamina */}
@@ -1587,13 +1600,13 @@ export default function OneShotArenaGame({
               <div className={`absolute top-1/2 left-0 right-0 h-0.5 -translate-y-1/2 transition-all ${
                 holdingBreath ? 'bg-cyan-400' : 'bg-white/50'
               }`} style={{ 
-                transform: `translateY(-50%) translateX(${swayRef.current.x * 50}px)` 
+                transform: `translateY(-50%) translateX(${(aimAngle.x + swayRef.current.x) * 100}px)` 
               }} />
               {/* Vertical line */}
               <div className={`absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 transition-all ${
                 holdingBreath ? 'bg-cyan-400' : 'bg-white/50'
               }`} style={{ 
-                transform: `translateX(-50%) translateY(${swayRef.current.y * 50}px)` 
+                transform: `translateX(-50%) translateY(${-(aimAngle.y + swayRef.current.y) * 100}px)` 
               }} />
               {/* Center dot */}
               <div className={`absolute top-1/2 left-1/2 w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2 ${
