@@ -134,6 +134,19 @@ export default function OneShotArenaGame({
   const isDraggingPowerRef = useRef(false);
   const powerSliderRef = useRef<HTMLDivElement>(null);
   
+  // Object manipulation system
+  const [isManipulationMode, setIsManipulationMode] = useState(false);
+  const [selectedObject, setSelectedObject] = useState<THREE.Mesh | null>(null);
+  const [selectedFace, setSelectedFace] = useState<number | null>(null);
+  const [selectedEdges, setSelectedEdges] = useState<number[]>([]);
+  const [extrusionAmount, setExtrusionAmount] = useState(0.5);
+  const [bevelAmount, setBevelAmount] = useState(0.1);
+  const raycasterRef = useRef<THREE.Raycaster | null>(null);
+  const mouseRef = useRef(new THREE.Vector2());
+  const highlightMeshRef = useRef<THREE.Mesh | null>(null);
+  const edgeHelperRef = useRef<THREE.LineSegments | null>(null);
+  const faceHelperRef = useRef<THREE.Mesh | null>(null);
+  
   // Arena dimensions
   const ARENA_WIDTH = 20;
   const ARENA_HEIGHT = 12;
@@ -611,6 +624,9 @@ export default function OneShotArenaGame({
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
+    // Initialize raycaster for object selection
+    raycasterRef.current = new THREE.Raycaster();
+    
     // Lights
     const ambientLight = new THREE.AmbientLight(colors.ambient, 0.5);
     scene.add(ambientLight);
@@ -654,6 +670,255 @@ export default function OneShotArenaGame({
     
     return { scene, camera, renderer };
   }, [getThemeColors, createArena, createLauncher, createAimLine, generateTargets, createWindFlag, createTrajectoryLine]);
+
+  // ============================================================================
+  // OBJECT MANIPULATION SYSTEM
+  // ============================================================================
+  
+  // Get geometry helper
+  const getObjectGeometry = useCallback((mesh: THREE.Mesh): THREE.BufferGeometry | null => {
+    if (mesh.geometry instanceof THREE.BufferGeometry) {
+      return mesh.geometry;
+    }
+    // Convert non-BufferGeometry to BufferGeometry
+    if (mesh.geometry) {
+      const bufferGeo = new THREE.BufferGeometry().fromGeometry(mesh.geometry as any);
+      mesh.geometry = bufferGeo;
+      return bufferGeo;
+    }
+    return null;
+  }, []);
+
+  // Get face normal
+  const getFaceNormal = useCallback((geometry: THREE.BufferGeometry, faceIndex: number): THREE.Vector3 => {
+    const positions = geometry.attributes.position;
+    const index = geometry.index;
+    
+    if (!index) return new THREE.Vector3(0, 1, 0);
+    
+    const i = faceIndex * 3;
+    if (i + 2 >= index.count) return new THREE.Vector3(0, 1, 0);
+    
+    const a = index.getX(i);
+    const b = index.getX(i + 1);
+    const c = index.getX(i + 2);
+    
+    const vA = new THREE.Vector3(positions.getX(a), positions.getY(a), positions.getZ(a));
+    const vB = new THREE.Vector3(positions.getX(b), positions.getY(b), positions.getZ(b));
+    const vC = new THREE.Vector3(positions.getX(c), positions.getY(c), positions.getZ(c));
+    
+    const normal = new THREE.Vector3();
+    normal.subVectors(vC, vB);
+    const temp = new THREE.Vector3();
+    temp.subVectors(vA, vB);
+    normal.cross(temp);
+    normal.normalize();
+    
+    return normal;
+  }, []);
+
+  // Extrude face - creates new geometry by pushing face outward
+  const extrudeFace = useCallback((mesh: THREE.Mesh, faceIndex: number, amount: number) => {
+    const geometry = getObjectGeometry(mesh);
+    if (!geometry || !geometry.index) return;
+    
+    geometry.computeVertexNormals();
+    const positions = geometry.attributes.position;
+    const index = geometry.index;
+    
+    const i = faceIndex * 3;
+    if (i + 2 >= index.count) return;
+    
+    const a = index.getX(i);
+    const b = index.getX(i + 1);
+    const c = index.getX(i + 2);
+    
+    // Get face normal
+    const normal = getFaceNormal(geometry, faceIndex);
+    const offset = normal.multiplyScalar(amount);
+    
+    // Create new positions array
+    const newPositions = new Float32Array(positions.array);
+    
+    // Extrude vertices along normal
+    newPositions[a * 3] += offset.x;
+    newPositions[a * 3 + 1] += offset.y;
+    newPositions[a * 3 + 2] += offset.z;
+    
+    newPositions[b * 3] += offset.x;
+    newPositions[b * 3 + 1] += offset.y;
+    newPositions[b * 3 + 2] += offset.z;
+    
+    newPositions[c * 3] += offset.x;
+    newPositions[c * 3 + 1] += offset.y;
+    newPositions[c * 3 + 2] += offset.z;
+    
+    // Update geometry
+    positions.array = newPositions;
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+  }, [getObjectGeometry, getFaceNormal]);
+
+  // Bevel/round edges
+  const bevelEdges = useCallback((mesh: THREE.Mesh, edgeIndices: number[], amount: number) => {
+    const geometry = getObjectGeometry(mesh);
+    if (!geometry || !geometry.index) return;
+    
+    geometry.computeVertexNormals();
+    const positions = geometry.attributes.position;
+    const index = geometry.index;
+    
+    const newPositions = new Float32Array(positions.array);
+    
+    edgeIndices.forEach(edgeIdx => {
+      const faceIdx = Math.floor(edgeIdx / 3);
+      const i = faceIdx * 3;
+      
+      if (i + 2 < index.count) {
+        const a = index.getX(i);
+        const b = index.getX(i + 1);
+        
+        // Get edge direction
+        const edgeDir = new THREE.Vector3(
+          positions.getX(b) - positions.getX(a),
+          positions.getY(b) - positions.getY(a),
+          positions.getZ(b) - positions.getZ(a)
+        ).normalize();
+        
+        // Get perpendicular for bevel
+        const perp = new THREE.Vector3(1, 0, 0);
+        if (Math.abs(edgeDir.dot(perp)) > 0.9) perp.set(0, 1, 0);
+        const bevelDir = new THREE.Vector3().crossVectors(edgeDir, perp).normalize();
+        const bevelOffset = bevelDir.multiplyScalar(amount);
+        
+        // Apply bevel
+        newPositions[a * 3] += bevelOffset.x * 0.5;
+        newPositions[a * 3 + 1] += bevelOffset.y * 0.5;
+        newPositions[a * 3 + 2] += bevelOffset.z * 0.5;
+        
+        newPositions[b * 3] += bevelOffset.x * 0.5;
+        newPositions[b * 3 + 1] += bevelOffset.y * 0.5;
+        newPositions[b * 3 + 2] += bevelOffset.z * 0.5;
+      }
+    });
+    
+    positions.array = newPositions;
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+  }, [getObjectGeometry]);
+
+  // Flatten edges
+  const flattenEdges = useCallback((mesh: THREE.Mesh, edgeIndices: number[]) => {
+    const geometry = getObjectGeometry(mesh);
+    if (!geometry || !geometry.index) return;
+    
+    geometry.computeVertexNormals();
+    const positions = geometry.attributes.position;
+    const index = geometry.index;
+    
+    const newPositions = new Float32Array(positions.array);
+    
+    edgeIndices.forEach(edgeIdx => {
+      const faceIdx = Math.floor(edgeIdx / 3);
+      const i = faceIdx * 3;
+      
+      if (i + 2 < index.count) {
+        const a = index.getX(i);
+        const b = index.getX(i + 1);
+        
+        // Average positions to flatten
+        const avgX = (positions.getX(a) + positions.getX(b)) / 2;
+        const avgY = (positions.getY(a) + positions.getY(b)) / 2;
+        const avgZ = (positions.getZ(a) + positions.getZ(b)) / 2;
+        
+        newPositions[a * 3] = avgX;
+        newPositions[a * 3 + 1] = avgY;
+        newPositions[a * 3 + 2] = avgZ;
+        
+        newPositions[b * 3] = avgX;
+        newPositions[b * 3 + 1] = avgY;
+        newPositions[b * 3 + 2] = avgZ;
+      }
+    });
+    
+    positions.array = newPositions;
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+  }, [getObjectGeometry]);
+
+  // Highlight selected object
+  const highlightSelectedObject = useCallback(() => {
+    if (!sceneRef.current) return;
+    
+    // Remove existing highlights
+    if (edgeHelperRef.current) {
+      sceneRef.current.remove(edgeHelperRef.current);
+      edgeHelperRef.current.geometry.dispose();
+      (edgeHelperRef.current.material as THREE.Material).dispose();
+      edgeHelperRef.current = null;
+    }
+    
+    if (faceHelperRef.current) {
+      sceneRef.current.remove(faceHelperRef.current);
+      faceHelperRef.current.geometry.dispose();
+      (faceHelperRef.current.material as THREE.Material).dispose();
+      faceHelperRef.current = null;
+    }
+    
+    if (!selectedObject) return;
+    
+    // Highlight object with wireframe
+    const geometry = selectedObject.geometry.clone();
+    const edges = new THREE.EdgesGeometry(geometry);
+    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+    const wireframe = new THREE.LineSegments(edges, edgeMaterial);
+    wireframe.position.copy(selectedObject.position);
+    wireframe.rotation.copy(selectedObject.rotation);
+    wireframe.scale.copy(selectedObject.scale);
+    sceneRef.current.add(wireframe);
+    edgeHelperRef.current = wireframe;
+    
+    // Highlight selected face
+    if (selectedFace !== null && geometry instanceof THREE.BufferGeometry && geometry.index) {
+      const positions = geometry.attributes.position;
+      const index = geometry.index;
+      const i = selectedFace * 3;
+      
+      if (i + 2 < index.count) {
+        const a = index.getX(i);
+        const b = index.getX(i + 1);
+        const c = index.getX(i + 2);
+        
+        const faceGeometry = new THREE.BufferGeometry();
+        const facePositions = new Float32Array([
+          positions.getX(a), positions.getY(a), positions.getZ(a),
+          positions.getX(b), positions.getY(b), positions.getZ(b),
+          positions.getX(c), positions.getY(c), positions.getZ(c)
+        ]);
+        faceGeometry.setAttribute('position', new THREE.BufferAttribute(facePositions, 3));
+        faceGeometry.setIndex([0, 1, 2]);
+        
+        const faceMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.5,
+          side: THREE.DoubleSide
+        });
+        const faceMesh = new THREE.Mesh(faceGeometry, faceMaterial);
+        faceMesh.position.copy(selectedObject.position);
+        faceMesh.rotation.copy(selectedObject.rotation);
+        faceMesh.scale.copy(selectedObject.scale);
+        sceneRef.current.add(faceMesh);
+        faceHelperRef.current = faceMesh;
+      }
+    }
+  }, [selectedObject, selectedFace]);
 
   // Fire projectile - Sniper bullet with precision
   const fireProjectile = useCallback(() => {
@@ -1312,6 +1577,11 @@ export default function OneShotArenaGame({
       trajectoryLineRef.current.visible = false;
     }
     
+    // Update highlights in manipulation mode
+    if (isManipulationMode && selectedObject) {
+      highlightSelectedObject();
+    }
+    
     // Render
     if (rendererRef.current && sceneRef.current && cameraRef.current) {
       try {
@@ -1477,6 +1747,66 @@ export default function OneShotArenaGame({
       containerRef.current?.removeEventListener('touchend', handleTouchEnd);
     };
   }, [gameState, fireProjectile]);
+
+  // Object manipulation handlers
+  useEffect(() => {
+    if (!containerRef.current || !rendererRef.current || !cameraRef.current || !raycasterRef.current) return;
+    if (gameState !== 'aiming' || !isManipulationMode) return;
+    
+    const handleObjectClick = (e: MouseEvent | TouchEvent) => {
+      if (!containerRef.current || !rendererRef.current || !cameraRef.current || !raycasterRef.current) return;
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      let clientX: number, clientY: number;
+      
+      if (e instanceof TouchEvent) {
+        if (e.touches.length === 0) return;
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+        e.preventDefault();
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      mouseRef.current.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      
+      // Find intersections with all meshes in scene
+      const allMeshes: THREE.Mesh[] = [];
+      sceneRef.current?.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj !== launcherRef.current) {
+          allMeshes.push(obj);
+        }
+      });
+      
+      const intersects = raycasterRef.current.intersectObjects(allMeshes, true);
+      
+      if (intersects.length > 0) {
+        const intersectedMesh = intersects[0].object as THREE.Mesh;
+        setSelectedObject(intersectedMesh);
+        
+        // Try to detect face index (simplified)
+        if (intersectedMesh.geometry instanceof THREE.BufferGeometry && intersectedMesh.geometry.index) {
+          const faceIndex = Math.floor(intersects[0].faceIndex || 0);
+          setSelectedFace(faceIndex);
+        }
+      } else {
+        setSelectedObject(null);
+        setSelectedFace(null);
+      }
+    };
+    
+    containerRef.current.addEventListener('click', handleObjectClick);
+    containerRef.current.addEventListener('touchstart', handleObjectClick, { passive: false });
+    
+    return () => {
+      containerRef.current?.removeEventListener('click', handleObjectClick);
+      containerRef.current?.removeEventListener('touchstart', handleObjectClick);
+    };
+  }, [gameState, isManipulationMode]);
 
   // Start game
   const startGame = useCallback(() => {
