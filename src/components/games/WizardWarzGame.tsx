@@ -1750,17 +1750,11 @@ export default function WizardWarzGame({
 
   // Fire spell with cooldown (instant cast, for F key)
   const fireSpell = useCallback(() => {
-    if (!gameActiveRef.current || !sceneRef.current || !playerWizardRef.current) {
-      console.log('Fire spell blocked: game not active or refs missing');
-      return;
-    }
+    if (!gameActiveRef.current || !sceneRef.current || !playerWizardRef.current) return;
     
     // Check spell cooldown
     const now = Date.now();
-    if (now - lastSpellTimeRef.current < SPELL_COOLDOWN) {
-      console.log('Fire spell blocked: cooldown active', now - lastSpellTimeRef.current);
-      return;
-    }
+    if (now - lastSpellTimeRef.current < SPELL_COOLDOWN) return;
     
     lastSpellTimeRef.current = now;
     spellCooldownRef.current = SPELL_COOLDOWN;
