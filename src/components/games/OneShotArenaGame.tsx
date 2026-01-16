@@ -1352,7 +1352,7 @@ export default function OneShotArenaGame({
     if (gameState !== 'aiming') return;
     
     const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || isDraggingPowerRef.current || isManipulationMode) return;
       
       const rect = containerRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
@@ -1374,6 +1374,15 @@ export default function OneShotArenaGame({
     };
     
     const handleWheel = (e: WheelEvent) => {
+      // In manipulation mode, wheel rotates selected object
+      if (isManipulationMode && selectedTarget && lockedAxis !== 'rotation') {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        selectedTarget.mesh.rotation.y += delta;
+        return;
+      }
+      
+      // Otherwise, adjust power
       e.preventDefault();
       // More responsive power changes - 2 units per scroll step
       setPower(prev => Math.max(20, Math.min(100, prev - e.deltaY * 0.2)));
