@@ -1456,9 +1456,6 @@ export default function OneShotArenaGame({
       generateTargets(sceneRef.current, rngRef.current, 1);
     }
     
-    // Start game loop
-    gameLoop();
-    
     // Play music
     const musicFile = theme === 'halloween' 
       ? '/one-shot-halloween.mp3' 
