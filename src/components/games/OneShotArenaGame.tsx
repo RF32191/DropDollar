@@ -1584,30 +1584,39 @@ export default function OneShotArenaGame({
       
       {/* Sniper UI Panel */}
       {gameState === 'aiming' && (
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none space-y-3">
-          {/* Power Meter */}
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+        <div className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 space-y-3 z-10">
+          {/* Power Meter - Touch Slidable on Mobile */}
+          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-2 md:p-3 border border-white/10 pointer-events-auto">
             <div className="text-xs text-gray-400 mb-2 text-center">POWER</div>
-            <div className="w-5 h-28 bg-gray-800 rounded-full overflow-hidden relative mx-auto">
+            <div 
+              ref={powerSliderRef}
+              className="w-8 md:w-5 h-32 md:h-28 bg-gray-800 rounded-full overflow-hidden relative mx-auto touch-none select-none cursor-pointer"
+              style={{ touchAction: 'none' }}
+            >
               <div 
                 className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-orange-600 via-yellow-500 to-green-400 transition-all duration-100"
                 style={{ height: `${((power - 20) / 80) * 100}%` }}
               />
               {/* Power level markers */}
-              <div className="absolute top-0 left-0 right-0 h-full flex flex-col justify-between py-1">
+              <div className="absolute top-0 left-0 right-0 h-full flex flex-col justify-between py-1 pointer-events-none">
                 <div className="w-full h-px bg-white/20"></div>
                 <div className="w-full h-px bg-white/20"></div>
                 <div className="w-full h-px bg-white/20"></div>
                 <div className="w-full h-px bg-white/20"></div>
               </div>
+              {/* Draggable handle indicator */}
+              <div 
+                className="absolute left-0 right-0 w-8 md:w-5 h-2 bg-white/80 rounded-full pointer-events-none"
+                style={{ bottom: `${((power - 20) / 80) * 100}%`, transform: 'translateY(50%)' }}
+              />
             </div>
-            <div className="text-sm font-bold text-white mt-2 text-center">{Math.round(power)}%</div>
+            <div className="text-xs md:text-sm font-bold text-white mt-2 text-center">{Math.round(power)}%</div>
           </div>
           
           {/* Breath/Stamina */}
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-2 md:p-3 border border-white/10 pointer-events-none">
             <div className="text-xs text-gray-400 mb-2 text-center">BREATH</div>
-            <div className="w-5 h-20 bg-gray-800 rounded-full overflow-hidden relative mx-auto">
+            <div className="w-8 md:w-5 h-24 md:h-20 bg-gray-800 rounded-full overflow-hidden relative mx-auto">
               <div 
                 className={`absolute bottom-0 left-0 right-0 transition-all ${
                   holdingBreath ? 'bg-cyan-400' : 'bg-blue-500'
@@ -1624,29 +1633,57 @@ export default function OneShotArenaGame({
       
       {/* Right Side Info */}
       {gameState === 'aiming' && (
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none space-y-3">
+        <div className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 space-y-3 z-10">
           {/* Wind Indicator */}
           {wind.strength > 0 && (
-            <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+            <div className="bg-black/70 backdrop-blur-sm rounded-xl p-2 md:p-3 border border-white/10 pointer-events-none">
               <div className="text-xs text-gray-400 mb-2 text-center">WIND</div>
-              <div className="text-2xl text-center">
+              <div className="text-xl md:text-2xl text-center">
                 {wind.x > 0 ? '→' : wind.x < 0 ? '←' : wind.z > 0 ? '↓' : '↑'}
               </div>
-              <div className="text-sm font-bold text-yellow-400 text-center">
+              <div className="text-xs md:text-sm font-bold text-yellow-400 text-center">
                 {(wind.strength * 100).toFixed(1)}
               </div>
             </div>
           )}
           
-          {/* Scope Toggle */}
-          <div className={`bg-black/70 backdrop-blur-sm rounded-xl p-3 border transition-all ${
-            isScoped ? 'border-cyan-500 bg-cyan-900/30' : 'border-white/10'
-          }`}>
+          {/* Scope Toggle - Mobile Button */}
+          <button
+            onClick={() => setIsScoped(prev => !prev)}
+            className={`bg-black/70 backdrop-blur-sm rounded-xl p-2 md:p-3 border transition-all touch-manipulation ${
+              isScoped ? 'border-cyan-500 bg-cyan-900/30' : 'border-white/10'
+            }`}
+          >
             <div className="text-xs text-gray-400 mb-1 text-center">SCOPE</div>
-            <div className={`text-lg font-bold text-center ${isScoped ? 'text-cyan-400' : 'text-gray-500'}`}>
-              {isScoped ? '🔭 ON' : 'Z KEY'}
+            <div className={`text-base md:text-lg font-bold text-center ${isScoped ? 'text-cyan-400' : 'text-gray-500'}`}>
+              {isScoped ? '🔭 ON' : '🔭 OFF'}
             </div>
-          </div>
+          </button>
+          
+          {/* Breath Hold Button - Mobile */}
+          <button
+            onTouchStart={() => {
+              if (breathRef.current > 10) {
+                setHoldingBreath(true);
+              }
+            }}
+            onTouchEnd={() => setHoldingBreath(false)}
+            onMouseDown={() => {
+              if (breathRef.current > 10) {
+                setHoldingBreath(true);
+              }
+            }}
+            onMouseUp={() => setHoldingBreath(false)}
+            disabled={breathHold < 10}
+            className={`bg-black/70 backdrop-blur-sm rounded-xl p-2 md:p-3 border transition-all touch-manipulation ${
+              holdingBreath ? 'border-cyan-500 bg-cyan-900/30' : 'border-white/10'
+            } ${breathHold < 10 ? 'opacity-50' : ''}`}
+          >
+            <div className="text-xs text-gray-400 mb-1 text-center">BREATH</div>
+            <div className={`text-base md:text-lg font-bold text-center ${holdingBreath ? 'text-cyan-400' : 'text-gray-500'}`}>
+              {holdingBreath ? 'HOLD' : 'HOLD'}
+            </div>
+          </button>
         </div>
       )}
       
@@ -1684,13 +1721,30 @@ export default function OneShotArenaGame({
         </div>
       )}
       
+      {/* Fire Button - Mobile */}
+      {gameState === 'aiming' && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+          <button
+            onClick={() => {
+              if (!projectileRef.current || !projectileRef.current.active) {
+                fireProjectile();
+              }
+            }}
+            disabled={projectileRef.current?.active}
+            className="md:hidden w-20 h-20 rounded-full bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold text-lg shadow-lg shadow-red-500/50 active:scale-95 transition-all touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            FIRE
+          </button>
+        </div>
+      )}
+      
       {/* Aiming hint */}
       {gameState === 'aiming' && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
+        <div className="absolute bottom-16 md:bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-0">
           <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
             <div className="text-xs text-gray-400 text-center space-x-3">
-              <span className="hidden sm:inline">🖱️ Aim • ⚙️ Scroll=Power • ⇧ Hold Breath • Z Scope • Click/Space to Fire</span>
-              <span className="sm:hidden">Drag to aim • Tap to fire!</span>
+              <span className="hidden md:inline">🖱️ Aim • ⚙️ Scroll=Power • ⇧ Hold Breath • Z Scope • Click/Space to Fire</span>
+              <span className="md:hidden">👆 Drag to aim • Slide power bar • Tap FIRE</span>
             </div>
           </div>
         </div>
