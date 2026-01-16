@@ -1514,9 +1514,20 @@ export default function WizardWarzGame({
               createdAt: Date.now()
             };
             
+            // Ensure spell mesh is visible and properly positioned
             spellMesh.position.copy(startPos);
-            scene.add(spellMesh);
-            spellsRef.current.push(spell);
+            spellMesh.visible = true;
+            
+            // Orient spell in direction of travel
+            if (direction.length() > 0) {
+              spellMesh.lookAt(startPos.clone().add(direction.multiplyScalar(10)));
+            }
+            
+            // Add to scene and spells array
+            if (scene) {
+              scene.add(spellMesh);
+              spellsRef.current.push(spell);
+            }
           }
         }
       }
