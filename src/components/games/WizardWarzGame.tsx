@@ -2029,6 +2029,7 @@ export default function WizardWarzGame({
             <span className="text-xl md:text-2xl">{ELEMENTS[currentElement].emoji}</span>
             <span className="text-white font-bold text-sm md:text-base">{ELEMENTS[currentElement].name}</span>
             {isShielding && <span className="text-cyan-400 animate-pulse ml-1 md:ml-2">🛡️</span>}
+            <span className="text-xs text-gray-400 ml-1 md:ml-2">🛡️ {5 - shieldUsesRef.current}/5</span>
           </div>
           
           {/* Element selector + Cast buttons - Combined, closer to bottom */}
