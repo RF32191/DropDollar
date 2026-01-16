@@ -1404,10 +1404,11 @@ export default function WizardWarzGame({
           // 50% chance to shield, 30% chance to teleport, 20% chance to do nothing
           const action = Math.random();
           
-          if (action < 0.5 && !botShieldActiveRef.current) {
-            // BOT SHIELD!
+          if (action < 0.5 && !botShieldActiveRef.current && botShieldUsesRef.current < 5) {
+            // BOT SHIELD! (max 5 uses)
             botShieldActiveRef.current = true;
             botShieldStartRef.current = Date.now();
+            botShieldUsesRef.current++;
             botLastActionRef.current = currentTime;
             
             // Show opponent shield
@@ -1765,16 +1766,31 @@ export default function WizardWarzGame({
     }
   }, [createSpellMesh]);
   
-  // Activate shield
+  // Activate shield (max 5 uses)
   const activateShield = useCallback(() => {
     if (!shieldMeshRef.current || shieldActiveRef.current) return;
     
+    // Check shield uses limit (5 max)
+    if (shieldUsesRef.current >= 5) {
+      addPopup(0, 50, 40, 'error', '🛡️ NO SHIELDS LEFT!');
+      return;
+    }
+    
     shieldActiveRef.current = true;
     shieldStartTimeRef.current = Date.now();
+    shieldUsesRef.current++;
     shieldMeshRef.current.visible = true;
     (shieldMeshRef.current.material as THREE.MeshBasicMaterial).opacity = 0.5;
     setIsShielding(true);
-  }, []);
+    
+    // Show remaining shields
+    const remaining = 5 - shieldUsesRef.current;
+    if (remaining > 0) {
+      addPopup(0, 50, 30, 'bonus', `🛡️ ${remaining} shields left`);
+    } else {
+      addPopup(0, 50, 30, 'error', '🛡️ LAST SHIELD!');
+    }
+  }, [addPopup]);
   
   // Deactivate shield
   const deactivateShield = useCallback(() => {
