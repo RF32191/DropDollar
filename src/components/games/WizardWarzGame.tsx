@@ -1769,7 +1769,7 @@ export default function WizardWarzGame({
       // Visual feedback
       addPopup(0, 50, 30, 'normal', `${ELEMENTS[currentElementRef.current].emoji} CAST!`);
     }
-  }, [createSpellMesh]);
+  }, [createSpellMesh, addPopup]);
   
   // Activate shield (max 5 uses)
   const activateShield = useCallback(() => {
