@@ -134,6 +134,16 @@ export default function OneShotArenaGame({
   const isDraggingPowerRef = useRef(false);
   const powerSliderRef = useRef<HTMLDivElement>(null);
   
+  // Object selection and manipulation
+  const [selectedTarget, setSelectedTarget] = useState<Target | null>(null);
+  const [isManipulationMode, setIsManipulationMode] = useState(false);
+  const [lockedAxis, setLockedAxis] = useState<'x' | 'y' | 'z' | 'rotation' | null>(null);
+  const raycasterRef = useRef<THREE.Raycaster | null>(null);
+  const mouseRef = useRef(new THREE.Vector2());
+  const isDraggingObjectRef = useRef(false);
+  const dragStartPosRef = useRef<THREE.Vector3 | null>(null);
+  const dragStartRotRef = useRef<THREE.Euler | null>(null);
+  
   // Arena dimensions
   const ARENA_WIDTH = 20;
   const ARENA_HEIGHT = 12;
@@ -1129,9 +1139,18 @@ export default function OneShotArenaGame({
       }
     }
     
-    // Animate targets with MOVEMENT PATTERNS
+    // Animate targets with MOVEMENT PATTERNS (skip if in manipulation mode and selected)
     targetsRef.current.forEach(target => {
       if (!target.hit) {
+        // Skip movement if target is selected in manipulation mode
+        if (isManipulationMode && selectedTarget === target) {
+          // Still rotate and pulse, but don't move
+          target.mesh.rotation.z += 0.015;
+          const pulse = Math.sin(time * 3) * 0.2 + 1.2;
+          target.glow.scale.setScalar(pulse);
+          return;
+        }
+        
         // Rotate target ring
         target.mesh.rotation.z += 0.015;
         
@@ -1326,7 +1345,7 @@ export default function OneShotArenaGame({
     if (sceneRef.current && rendererRef.current && cameraRef.current) {
       animationRef.current = requestAnimationFrame(gameLoop);
     }
-  }, [gameState, aimAngle, power, holdingBreath, isScoped, updateProjectile, endRound, wind]);
+  }, [gameState, aimAngle, power, holdingBreath, isScoped, updateProjectile, endRound, wind, isManipulationMode, selectedTarget]);
 
   // Input handlers
   useEffect(() => {
@@ -1346,6 +1365,8 @@ export default function OneShotArenaGame({
     };
     
     const handleClick = () => {
+      // Don't fire if in manipulation mode
+      if (isManipulationMode) return;
       // Only fire if no active projectile exists
       if (!projectileRef.current || !projectileRef.current.active) {
         fireProjectile();
@@ -1427,8 +1448,8 @@ export default function OneShotArenaGame({
         return;
       }
       
-      // Touch aiming
-      if (touchStartRef.current) {
+      // Touch aiming (skip if in manipulation mode)
+      if (touchStartRef.current && !isManipulationMode) {
         const touch = e.touches[0];
         const rect = containerRef.current.getBoundingClientRect();
         const x = ((touch.clientX - rect.left) / rect.width - 0.5) * 2;
@@ -1448,8 +1469,8 @@ export default function OneShotArenaGame({
         return;
       }
       
-      // Fire on touch end (if not dragging)
-      if (touchStartRef.current && (!projectileRef.current || !projectileRef.current.active)) {
+      // Fire on touch end (if not dragging and not in manipulation mode)
+      if (!isManipulationMode && touchStartRef.current && (!projectileRef.current || !projectileRef.current.active)) {
         fireProjectile();
       }
       touchStartRef.current = null;
@@ -1477,6 +1498,135 @@ export default function OneShotArenaGame({
       containerRef.current?.removeEventListener('touchend', handleTouchEnd);
     };
   }, [gameState, fireProjectile]);
+  
+  // Object selection and manipulation handlers
+  useEffect(() => {
+    if (!containerRef.current || !rendererRef.current || !cameraRef.current || !raycasterRef.current) return;
+    if (gameState !== 'aiming' || !isManipulationMode) return;
+    
+    const handleObjectClick = (e: MouseEvent | TouchEvent) => {
+      if (!containerRef.current || !rendererRef.current || !cameraRef.current || !raycasterRef.current) return;
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      let clientX: number, clientY: number;
+      
+      if (e instanceof TouchEvent) {
+        if (e.touches.length === 0) return;
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+        e.preventDefault();
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      // Convert to normalized device coordinates
+      mouseRef.current.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      
+      // Update raycaster
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      
+      // Find intersections with targets
+      const targetMeshes = targetsRef.current.map(t => t.mesh);
+      const intersects = raycasterRef.current.intersectObjects(targetMeshes, true);
+      
+      if (intersects.length > 0) {
+        const intersectedMesh = intersects[0].object;
+        const target = targetsRef.current.find(t => 
+          t.mesh === intersectedMesh || 
+          t.mesh.children.includes(intersectedMesh as THREE.Mesh)
+        );
+        
+        if (target) {
+          setSelectedTarget(target);
+          isDraggingObjectRef.current = true;
+          dragStartPosRef.current = target.mesh.position.clone();
+          dragStartRotRef.current = target.mesh.rotation.clone();
+        }
+      } else {
+        setSelectedTarget(null);
+      }
+    };
+    
+    const handleObjectDrag = (e: MouseEvent | TouchEvent) => {
+      if (!isDraggingObjectRef.current || !selectedTarget || !containerRef.current || !cameraRef.current || !raycasterRef.current) return;
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      let clientX: number, clientY: number;
+      
+      if (e instanceof TouchEvent) {
+        if (e.touches.length === 0) return;
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+        e.preventDefault();
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      mouseRef.current.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      
+      // Create plane at target's Y position for dragging
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -selectedTarget.mesh.position.y);
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      
+      const intersection = new THREE.Vector3();
+      raycasterRef.current.ray.intersectPlane(plane, intersection);
+      
+      if (intersection) {
+        // Apply axis locks
+        const newPos = selectedTarget.mesh.position.clone();
+        if (lockedAxis !== 'x') newPos.x = intersection.x;
+        if (lockedAxis !== 'y') newPos.y = intersection.y;
+        if (lockedAxis !== 'z') newPos.z = intersection.z;
+        
+        // Keep within arena bounds
+        newPos.x = Math.max(-ARENA_WIDTH / 2 + 1, Math.min(ARENA_WIDTH / 2 - 1, newPos.x));
+        newPos.y = Math.max(0.5, Math.min(ARENA_HEIGHT - 0.5, newPos.y));
+        newPos.z = Math.max(-ARENA_DEPTH / 2 + 1, Math.min(ARENA_DEPTH / 2 - 1, newPos.z));
+        
+        selectedTarget.mesh.position.copy(newPos);
+        selectedTarget.position.copy(newPos);
+        selectedTarget.basePosition.copy(newPos);
+      }
+    };
+    
+    const handleObjectRelease = () => {
+      isDraggingObjectRef.current = false;
+      dragStartPosRef.current = null;
+      dragStartRotRef.current = null;
+    };
+    
+    const handleRotate = (e: WheelEvent) => {
+      if (!selectedTarget || !isManipulationMode) return;
+      e.preventDefault();
+      
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      if (lockedAxis !== 'rotation') {
+        selectedTarget.mesh.rotation.y += delta;
+      }
+    };
+    
+    containerRef.current.addEventListener('click', handleObjectClick);
+    containerRef.current.addEventListener('touchstart', handleObjectClick, { passive: false });
+    containerRef.current.addEventListener('mousemove', handleObjectDrag);
+    containerRef.current.addEventListener('touchmove', handleObjectDrag, { passive: false });
+    containerRef.current.addEventListener('mouseup', handleObjectRelease);
+    containerRef.current.addEventListener('touchend', handleObjectRelease);
+    window.addEventListener('wheel', handleRotate, { passive: false });
+    
+    return () => {
+      containerRef.current?.removeEventListener('click', handleObjectClick);
+      containerRef.current?.removeEventListener('touchstart', handleObjectClick);
+      containerRef.current?.removeEventListener('mousemove', handleObjectDrag);
+      containerRef.current?.removeEventListener('touchmove', handleObjectDrag);
+      containerRef.current?.removeEventListener('mouseup', handleObjectRelease);
+      containerRef.current?.removeEventListener('touchend', handleObjectRelease);
+      window.removeEventListener('wheel', handleRotate);
+    };
+  }, [gameState, isManipulationMode, selectedTarget, lockedAxis]);
 
   // Start game
   const startGame = useCallback(() => {
