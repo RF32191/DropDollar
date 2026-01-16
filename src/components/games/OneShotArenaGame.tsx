@@ -1497,7 +1497,7 @@ export default function OneShotArenaGame({
       containerRef.current?.removeEventListener('touchmove', handleTouchMove);
       containerRef.current?.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [gameState, fireProjectile]);
+  }, [gameState, fireProjectile, isManipulationMode, isDraggingPowerRef]);
   
   // Object selection and manipulation handlers
   useEffect(() => {
