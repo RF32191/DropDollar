@@ -591,14 +591,15 @@ export default function OneShotArenaGame({
     scene.fog = new THREE.Fog(colors.background, 20, 60);
     sceneRef.current = scene;
     
-    // Camera
+    // Camera - Zoomed out for better view (mobile and desktop)
     const camera = new THREE.PerspectiveCamera(
-      60,
+      75, // Wider FOV for better view
       containerRef.current.clientWidth / containerRef.current.clientHeight,
       0.1,
-      100
+      200 // Increased far plane
     );
-    camera.position.set(0, 8, ARENA_DEPTH / 2 + 5);
+    // Camera positioned further back and higher for zoomed out view
+    camera.position.set(0, 12, ARENA_DEPTH / 2 + 12);
     camera.lookAt(0, 4, 0);
     cameraRef.current = camera;
     
@@ -685,10 +686,10 @@ export default function OneShotArenaGame({
     const finalAimX = aimAngle.x + (holdingBreath ? swayRef.current.x * 0.1 : swayRef.current.x);
     const finalAimY = aimAngle.y + (holdingBreath ? swayRef.current.y * 0.1 : swayRef.current.y);
     
-    // Calculate velocity - power bar directly controls speed (20-100 power = 0.12-0.6 speed)
-    // Power bar range: 20-100, so speed range: 0.12-0.6
-    const minSpeed = 0.12;
-    const maxSpeed = 0.6;
+    // Calculate velocity - power bar directly controls speed (20-100 power = 0.15-1.2 speed)
+    // Power bar range: 20-100, so speed range: 0.15-1.2 (much more dramatic effect)
+    const minSpeed = 0.15;
+    const maxSpeed = 1.2;
     const speed = minSpeed + (power - 20) / 80 * (maxSpeed - minSpeed);
     const velocity = new THREE.Vector3(
       Math.sin(finalAimX) * Math.cos(finalAimY) * speed,
@@ -1098,8 +1099,8 @@ export default function OneShotArenaGame({
       const swayedAimY = aimAngle.y + swayRef.current.y;
       
       // Use same power-to-speed calculation as fireProjectile
-      const minSpeed = 0.12;
-      const maxSpeed = 0.6;
+      const minSpeed = 0.15;
+      const maxSpeed = 1.2;
       const speed = minSpeed + (power - 20) / 80 * (maxSpeed - minSpeed);
       
       const direction = new THREE.Vector3(
@@ -1230,8 +1231,8 @@ export default function OneShotArenaGame({
       const finalAimY = aimAngle.y + swayRef.current.y;
       
       // Use same power-to-speed calculation as fireProjectile
-      const minSpeed = 0.12;
-      const maxSpeed = 0.6;
+      const minSpeed = 0.15;
+      const maxSpeed = 1.2;
       const speed = minSpeed + (power - 20) / 80 * (maxSpeed - minSpeed);
       
       let velocity = new THREE.Vector3(
