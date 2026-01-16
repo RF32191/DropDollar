@@ -1000,19 +1000,41 @@ export default function WizardWarzGame({
         spell.position.add(spell.velocity);
         spell.mesh.position.copy(spell.position);
         
-        // Rotate particles
-        spell.mesh.children.forEach(child => {
-          if (child.userData.isParticle) {
-            child.userData.angle += 0.12;
-            const r = 0.5;
-            child.position.x = Math.cos(child.userData.angle) * r;
-            child.position.y = Math.sin(child.userData.angle) * r;
-          }
-        });
-        
-        // Rotate core
-        spell.mesh.rotation.x += 0.05;
-        spell.mesh.rotation.y += 0.05;
+        // Animate beam spells - stream particles along beam
+        if (spell.isBeam) {
+          spell.mesh.userData.streamTime = (spell.mesh.userData.streamTime || 0) + 0.1;
+          spell.mesh.children.forEach(child => {
+            if (child.userData.streamSpeed) {
+              // Animate streaming particles along beam
+              const streamOffset = child.userData.streamOffset || 0;
+              const streamPos = ((spell.mesh.userData.streamTime * child.userData.streamSpeed + streamOffset) % (Math.PI * 2)) / (Math.PI * 2);
+              child.position.z = streamPos * spell.mesh.userData.beamLength;
+              // Add slight rotation
+              child.rotation.x += 0.05;
+              child.rotation.y += 0.05;
+            }
+          });
+          // Rotate beam rings
+          spell.mesh.children.forEach(child => {
+            if (child.geometry && child.geometry.type === 'TorusGeometry') {
+              child.rotation.z += 0.02;
+            }
+          });
+        } else {
+          // Rotate particles for normal spells
+          spell.mesh.children.forEach(child => {
+            if (child.userData.isParticle) {
+              child.userData.angle += 0.12;
+              const r = 0.5;
+              child.position.x = Math.cos(child.userData.angle) * r;
+              child.position.y = Math.sin(child.userData.angle) * r;
+            }
+          });
+          
+          // Rotate core
+          spell.mesh.rotation.x += 0.05;
+          spell.mesh.rotation.y += 0.05;
+        }
         
         // Check collision - use actual wizard positions, not ref positions
         const isPlayerSpell = spell.ownerId === userIdRef.current;
