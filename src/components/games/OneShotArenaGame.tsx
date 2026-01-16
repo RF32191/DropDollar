@@ -1385,17 +1385,95 @@ export default function OneShotArenaGame({
       }
     };
     
+    // Touch handlers for mobile aiming
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!containerRef.current) return;
+      const touch = e.touches[0];
+      const target = e.target as HTMLElement;
+      
+      // Check if touching power slider
+      if (powerSliderRef.current && powerSliderRef.current.contains(target)) {
+        isDraggingPowerRef.current = true;
+        const rect = powerSliderRef.current.getBoundingClientRect();
+        const y = touch.clientY - rect.top;
+        const height = rect.height;
+        const powerValue = 100 - ((y / height) * 80); // Invert: top = 100, bottom = 20
+        setPower(Math.max(20, Math.min(100, powerValue)));
+        return;
+      }
+      
+      // Regular touch for aiming
+      isDraggingPowerRef.current = false;
+      const rect = containerRef.current.getBoundingClientRect();
+      touchStartRef.current = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!containerRef.current) return;
+      
+      if (isDraggingPowerRef.current && powerSliderRef.current) {
+        // Dragging power slider
+        const touch = e.touches[0];
+        const rect = powerSliderRef.current.getBoundingClientRect();
+        const y = touch.clientY - rect.top;
+        const height = rect.height;
+        const powerValue = 100 - ((y / height) * 80); // Invert: top = 100, bottom = 20
+        setPower(Math.max(20, Math.min(100, powerValue)));
+        e.preventDefault();
+        return;
+      }
+      
+      // Touch aiming
+      if (touchStartRef.current) {
+        const touch = e.touches[0];
+        const rect = containerRef.current.getBoundingClientRect();
+        const x = ((touch.clientX - rect.left) / rect.width - 0.5) * 2;
+        const y = ((rect.bottom - touch.clientY) / rect.height) * 1.5;
+        
+        setAimAngle({
+          x: x * 0.8,
+          y: Math.max(0.1, Math.min(1.2, y))
+        });
+        e.preventDefault();
+      }
+    };
+    
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (isDraggingPowerRef.current) {
+        isDraggingPowerRef.current = false;
+        return;
+      }
+      
+      // Fire on touch end (if not dragging)
+      if (touchStartRef.current && (!projectileRef.current || !projectileRef.current.active)) {
+        fireProjectile();
+      }
+      touchStartRef.current = null;
+    };
+    
     window.addEventListener('mousemove', handleMouseMove);
     containerRef.current?.addEventListener('click', handleClick);
     window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     
+    // Touch events
+    containerRef.current?.addEventListener('touchstart', handleTouchStart, { passive: false });
+    containerRef.current?.addEventListener('touchmove', handleTouchMove, { passive: false });
+    containerRef.current?.addEventListener('touchend', handleTouchEnd, { passive: false });
+    
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      containerRef.current?.removeEventListener('click', handleClick);
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      containerRef.current?.removeEventListener('touchstart', handleTouchStart);
+      containerRef.current?.removeEventListener('touchmove', handleTouchMove);
+      containerRef.current?.removeEventListener('touchend', handleTouchEnd);
     };
   }, [gameState, fireProjectile]);
 
