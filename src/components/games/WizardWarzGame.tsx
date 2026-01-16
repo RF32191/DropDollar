@@ -1086,17 +1086,17 @@ export default function WizardWarzGame({
         
         // Check collision - use actual wizard positions, not ref positions
         const isPlayerSpell = spell.ownerId === userIdRef.current;
-        let targetPos: THREE.Vector3;
+        let collisionTargetPos: THREE.Vector3;
         if (isPlayerSpell) {
           // Player spell hitting opponent
-          targetPos = opponentWizardRef.current?.position.clone() || opponentPositionRef.current.clone();
+          collisionTargetPos = opponentWizardRef.current?.position.clone() || opponentPositionRef.current.clone();
         } else {
           // Enemy spell hitting player
-          targetPos = playerWizardRef.current?.position.clone() || playerPositionRef.current.clone();
+          collisionTargetPos = playerWizardRef.current?.position.clone() || playerPositionRef.current.clone();
         }
         // Set Y to match spell Y for better collision
-        targetPos.y = spell.position.y;
-        const dist = spell.position.distanceTo(targetPos);
+        collisionTargetPos.y = spell.position.y;
+        const dist = spell.position.distanceTo(collisionTargetPos);
         
         // Increased collision radius from 1.8 to 3.0 for better hit detection
         if (dist < 3.0) {
