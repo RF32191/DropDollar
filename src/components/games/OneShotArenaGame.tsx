@@ -1310,10 +1310,18 @@ export default function OneShotArenaGame({
     
     // Render
     if (rendererRef.current && sceneRef.current && cameraRef.current) {
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
+      try {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      } catch (error) {
+        console.error('Render error:', error);
+        return; // Stop animation loop on render error
+      }
     }
     
-    animationRef.current = requestAnimationFrame(gameLoop);
+    // Only continue animation loop if scene is still valid
+    if (sceneRef.current && rendererRef.current && cameraRef.current) {
+      animationRef.current = requestAnimationFrame(gameLoop);
+    }
   }, [gameState, aimAngle, power, holdingBreath, isScoped, updateProjectile, endRound, wind]);
 
   // Input handlers
