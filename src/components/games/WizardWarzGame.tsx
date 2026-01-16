@@ -2070,9 +2070,11 @@ export default function WizardWarzGame({
               {ELEMENT_ORDER.map((el) => (
                 <button
                   key={el}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     // Always cast spell on click if cooldown is ready
-                    if (spellCooldown === 0) {
+                    if (spellCooldown === 0 && gameActiveRef.current) {
                       if (currentElement === el) {
                         // If clicking current element, fire spell immediately
                         fireSpell();
@@ -2091,30 +2093,37 @@ export default function WizardWarzGame({
                       changeElement(el);
                     }
                   }}
-                  onMouseDown={() => {
-                    // Start holding for heavy shot
+                  onMouseDown={(e) => {
+                    // Only start holding if it's the current element and not on cooldown
                     if (currentElement === el && spellCooldown === 0) {
+                      e.preventDefault();
                       startHoldSpell();
                     }
                   }}
-                  onMouseUp={() => {
-                    // Release to fire (normal or heavy based on hold time)
-                    if (currentElement === el) {
+                  onMouseUp={(e) => {
+                    // Only release if we were holding
+                    if (currentElement === el && isHoldingSpellRef.current) {
+                      e.preventDefault();
                       releaseSpell();
                     }
                   }}
                   onTouchStart={(e) => {
-                    e.preventDefault();
-                    // Start holding for heavy shot
+                    // Only start holding if it's the current element and not on cooldown
                     if (currentElement === el && spellCooldown === 0) {
+                      e.preventDefault();
                       startHoldSpell();
                     }
                   }}
                   onTouchEnd={(e) => {
-                    e.preventDefault();
-                    // Release to fire (normal or heavy based on hold time)
+                    // Only release if we were holding, otherwise fire normally
                     if (currentElement === el) {
-                      releaseSpell();
+                      e.preventDefault();
+                      if (isHoldingSpellRef.current) {
+                        releaseSpell();
+                      } else if (spellCooldown === 0 && gameActiveRef.current) {
+                        // If not holding, fire immediately on touch end
+                        fireSpell();
+                      }
                     }
                   }}
                   disabled={spellCooldown > 0 && currentElement === el}
