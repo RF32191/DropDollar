@@ -1015,8 +1015,33 @@ export default function WizardWarzGame({
           sceneRef.current?.add(spell.mesh);
         }
         
-        spell.position.add(spell.velocity);
+        // Slow down spell as it approaches target
+        const isPlayerSpell = spell.ownerId === userIdRef.current;
+        let targetPos: THREE.Vector3;
+        if (isPlayerSpell) {
+          // Player spell heading towards opponent
+          targetPos = opponentWizardRef.current?.position.clone() || opponentPositionRef.current.clone();
+        } else {
+          // Enemy spell heading towards player
+          targetPos = playerWizardRef.current?.position.clone() || playerPositionRef.current.clone();
+        }
+        
+        const distanceToTarget = spell.position.distanceTo(targetPos);
+        // Slow down when within 15 units of target (gradual slowdown)
+        const slowDownDistance = 15;
+        let speedMultiplier = 1.0;
+        if (distanceToTarget < slowDownDistance) {
+          // Gradually slow down: 1.0 at 15 units, 0.4 at 0 units
+          speedMultiplier = 0.4 + (distanceToTarget / slowDownDistance) * 0.6;
+        }
+        
+        // Apply speed reduction
+        const adjustedVelocity = spell.velocity.clone().multiplyScalar(speedMultiplier);
+        spell.position.add(adjustedVelocity);
         spell.mesh.position.copy(spell.position);
+        
+        // Update velocity for next frame (maintain direction but reduce speed)
+        spell.velocity.copy(adjustedVelocity);
         
         // Ensure spell mesh is properly oriented
         if (spell.velocity.length() > 0) {
@@ -1725,11 +1750,17 @@ export default function WizardWarzGame({
 
   // Fire spell with cooldown (instant cast, for F key)
   const fireSpell = useCallback(() => {
-    if (!gameActiveRef.current || !sceneRef.current || !playerWizardRef.current) return;
+    if (!gameActiveRef.current || !sceneRef.current || !playerWizardRef.current) {
+      console.log('Fire spell blocked: game not active or refs missing');
+      return;
+    }
     
     // Check spell cooldown
     const now = Date.now();
-    if (now - lastSpellTimeRef.current < SPELL_COOLDOWN) return;
+    if (now - lastSpellTimeRef.current < SPELL_COOLDOWN) {
+      console.log('Fire spell blocked: cooldown active', now - lastSpellTimeRef.current);
+      return;
+    }
     
     lastSpellTimeRef.current = now;
     spellCooldownRef.current = SPELL_COOLDOWN;
@@ -2071,8 +2102,6 @@ export default function WizardWarzGame({
                 <button
                   key={el}
                   onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
                     // Always cast spell on click if cooldown is ready
                     if (spellCooldown === 0 && gameActiveRef.current) {
                       if (currentElement === el) {
@@ -2095,29 +2124,50 @@ export default function WizardWarzGame({
                   }}
                   onMouseDown={(e) => {
                     // Only start holding if it's the current element and not on cooldown
+                    // Don't prevent default to allow onClick to fire
                     if (currentElement === el && spellCooldown === 0) {
-                      e.preventDefault();
-                      startHoldSpell();
+                      // Start timer for hold detection
+                      const holdTimer = setTimeout(() => {
+                        if (currentElement === el && spellCooldown === 0) {
+                          startHoldSpell();
+                        }
+                      }, 100); // Only start holding after 100ms
+                      (e.currentTarget as HTMLElement).dataset.holdTimer = holdTimer.toString();
                     }
                   }}
                   onMouseUp={(e) => {
+                    // Clear hold timer
+                    const holdTimer = (e.currentTarget as HTMLElement).dataset.holdTimer;
+                    if (holdTimer) {
+                      clearTimeout(parseInt(holdTimer));
+                      delete (e.currentTarget as HTMLElement).dataset.holdTimer;
+                    }
                     // Only release if we were holding
                     if (currentElement === el && isHoldingSpellRef.current) {
-                      e.preventDefault();
                       releaseSpell();
                     }
                   }}
                   onTouchStart={(e) => {
                     // Only start holding if it's the current element and not on cooldown
                     if (currentElement === el && spellCooldown === 0) {
-                      e.preventDefault();
-                      startHoldSpell();
+                      // Start timer for hold detection
+                      const holdTimer = setTimeout(() => {
+                        if (currentElement === el && spellCooldown === 0) {
+                          startHoldSpell();
+                        }
+                      }, 100); // Only start holding after 100ms
+                      (e.currentTarget as HTMLElement).dataset.holdTimer = holdTimer.toString();
                     }
                   }}
                   onTouchEnd={(e) => {
+                    // Clear hold timer
+                    const holdTimer = (e.currentTarget as HTMLElement).dataset.holdTimer;
+                    if (holdTimer) {
+                      clearTimeout(parseInt(holdTimer));
+                      delete (e.currentTarget as HTMLElement).dataset.holdTimer;
+                    }
                     // Only release if we were holding, otherwise fire normally
                     if (currentElement === el) {
-                      e.preventDefault();
                       if (isHoldingSpellRef.current) {
                         releaseSpell();
                       } else if (spellCooldown === 0 && gameActiveRef.current) {
