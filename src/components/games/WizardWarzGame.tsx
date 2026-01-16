@@ -1116,31 +1116,70 @@ export default function WizardWarzGame({
               spellsToRemoveRef.current.push(spell.id);
             }
           } else {
-            // Spell hitting OPPONENT (bot)
-            // Check if bot is shielding
-            if (botShieldActiveRef.current) {
-              // Bot deflects spell back to player!
+            // Spell hitting OPPONENT (bot/AI)
+            // Check if it's a beam spell hitting bot shield
+            if (botShieldActiveRef.current && spell.isBeam) {
+              // Beam BREAKS bot shield
+              botShieldActiveRef.current = false;
+              if (opponentShieldRef.current) {
+                opponentShieldRef.current.visible = false;
+              }
+              botShieldStartRef.current = 0;
+              botTeleportCooldownRef.current = 5000; // Bot also gets cooldown
+              addPopupRef.current(100, 50, 40, 'critical', '💥 BOT SHIELD BROKEN!');
+              
+              // Beam passes through with full damage
+              const { damage, type } = calculateDamage(spell.element, botElementRef.current);
+              const fullDamage = damage * 2; // Beam does 2x damage
+              
+              if (fullDamage > 0) {
+                opponentHeartsRef.current = Math.max(0, opponentHeartsRef.current - fullDamage);
+                setOpponentHearts(Math.ceil(opponentHeartsRef.current));
+                addPopupRef.current(0, 50, 30, 'damage', `-${fullDamage}❤️`);
+                
+                const points = fullDamage === DAMAGE_WEAKNESS * 2 ? 1000 : 200;
+                scoreRef.current += points;
+                setScore(scoreRef.current);
+                
+                if (opponentHeartsRef.current <= 0) {
+                  gameActiveRef.current = false;
+                  setWinner('player');
+                  setGameState('ended');
+                }
+              }
+              
+              spellsToRemoveRef.current.push(spell.id);
+            } else if (botShieldActiveRef.current) {
+              // Normal spell - Bot deflects spell back to player!
               const toPlayer = playerPositionRef.current.clone().sub(spell.position).normalize();
               spell.velocity.copy(toPlayer.multiplyScalar(SPELL_SPEED * 1.2));
               spell.ownerId = 'bot';
               // Don't remove spell - it continues toward player
             } else {
-              // Calculate damage to opponent based on elements
+              // No bot shield - Calculate damage to opponent based on elements
               const { damage, type } = calculateDamage(spell.element, botElementRef.current);
               
               if (damage === 0) {
                 // Opponent immune
                 addPopupRef.current(0, 50, 50, 'bonus', `BOT ${type}`);
               } else {
-                opponentHeartsRef.current = Math.max(0, opponentHeartsRef.current - damage);
+                // Apply damage multiplier for beam spells
+                const finalDamage = spell.isBeam ? damage * 2 : damage;
+                opponentHeartsRef.current = Math.max(0, opponentHeartsRef.current - finalDamage);
                 setOpponentHearts(Math.ceil(opponentHeartsRef.current));
                 
-                const points = damage === DAMAGE_WEAKNESS ? 500 : 100;
+                const points = finalDamage === DAMAGE_WEAKNESS * 2 || (spell.isBeam && damage === DAMAGE_WEAKNESS) ? 1000 : 
+                              finalDamage === DAMAGE_WEAKNESS ? 500 : 
+                              spell.isBeam ? 200 : 100;
                 scoreRef.current += points;
                 setScore(scoreRef.current);
                 
-                if (damage === DAMAGE_WEAKNESS) {
+                if (finalDamage === DAMAGE_WEAKNESS * 2 || (spell.isBeam && damage === DAMAGE_WEAKNESS)) {
+                  addPopupRef.current(points, 50, 50, 'critical', 'SUPER EFFECTIVE BEAM!');
+                } else if (finalDamage === DAMAGE_WEAKNESS) {
                   addPopupRef.current(points, 50, 50, 'critical', 'SUPER EFFECTIVE!');
+                } else if (spell.isBeam) {
+                  addPopupRef.current(points, 50, 50, 'critical', 'BEAM HIT!');
                 } else {
                   addPopupRef.current(points, 50, 50, 'normal');
                 }
@@ -1421,60 +1460,98 @@ export default function WizardWarzGame({
     };
   }, [gameState, createWizard, createShield, createCastleEnvironment, createSpellMesh, gameMode]);
   
-  // Create beam spell mesh (heavy shot)
-  const createBeamSpellMesh = useCallback((element: Element) => {
+  // Create beam spell mesh (heavy shot) - LONG CONTINUOUS BEAM
+  const createBeamSpellMesh = useCallback((element: Element, startPos: THREE.Vector3, direction: THREE.Vector3) => {
     const beam = new THREE.Group();
     const data = ELEMENTS[element];
     
-    // Main beam cylinder
-    const beamGeo = new THREE.CylinderGeometry(0.15, 0.25, 2.5, 16);
+    // Calculate beam length (distance to target or max range)
+    const maxRange = 50; // Maximum beam range
+    const beamLength = Math.min(maxRange, 50); // Long continuous beam
+    
+    // Main beam cylinder - LONG and THIN for continuous beam effect
+    const beamGeo = new THREE.CylinderGeometry(0.2, 0.25, beamLength, 16);
     const beamMat = new THREE.MeshStandardMaterial({
       color: data.color,
       emissive: data.glowColor,
-      emissiveIntensity: 2.0,
+      emissiveIntensity: 3.0,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.95
     });
     const mainBeam = new THREE.Mesh(beamGeo, beamMat);
+    mainBeam.rotation.x = Math.PI / 2; // Orient horizontally
+    mainBeam.position.z = beamLength / 2; // Center along Z axis
     beam.add(mainBeam);
     
-    // Core glow
-    const coreGeo = new THREE.SphereGeometry(0.4, 16, 16);
+    // Core energy stream - continuous line of energy
+    const coreGeo = new THREE.CylinderGeometry(0.08, 0.1, beamLength, 8);
     const coreMat = new THREE.MeshBasicMaterial({
       color: data.glowColor,
       transparent: true,
-      opacity: 0.8
+      opacity: 1.0
     });
     const core = new THREE.Mesh(coreGeo, coreMat);
-    core.position.y = 1.25;
+    core.rotation.x = Math.PI / 2;
+    core.position.z = beamLength / 2;
     beam.add(core);
     
-    // Outer glow rings
-    for (let i = 0; i < 3; i++) {
-      const ringGeo = new THREE.TorusGeometry(0.3 + i * 0.1, 0.05, 8, 16);
+    // Outer glow rings along beam length
+    for (let i = 0; i < 5; i++) {
+      const ringGeo = new THREE.TorusGeometry(0.25 + i * 0.05, 0.03, 8, 16);
       const ringMat = new THREE.MeshBasicMaterial({
         color: data.glowColor,
         transparent: true,
-        opacity: 0.4 - i * 0.1
+        opacity: 0.6 - i * 0.1
       });
       const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.position.y = 1.25;
       ring.rotation.x = Math.PI / 2;
+      ring.position.z = (i / 4) * beamLength;
       beam.add(ring);
     }
     
-    // Energy particles along beam
-    for (let i = 0; i < 12; i++) {
-      const particleGeo = new THREE.SphereGeometry(0.08, 8, 8);
-      const particleMat = new THREE.MeshBasicMaterial({ color: data.color, transparent: true, opacity: 0.7 });
+    // Energy particles streaming along beam - many particles for continuous effect
+    for (let i = 0; i < 30; i++) {
+      const particleGeo = new THREE.SphereGeometry(0.06, 8, 8);
+      const particleMat = new THREE.MeshBasicMaterial({ 
+        color: data.glowColor, 
+        transparent: true, 
+        opacity: 0.8 
+      });
       const particle = new THREE.Mesh(particleGeo, particleMat);
       particle.position.set(
-        (Math.random() - 0.5) * 0.3,
-        (i / 12) * 2.5,
-        (Math.random() - 0.5) * 0.3
+        (Math.random() - 0.5) * 0.2,
+        (Math.random() - 0.5) * 0.2,
+        (i / 30) * beamLength
       );
+      particle.userData.streamSpeed = 0.5 + Math.random() * 0.5;
+      particle.userData.streamOffset = Math.random() * Math.PI * 2;
       beam.add(particle);
     }
+    
+    // Beam start point - bright origin
+    const originGeo = new THREE.SphereGeometry(0.3, 16, 16);
+    const originMat = new THREE.MeshBasicMaterial({
+      color: data.glowColor,
+      transparent: true,
+      opacity: 1.0
+    });
+    const origin = new THREE.Mesh(originGeo, originMat);
+    beam.add(origin);
+    
+    // Beam end point - bright tip
+    const tipGeo = new THREE.SphereGeometry(0.25, 16, 16);
+    const tipMat = new THREE.MeshBasicMaterial({
+      color: data.color,
+      transparent: true,
+      opacity: 0.9
+    });
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.position.z = beamLength;
+    beam.add(tip);
+    
+    // Store beam properties for animation
+    beam.userData.beamLength = beamLength;
+    beam.userData.streamTime = 0;
     
     return beam;
   }, []);
@@ -1513,20 +1590,25 @@ export default function WizardWarzGame({
     spellCooldownRef.current = SPELL_COOLDOWN;
     setSpellCooldown(SPELL_COOLDOWN);
     
-    const spellMesh = isHeavyShot 
-      ? createBeamSpellMesh(currentElementRef.current)
-      : createSpellMesh(currentElementRef.current);
     const startPos = playerWizardRef.current.position.clone();
     startPos.y += 2.5;
-    
     const direction = opponentPositionRef.current.clone().sub(startPos).normalize();
+    
+    const spellMesh = isHeavyShot 
+      ? createBeamSpellMesh(currentElementRef.current, startPos, direction)
+      : createSpellMesh(currentElementRef.current);
+    
+    // Orient beam in direction of travel
+    if (isHeavyShot) {
+      spellMesh.lookAt(startPos.clone().add(direction.multiplyScalar(50)));
+    }
     
     const spell: Spell = {
       id: `player-${Date.now()}`,
       mesh: spellMesh,
       element: currentElementRef.current,
       position: startPos,
-      velocity: direction.multiplyScalar(isHeavyShot ? SPELL_SPEED * 1.5 : SPELL_SPEED), // Beam is faster
+      velocity: direction.multiplyScalar(isHeavyShot ? SPELL_SPEED * 2.0 : SPELL_SPEED), // Beam is faster
       ownerId: userIdRef.current || '',
       damage: isHeavyShot ? SPELL_DAMAGE * 2 : SPELL_DAMAGE, // Beam does more damage
       createdAt: Date.now(),
@@ -1860,10 +1942,24 @@ export default function WizardWarzGame({
                 <button
                   key={el}
                   onClick={() => {
-                    changeElement(el);
-                    // Cast spell when clicking selected element (instant cast)
-                    if (currentElement === el && spellCooldown === 0) {
-                      fireSpell();
+                    // Always cast spell on click if cooldown is ready
+                    if (spellCooldown === 0) {
+                      if (currentElement === el) {
+                        // If clicking current element, fire spell immediately
+                        fireSpell();
+                      } else {
+                        // If clicking different element, change element first, then fire
+                        changeElement(el);
+                        // Small delay to ensure element change completes
+                        setTimeout(() => {
+                          if (gameActiveRef.current && spellCooldownRef.current === 0) {
+                            fireSpell();
+                          }
+                        }, 50);
+                      }
+                    } else {
+                      // If on cooldown, just change element
+                      changeElement(el);
                     }
                   }}
                   onMouseDown={() => {
