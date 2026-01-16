@@ -154,6 +154,9 @@ export default function WizardWarzGame({
   const botShieldStartRef = useRef(0);
   const botTeleportCooldownRef = useRef(0);
   const botLastActionRef = useRef(0);
+  const botSpellCooldownRef = useRef(0); // Bot spell cooldown (same as player)
+  const botLastSpellTimeRef = useRef(0); // Last time bot cast a spell
+  const botLastElementChangeRef = useRef(0); // Last time bot changed element
   
   // Keep refs updated
   useEffect(() => {
@@ -939,6 +942,9 @@ export default function WizardWarzGame({
     botShieldActiveRef.current = false;
     botTeleportCooldownRef.current = 0;
     botLastActionRef.current = 0;
+    botSpellCooldownRef.current = 0;
+    botLastSpellTimeRef.current = 0;
+    botLastElementChangeRef.current = 0;
     
     // Initialize game state
     gameActiveRef.current = true;
@@ -972,7 +978,7 @@ export default function WizardWarzGame({
     }, 1000);
     
     // Animation loop
-    let lastBotShot = Date.now();
+    // Bot shot timing handled by botLastSpellTimeRef
     const gameStartTime = Date.now();
     const BOT_START_DELAY = 3000; // 3 seconds before bot starts shooting
     
@@ -1353,6 +1359,11 @@ export default function WizardWarzGame({
         botTeleportCooldownRef.current -= 16;
       }
       
+      // Update bot spell cooldown
+      if (botSpellCooldownRef.current > 0) {
+        botSpellCooldownRef.current -= 16;
+      }
+      
       // Update bot shield
       if (botShieldActiveRef.current && Date.now() - botShieldStartRef.current > SHIELD_DURATION) {
         botShieldActiveRef.current = false;
@@ -1433,31 +1444,63 @@ export default function WizardWarzGame({
           }
         }
         
-        // Shoot spell every 2-3 seconds
-        if (currentTime - lastBotShot > 2000 + Math.random() * 1000) {
-          lastBotShot = currentTime;
+        // Bot periodically changes element (every 5-8 seconds) - not just when teleporting
+        const timeSinceElementChange = currentTime - botLastElementChangeRef.current;
+        if (timeSinceElementChange > 5000 + Math.random() * 3000 && botSpellCooldownRef.current <= 0) {
+          // Change to a random element (not necessarily via teleport)
+          const randomElement = ELEMENT_ORDER[Math.floor(Math.random() * ELEMENT_ORDER.length)];
+          botElementRef.current = randomElement;
+          botLastElementChangeRef.current = currentTime;
           
-          // Bot shoots its current element
-          const spellMesh = createSpellMesh(botElementRef.current);
-          const startPos = opponentPositionRef.current.clone();
-          startPos.y += 2.5;
-          
-          const direction = playerPositionRef.current.clone().sub(startPos).normalize();
-          
-          const spell: Spell = {
-            id: `bot-${Date.now()}`,
-            mesh: spellMesh,
-            element: botElementRef.current,
-            position: startPos,
-            velocity: direction.multiplyScalar(SPELL_SPEED * 0.85),
-            ownerId: 'bot',
-            damage: SPELL_DAMAGE,
-            createdAt: Date.now()
-          };
-          
-          spellMesh.position.copy(startPos);
-          scene.add(spellMesh);
-          spellsRef.current.push(spell);
+          // Update visual glow
+          if (opponentGlowRef.current) {
+            (opponentGlowRef.current.material as THREE.MeshBasicMaterial).color.setHex(
+              ELEMENTS[randomElement].glowColor
+            );
+          }
+          if (opponentStaffRef.current) {
+            const orbGlow = opponentStaffRef.current.getObjectByName('staffOrbGlow') as THREE.Mesh;
+            if (orbGlow) {
+              (orbGlow.material as THREE.MeshBasicMaterial).color.setHex(
+                ELEMENTS[randomElement].glowColor
+              );
+            }
+          }
+        }
+        
+        // Shoot spell with cooldown (same as player) - every 2-4 seconds but respect cooldown
+        const timeSinceLastSpell = currentTime - botLastSpellTimeRef.current;
+        const minSpellInterval = 2000 + Math.random() * 2000; // 2-4 seconds between shots
+        
+        if (timeSinceLastSpell > minSpellInterval && botSpellCooldownRef.current <= 0) {
+          // Check cooldown before casting (same as player)
+          const now = Date.now();
+          if (now - botLastSpellTimeRef.current >= SPELL_COOLDOWN) {
+            botLastSpellTimeRef.current = now;
+            botSpellCooldownRef.current = SPELL_COOLDOWN;
+            
+            // Bot shoots its current element
+            const spellMesh = createSpellMesh(botElementRef.current);
+            const startPos = opponentPositionRef.current.clone();
+            startPos.y += 2.5;
+            
+            const direction = playerPositionRef.current.clone().sub(startPos).normalize();
+            
+            const spell: Spell = {
+              id: `bot-${Date.now()}`,
+              mesh: spellMesh,
+              element: botElementRef.current,
+              position: startPos,
+              velocity: direction.multiplyScalar(SPELL_SPEED * 0.85),
+              ownerId: 'bot',
+              damage: SPELL_DAMAGE,
+              createdAt: Date.now()
+            };
+            
+            spellMesh.position.copy(startPos);
+            scene.add(spellMesh);
+            spellsRef.current.push(spell);
+          }
         }
       }
       
