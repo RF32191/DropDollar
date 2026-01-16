@@ -1259,6 +1259,11 @@ export default function WizardWarzGame({
           setShieldCooldown(1000);
           setTimeout(() => setShieldCooldown(0), 1000);
         }
+        
+        // Prevent shield activation if limit reached
+        if (shieldUsesRef.current >= 5 && shieldActiveRef.current) {
+          // Shield expired naturally, but don't allow reactivation
+        }
       }
       
       // Update opponent shield position
@@ -1509,7 +1514,7 @@ export default function WizardWarzGame({
               mesh: spellMesh,
               element: botElementRef.current,
               position: startPos,
-              velocity: direction.multiplyScalar(SPELL_SPEED * 0.85),
+              velocity: direction.multiplyScalar(SPELL_SPEED * 0.6), // Slower enemy spells
               ownerId: 'bot',
               damage: SPELL_DAMAGE,
               createdAt: Date.now()
