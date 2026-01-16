@@ -130,6 +130,7 @@ export default function WizardWarzGame({
   const opponentPositionRef = useRef(new THREE.Vector3(0, 0, -20));
   const shieldActiveRef = useRef(false);
   const shieldStartTimeRef = useRef(0);
+  const shieldUsesRef = useRef(0); // Track shield uses (max 5)
   const teleportCooldownRef = useRef(0);
   const teleportInvincibleRef = useRef(false);
   const teleportInvincibleUntilRef = useRef(0);
@@ -152,6 +153,7 @@ export default function WizardWarzGame({
   const botElementRef = useRef<Element>('fire');
   const botShieldActiveRef = useRef(false);
   const botShieldStartRef = useRef(0);
+  const botShieldUsesRef = useRef(0); // Track bot shield uses (max 5)
   const botTeleportCooldownRef = useRef(0);
   const botLastActionRef = useRef(0);
   const botSpellCooldownRef = useRef(0); // Bot spell cooldown (same as player)
@@ -940,11 +942,13 @@ export default function WizardWarzGame({
     // Initialize bot state
     botElementRef.current = 'fire';
     botShieldActiveRef.current = false;
+    botShieldUsesRef.current = 0;
     botTeleportCooldownRef.current = 0;
     botLastActionRef.current = 0;
     botSpellCooldownRef.current = 0;
     botLastSpellTimeRef.current = 0;
     botLastElementChangeRef.current = 0;
+    shieldUsesRef.current = 0;
     
     // Initialize game state
     gameActiveRef.current = true;
@@ -1003,8 +1007,21 @@ export default function WizardWarzGame({
       
       // Update spells
       for (const spell of spellsRef.current) {
+        // Ensure spell mesh is visible and in scene
+        if (!spell.mesh.visible) {
+          spell.mesh.visible = true;
+        }
+        if (!sceneRef.current?.children.includes(spell.mesh)) {
+          sceneRef.current?.add(spell.mesh);
+        }
+        
         spell.position.add(spell.velocity);
         spell.mesh.position.copy(spell.position);
+        
+        // Ensure spell mesh is properly oriented
+        if (spell.velocity.length() > 0) {
+          spell.mesh.lookAt(spell.position.clone().add(spell.velocity.clone().normalize()));
+        }
         
         // Animate beam spells - stream particles along beam
         if (spell.isBeam) {
@@ -1718,9 +1735,23 @@ export default function WizardWarzGame({
       createdAt: Date.now()
     };
     
+    // Ensure spell mesh is visible and properly positioned
     spellMesh.position.copy(startPos);
-    sceneRef.current.add(spellMesh);
-    spellsRef.current.push(spell);
+    spellMesh.visible = true;
+    
+    // Orient spell in direction of travel
+    if (direction.length() > 0) {
+      spellMesh.lookAt(startPos.clone().add(direction.multiplyScalar(10)));
+    }
+    
+    // Add to scene and spells array
+    if (sceneRef.current) {
+      sceneRef.current.add(spellMesh);
+      spellsRef.current.push(spell);
+      
+      // Visual feedback
+      addPopup(0, 50, 30, 'normal', `${ELEMENTS[currentElementRef.current].emoji} CAST!`);
+    }
   }, [createSpellMesh]);
   
   // Activate shield
