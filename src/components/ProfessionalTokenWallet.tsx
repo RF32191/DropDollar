@@ -309,6 +309,23 @@ export default function ProfessionalTokenWallet() {
         console.warn(`⚠️ [TokenWallet] Using actual payment amount: ${totalTokens} tokens`);
       }
       
+      // CRITICAL: Step 1 - Check if table exists first
+      console.log('🔍 [TokenWallet] Step 0: Checking if user_transactions table exists...');
+      try {
+        const tableCheck = await fetch('/api/payments/check-table');
+        const tableStatus = await tableCheck.json();
+        if (!tableStatus.exists) {
+          console.error('❌ [TokenWallet] user_transactions table does NOT exist!');
+          console.error('❌ [TokenWallet] Error:', tableStatus.error);
+          console.error('❌ [TokenWallet] Message:', tableStatus.message);
+          throw new Error(`user_transactions table does not exist. ${tableStatus.message || 'Please run CREATE_USER_TRANSACTIONS_TABLE.sql'}`);
+        }
+        console.log('✅ [TokenWallet] Table exists and is accessible');
+      } catch (tableError: any) {
+        console.error('❌ [TokenWallet] Table check failed:', tableError);
+        throw new Error(`Cannot verify table exists: ${tableError.message}`);
+      }
+      
       // CRITICAL: Step 1 - Save transaction FIRST to prevent webhook from adding duplicate tokens
       // This MUST happen BEFORE adding tokens so webhook can detect it
       console.log('💳 [TokenWallet] Step 1: Saving transaction FIRST to prevent webhook duplicates...');
