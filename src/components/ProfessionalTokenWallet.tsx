@@ -51,6 +51,7 @@ export default function ProfessionalTokenWallet() {
   const [isCustomAmount, setIsCustomAmount] = useState(true); // Always use custom amount
   const [showBalance, setShowBalance] = useState(true);
   const [tokenTransactions, setTokenTransactions] = useState<TokenTransaction[]>([]);
+  const [purchaseHistory, setPurchaseHistory] = useState<PurchaseHistory[]>([]);
   const [activeTab, setActiveTab] = useState<'wallet' | 'purchase' | 'history'>('wallet');
   const [showCelebration, setShowCelebration] = useState(false);
   const [showCoinDrop, setShowCoinDrop] = useState(false);
@@ -166,6 +167,7 @@ export default function ProfessionalTokenWallet() {
             
             // Load purchase history
             const purchases = await UserService.getUserPurchaseHistory(currentUser.id);
+            setPurchaseHistory(purchases);
             console.log('✅ [TokenWallet] Loaded', purchases.length, 'purchases');
             
             // Load game history
@@ -204,17 +206,21 @@ export default function ProfessionalTokenWallet() {
     checkAuthentication();
   }, []);
 
-  // Refresh transaction history when switching to history tab
+  // Refresh transaction history and purchase history when switching to history tab
   useEffect(() => {
     const refreshHistory = async () => {
       if (activeTab === 'history' && userProfile) {
-        console.log('🔄 [TokenWallet] Refreshing transaction history...');
+        console.log('🔄 [TokenWallet] Refreshing transaction history and purchase history...');
         try {
           const transactions = await UserService.getUserTokenTransactions(userProfile.id);
           setTokenTransactions(transactions);
           console.log('✅ [TokenWallet] Transaction history refreshed:', transactions.length, 'transactions');
+          
+          const purchases = await UserService.getUserPurchaseHistory(userProfile.id);
+          setPurchaseHistory(purchases);
+          console.log('✅ [TokenWallet] Purchase history refreshed:', purchases.length, 'purchases');
         } catch (error) {
-          console.error('❌ [TokenWallet] Failed to refresh transaction history:', error);
+          console.error('❌ [TokenWallet] Failed to refresh history:', error);
         }
       }
     };
@@ -389,10 +395,14 @@ export default function ProfessionalTokenWallet() {
         throw new Error('Failed to verify token update');
       }
       
-      // Step 7: Reload transaction history
+      // Step 7: Reload transaction history and purchase history
       const transactions = await UserService.getUserTokenTransactions(userProfile.id);
       setTokenTransactions(transactions);
       console.log('✅ [TokenWallet] Transaction history reloaded:', transactions.length, 'transactions');
+      
+      const purchases = await UserService.getUserPurchaseHistory(userProfile.id);
+      setPurchaseHistory(purchases);
+      console.log('✅ [TokenWallet] Purchase history reloaded:', purchases.length, 'purchases');
       
       // Verify the new transaction exists
       const latestTransaction = transactions[0];
@@ -914,9 +924,7 @@ export default function ProfessionalTokenWallet() {
             {/* Purchase History Section */}
             <div className="mb-8">
               <h3 className="text-xl font-bold text-green-400 mb-4">Recent Purchases</h3>
-              {(() => {
-                const purchases = tokenTransactions.filter(t => t.type === 'purchase');
-                return purchases.length === 0 ? (
+              {purchaseHistory.length === 0 ? (
                   <div className="text-center text-gray-400 py-8 bg-gray-700/50 rounded-lg">
                     No purchases yet. Buy tokens to get started!
                   </div>
@@ -943,26 +951,31 @@ export default function ProfessionalTokenWallet() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-700">
-                        {purchases.slice(0, 10).map((transaction) => {
-                          const paymentId = transaction.stripePaymentIntentId || transaction.metadata?.payment_intent_id || 'N/A';
-                          const amount = transaction.metadata?.amount_paid || (transaction.amount * 1).toFixed(2);
+                        {purchaseHistory.slice(0, 10).map((purchase) => {
+                          const paymentId = purchase.stripePaymentIntentId || 'N/A';
+                          const amount = typeof purchase.amount === 'number' ? purchase.amount.toFixed(2) : purchase.amount;
                           return (
-                            <tr key={transaction.id} className="hover:bg-gray-700 transition-colors">
+                            <tr key={purchase.id} className="hover:bg-gray-700 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {new Date(transaction.created_at!).toLocaleString()}
+                                {new Date(purchase.createdAt).toLocaleString()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-400">
-                                +{transaction.amount} Tokens
+                                +{purchase.tokensPurchased || 0} Tokens
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                                ${typeof amount === 'string' ? amount : amount.toFixed(2)}
+                                ${amount}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono text-xs">
                                 {paymentId.length > 20 ? paymentId.substring(0, 20) + '...' : paymentId}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                  Completed
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  purchase.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                  purchase.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  purchase.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {purchase.status.charAt(0).toUpperCase() + purchase.status.slice(1)}
                                 </span>
                               </td>
                             </tr>
@@ -971,8 +984,7 @@ export default function ProfessionalTokenWallet() {
                       </tbody>
                     </table>
                   </div>
-                );
-              })()}
+                )}
             </div>
 
             {/* All Transactions Section */}
