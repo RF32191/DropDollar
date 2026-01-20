@@ -51,6 +51,8 @@ export function PurchaseHistory() {
   useEffect(() => {
     if (!user?.id) return;
 
+    console.log('✅ [PurchaseHistory] Auto-refresh enabled - will update every 10 seconds');
+    
     const intervalId = setInterval(() => {
       console.log('🔄 [PurchaseHistory] Auto-refreshing transaction history...');
       loadPurchaseHistory();
