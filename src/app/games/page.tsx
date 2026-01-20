@@ -1772,6 +1772,12 @@ export default function GamesPage() {
                     </div>
                   )}
                   
+                  {game.id === 'lightning-maze' && (
+                    <div className="absolute inset-0">
+                      <LazyVideo src="/lighteningmaze.mp4" className="w-full h-full" preload="none" />
+                    </div>
+                  )}
+                  
                   {game.id === 'cash-stack' && (
                     <div className="absolute inset-0">
                       <LazyVideo src="/cash-stack-gameplay.mp4" className="w-full h-full" preload="none" />

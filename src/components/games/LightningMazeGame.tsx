@@ -2832,6 +2832,44 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
           </div>
         </div>
       )}
+      
+      {/* Expanded Video Modal */}
+      {expandedVideo && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+          onClick={() => setExpandedVideo(null)}
+        >
+          <div 
+            className="relative w-full h-full max-w-6xl max-h-[90vh] p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setExpandedVideo(null)}
+              className="absolute top-4 right-4 z-10 bg-red-600 hover:bg-red-700 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl font-bold shadow-lg"
+            >
+              ×
+            </button>
+            <video
+              autoPlay
+              loop
+              controls
+              preload="auto"
+              className="w-full h-full rounded-lg"
+              style={{ objectFit: 'contain' }}
+              onTimeUpdate={(e) => {
+                const video = e.currentTarget;
+                // Limit to 15 seconds - loop back to start
+                if (video.currentTime >= 15) {
+                  video.currentTime = 0;
+                }
+              }}
+            >
+              <source src={expandedVideo} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
