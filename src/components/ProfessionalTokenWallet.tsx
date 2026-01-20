@@ -161,22 +161,23 @@ export default function ProfessionalTokenWallet() {
             setIsLoggedIn(true);
             
             // Load user transactions (purchases and winnings)
-            const userTransactions = await UserService.getUserTransactions(currentUser.id);
-            
-            // Separate purchases and winnings
-            const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
-            const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
-            
-            // Update state (keep compatibility with existing UI)
-            setTokenTransactions(userTransactions.map(tx => ({
-              id: tx.id,
-              userId: tx.user_id,
-              type: tx.type === 'token_purchase' ? 'purchase' : tx.type,
-              amount: tx.tokens_purchased || tx.tokens_won || tx.amount,
-              balance_before: null,
-              balance_after: null,
-              description: tx.description,
-              stripePaymentIntentId: tx.stripe_payment_intent_id,
+            try {
+              const userTransactions = await UserService.getUserTransactions(currentUser.id);
+              
+              // Separate purchases and winnings
+              const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
+              const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
+              
+              // Update state (keep compatibility with existing UI)
+              setTokenTransactions(userTransactions.map(tx => ({
+                id: tx.id,
+                userId: tx.user_id,
+                type: tx.type === 'token_purchase' ? 'purchase' : tx.type,
+                amount: tx.tokens_purchased || tx.tokens_won || tx.amount,
+                balance_before: null,
+                balance_after: null,
+                description: tx.description,
+                stripePaymentIntentId: tx.stripe_payment_intent_id,
               metadata: tx.metadata || {},
               created_at: tx.created_at
             })));
@@ -292,15 +293,17 @@ export default function ProfessionalTokenWallet() {
       console.log('👤 [TokenWallet] User ID:', userProfile.id);
       console.log('👤 [TokenWallet] User Email:', userProfile.email);
       
-      // Calculate tokens from ACTUAL payment intent amount (not customAmount)
-      // This ensures we use the exact amount Stripe charged
-      const actualAmountPaid = paymentIntent.amount; // Amount in cents from Stripe
-      const totalTokens = Math.floor(actualAmountPaid / 100); // $1 per token, so divide cents by 100
-      const amountPaidDollars = actualAmountPaid / 100;
+      // SIMPLE 1:1 RATIO: $1 = 1 token (exact match with Stripe payment)
+      // Stripe amount is in CENTS, so $10 = 1000 cents = 10 tokens
+      const actualAmountPaidCents = paymentIntent.amount; // Amount in cents from Stripe
+      const amountPaidDollars = actualAmountPaidCents / 100; // Convert to dollars
+      const totalTokens = amountPaidDollars; // 1 token = $1 (SIMPLE!)
       
-      console.log(`💰 [TokenWallet] Payment Intent Amount: ${actualAmountPaid} cents ($${amountPaidDollars})`);
-      console.log(`💰 [TokenWallet] Calculated tokens: ${totalTokens} tokens ($${amountPaidDollars} / $1 per token)`);
-      console.log(`💰 [TokenWallet] Adding ${totalTokens} tokens to account...`);
+      console.log(`💰 [TokenWallet] ==========================================`);
+      console.log(`💰 [TokenWallet] STRIPE PAYMENT RECEIVED`);
+      console.log(`💰 [TokenWallet] Amount Paid: ${actualAmountPaidCents} cents = $${amountPaidDollars}`);
+      console.log(`💰 [TokenWallet] Tokens to Add: ${totalTokens} tokens (1 token = $1)`);
+      console.log(`💰 [TokenWallet] ==========================================`);
       
       // Verify the payment amount matches what we expect
       const expectedAmount = (parseInt(customAmount) || 10) * 100; // Expected amount in cents

@@ -126,15 +126,17 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     console.log('💰 [Webhook] Customer:', paymentIntent.customer);
     console.log('💰 [Webhook] Metadata:', paymentIntent.metadata);
 
-    // Get payment details
-    const amountPaid = paymentIntent.amount / 100; // Convert cents to dollars
-    const amountPaidCents = paymentIntent.amount; // Amount in cents
+    // SIMPLE 1:1 RATIO: $1 = 1 token (exact match with Stripe payment)
+    // Stripe amount is in CENTS, so $10 = 1000 cents = 10 tokens
+    const amountPaidCents = paymentIntent.amount; // Amount in cents from Stripe
+    const amountPaidDollars = amountPaidCents / 100; // Convert to dollars
+    const tokensToCredit = amountPaidDollars; // 1 token = $1 (SIMPLE!)
     
-    // Calculate tokens: $1 = 1 token (exact match with frontend)
-    const tokensToCredit = Math.floor(amountPaidCents / 100);
-    
-    console.log(`💵 [Webhook] Payment Intent Amount: ${amountPaidCents} cents ($${amountPaid})`);
-    console.log(`💵 [Webhook] Calculated: $${amountPaid} = ${tokensToCredit} tokens ($${amountPaid} / $1 per token)`);
+    console.log(`💵 [Webhook] ==========================================`);
+    console.log(`💵 [Webhook] STRIPE PAYMENT RECEIVED`);
+    console.log(`💵 [Webhook] Amount Paid: ${amountPaidCents} cents = $${amountPaidDollars}`);
+    console.log(`💵 [Webhook] Tokens to Credit: ${tokensToCredit} tokens (1 token = $1)`);
+    console.log(`💵 [Webhook] ==========================================`);
     
     // CRITICAL: Check if tokens were already added by frontend
     // Wait 2 seconds to allow frontend to save transaction first
@@ -175,11 +177,15 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       if (userData) userId = userData.id;
     }
     
-    // If transaction exists, skip immediately
+    // CRITICAL: If transaction exists, SKIP adding tokens (frontend already did it)
     if (existingTransaction) {
-      console.log(`⚠️ [Webhook] Payment already processed by frontend! Skipping duplicate credit.`);
-      console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Type: ${existingTransaction.type}, Tokens: ${existingTransaction.tokens_purchased}`);
-      console.log(`⚠️ [Webhook] Transaction created at: ${existingTransaction.created_at}`);
+      console.log(`🚫 [Webhook] ==========================================`);
+      console.log(`🚫 [Webhook] DUPLICATE DETECTED - SKIPPING TOKEN CREDIT`);
+      console.log(`🚫 [Webhook] Transaction ID: ${existingTransaction.id}`);
+      console.log(`🚫 [Webhook] Type: ${existingTransaction.type}`);
+      console.log(`🚫 [Webhook] Tokens Already Added: ${existingTransaction.tokens_purchased}`);
+      console.log(`🚫 [Webhook] Created At: ${existingTransaction.created_at}`);
+      console.log(`🚫 [Webhook] ==========================================`);
       
       // Mark webhook as processed but skipped
       await supabase!
@@ -187,18 +193,18 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
         .update({ 
           processed: true, 
           processed_at: new Date().toISOString(),
-          notes: `Skipped - already processed by frontend (transaction ${existingTransaction.id} found)`
+          notes: `SKIPPED - Frontend already added ${existingTransaction.tokens_purchased} tokens (transaction ${existingTransaction.id})`
         })
         .eq('payment_intent_id', paymentIntent.id);
       
-      return; // Exit early to prevent duplicate credits
+      return; // EXIT - DO NOT ADD TOKENS AGAIN!
     }
     
-    console.log('⚠️ [Webhook] No transaction found after 3 checks. This could mean:');
-    console.log('⚠️ [Webhook] 1. Frontend failed to save transaction');
-    console.log('⚠️ [Webhook] 2. user_transactions table does not exist');
-    console.log('⚠️ [Webhook] 3. Database write is slow');
-    console.log('⚠️ [Webhook] Proceeding with token credit as fallback...');
+    // If no transaction found, frontend might have failed
+    // But we'll still add tokens as fallback (only if no transaction exists)
+    console.log('⚠️ [Webhook] No transaction found after 3 checks.');
+    console.log('⚠️ [Webhook] This means frontend did NOT save transaction.');
+    console.log('⚠️ [Webhook] Proceeding with token credit as FALLBACK ONLY...');
     
     // Get userId (already checked above, but get it again if not found)
     if (!userId) {

@@ -1171,22 +1171,35 @@ export class UserService {
     try {
       console.log('💳 [UserService] Fetching user transactions for user:', userId);
       
+      // Ensure userId is treated as UUID (cast to TEXT for comparison)
       const { data, error } = await supabase
         .from('user_transactions')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId) // Supabase handles UUID comparison automatically
         .order('created_at', { ascending: false })
+        .limit(limit)
         .range(offset, offset + limit - 1);
 
       if (error) {
         console.error('❌ [UserService] Error fetching user transactions:', error);
+        console.error('❌ [UserService] Error code:', error.code);
+        console.error('❌ [UserService] Error message:', error.message);
+        
+        // If table doesn't exist, return empty array (don't crash)
+        if (error.code === '42P01') {
+          console.warn('⚠️ [UserService] user_transactions table does not exist. Run CREATE_USER_TRANSACTIONS_TABLE.sql');
+          return [];
+        }
+        
         return [];
       }
 
       console.log('✅ [UserService] User transactions fetched:', data?.length || 0);
       return data || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [UserService] Exception in getUserTransactions:', error);
+      console.error('❌ [UserService] Exception message:', error?.message);
+      console.error('❌ [UserService] Exception stack:', error?.stack);
       return [];
     }
   }
