@@ -1663,6 +1663,7 @@ export default function PennyPasserGame3D({
                   loop
                   muted
                   playsInline
+                  preload="metadata"
                   className="w-full h-full rounded-lg border-2 border-purple-400 shadow-2xl transition-transform group-hover:scale-105"
                   style={{ objectFit: 'contain' }}
                 >
@@ -1789,9 +1790,8 @@ export default function PennyPasserGame3D({
             <video
               autoPlay
               loop
-              muted
-              playsInline
               controls
+              preload="auto"
               className="w-full h-full rounded-lg"
               style={{ objectFit: 'contain' }}
             >
