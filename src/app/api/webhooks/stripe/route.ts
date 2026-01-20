@@ -136,42 +136,18 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     console.log(`💵 [Webhook] Payment Intent Amount: ${amountPaidCents} cents ($${amountPaid})`);
     console.log(`💵 [Webhook] Calculated: $${amountPaid} = ${tokensToCredit} tokens ($${amountPaid} / $1 per token)`);
     
-    // Check if tokens were already added by frontend (check multiple ways)
-    // 1. Check purchase_history
-    const { data: existingPurchase, error: purchaseError } = await supabase!
-      .from('purchase_history')
-      .select('id, tokens_purchased, created_at')
+    // Check if tokens were already added by frontend
+    // Check user_transactions table (links to wallet via user_id)
+    const { data: existingTransaction, error: transactionError } = await supabase!
+      .from('user_transactions')
+      .select('id, type, amount, tokens_purchased, created_at')
       .eq('stripe_payment_intent_id', paymentIntent.id)
       .maybeSingle();
     
-    // 2. Check token_transactions
-    const { data: existingTransaction } = await supabase!
-      .from('token_transactions')
-      .select('id, amount, created_at')
-      .eq('stripe_payment_intent_id', paymentIntent.id)
-      .maybeSingle();
-    
-    // Check if purchase or transaction already exists
-    if (existingPurchase) {
-      console.log(`⚠️ [Webhook] Purchase already processed by frontend! Skipping duplicate credit.`);
-      console.log(`⚠️ [Webhook] Existing purchase ID: ${existingPurchase.id}, Tokens: ${existingPurchase.tokens_purchased}, Created: ${existingPurchase.created_at}`);
-      
-      // Mark webhook as processed but skipped
-      await supabase!
-        .from('stripe_webhook_log')
-        .update({ 
-          processed: true, 
-          processed_at: new Date().toISOString(),
-          notes: 'Skipped - already processed by frontend'
-        })
-        .eq('payment_intent_id', paymentIntent.id);
-      
-      return; // Exit early to prevent duplicate credits
-    }
-    
+    // Check if transaction already exists (prevents double-dipping)
     if (existingTransaction) {
-      console.log(`⚠️ [Webhook] Transaction already exists! Skipping duplicate credit.`);
-      console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Amount: ${existingTransaction.amount}, Created: ${existingTransaction.created_at}`);
+      console.log(`⚠️ [Webhook] Transaction already processed by frontend! Skipping duplicate credit.`);
+      console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Type: ${existingTransaction.type}, Amount: ${existingTransaction.amount}, Created: ${existingTransaction.created_at}`);
       
       // Mark webhook as processed but skipped
       await supabase!
@@ -179,14 +155,14 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
         .update({ 
           processed: true, 
           processed_at: new Date().toISOString(),
-          notes: 'Skipped - transaction already exists'
+          notes: 'Skipped - already processed by frontend (user_transactions)'
         })
         .eq('payment_intent_id', paymentIntent.id);
       
       return; // Exit early to prevent duplicate credits
     }
     
-    console.log('✅ [Webhook] No existing purchase or transaction found - proceeding with token credit');
+    console.log('✅ [Webhook] No existing transaction found - proceeding with token credit');
 
     // Try to get userId from metadata first
     let userId = paymentIntent.metadata.userId || paymentIntent.metadata.user_id;
@@ -271,16 +247,15 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       console.log('✅ [Webhook] Tokens added successfully to purchased_tokens wallet');
     }
     
-    // Save purchase history (same as frontend)
-    const purchaseHistorySaved = await UserService.savePurchaseHistory({
+    // Save to user_transactions table (links to wallet via user_id)
+    const transactionSaved = await UserService.saveUserTransaction({
       userId: userId,
-      purchaseType: 'tokens',
+      type: 'token_purchase',
       amount: amountPaid,
-      tokensPurchased: tokensToCredit,
-      tokensSpent: 0,
-      stripePaymentIntentId: paymentIntent.id,
-      status: 'completed',
       description: `Purchased ${tokensToCredit} tokens via Stripe webhook ($${amountPaid})`,
+      status: 'completed',
+      stripePaymentIntentId: paymentIntent.id,
+      tokensPurchased: tokensToCredit,
       metadata: {
         payment_intent_id: paymentIntent.id,
         tokens: tokensToCredit,
@@ -293,28 +268,11 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       }
     });
     
-    if (!purchaseHistorySaved) {
-      console.error('❌ [Webhook] Failed to save purchase history');
+    if (!transactionSaved) {
+      console.error('❌ [Webhook] Failed to save user transaction');
     } else {
-      console.log('✅ [Webhook] Purchase history saved');
+      console.log('✅ [Webhook] User transaction saved');
     }
-    
-    // Add token transaction
-    await UserService.addTokenTransaction({
-      userId: userId,
-      type: 'purchase',
-      amount: tokensToCredit,
-      description: `Purchased ${tokensToCredit} tokens via Stripe webhook (added to purchased_tokens wallet)`,
-      stripePaymentIntentId: paymentIntent.id,
-      metadata: {
-        payment_intent_id: paymentIntent.id,
-        amount_paid: amountPaid,
-        tokens: tokensToCredit,
-        timestamp: new Date().toISOString(),
-        wallet_type: 'purchased_tokens',
-        source: 'stripe_webhook'
-      }
-    });
 
     // Mark webhook as processed
     await supabase!

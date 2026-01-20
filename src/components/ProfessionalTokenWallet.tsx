@@ -160,15 +160,43 @@ export default function ProfessionalTokenWallet() {
             
             setIsLoggedIn(true);
             
-            // Load token transactions
-            const transactions = await UserService.getUserTokenTransactions(currentUser.id);
-            setTokenTransactions(transactions);
-            console.log('✅ [TokenWallet] Loaded', transactions.length, 'transactions');
+            // Load user transactions (purchases and winnings)
+            const userTransactions = await UserService.getUserTransactions(currentUser.id);
             
-            // Load purchase history
-            const purchases = await UserService.getUserPurchaseHistory(currentUser.id);
-            setPurchaseHistory(purchases);
-            console.log('✅ [TokenWallet] Loaded', purchases.length, 'purchases');
+            // Separate purchases and winnings
+            const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
+            const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
+            
+            // Update state (keep compatibility with existing UI)
+            setTokenTransactions(userTransactions.map(tx => ({
+              id: tx.id,
+              userId: tx.user_id,
+              type: tx.type === 'token_purchase' ? 'purchase' : tx.type,
+              amount: tx.tokens_purchased || tx.tokens_won || tx.amount,
+              balance_before: null,
+              balance_after: null,
+              description: tx.description,
+              stripePaymentIntentId: tx.stripe_payment_intent_id,
+              metadata: tx.metadata || {},
+              created_at: tx.created_at
+            })));
+            
+            setPurchaseHistory(purchases.map(tx => ({
+              id: tx.id,
+              userId: tx.user_id,
+              purchaseType: 'tokens',
+              amount: tx.amount,
+              tokensPurchased: tx.tokens_purchased || 0,
+              tokensSpent: 0,
+              stripePaymentIntentId: tx.stripe_payment_intent_id,
+              status: tx.status || 'completed',
+              description: tx.description,
+              metadata: tx.metadata || {},
+              createdAt: tx.created_at
+            })));
+            
+            console.log('✅ [TokenWallet] Loaded', userTransactions.length, 'transactions');
+            console.log('✅ [TokenWallet] Purchases:', purchases.length, 'Winnings:', winnings.length);
             
             // Load game history
             const games = await UserService.getUserGameHistory(currentUser.id);
@@ -346,39 +374,38 @@ export default function ProfessionalTokenWallet() {
         throw new Error('Failed to update tokens after 3 attempts');
       }
       
-      // Step 3: Save purchase history FIRST (before transaction record)
+      // Step 3: Save to user_transactions table (links to wallet via user_id)
       // This MUST succeed to prevent webhook from adding duplicate tokens
       // Use API endpoint directly to bypass RLS issues
-      console.log('💳 [TokenWallet] Attempting to save purchase history via API...');
+      console.log('💳 [TokenWallet] Attempting to save user transaction via API...');
       console.log('💳 [TokenWallet] User ID:', userProfile.id);
       console.log('💳 [TokenWallet] Payment Intent ID:', paymentIntent.id);
       console.log('💳 [TokenWallet] Tokens:', totalTokens);
       console.log('💳 [TokenWallet] Amount:', amountPaidDollars);
       
-      let purchaseResult = false;
-      let purchaseAttempts = 0;
-      const maxPurchaseAttempts = 3;
+      let transactionResult = false;
+      let transactionAttempts = 0;
+      const maxTransactionAttempts = 3;
       
-      while (!purchaseResult && purchaseAttempts < maxPurchaseAttempts) {
-        purchaseAttempts++;
-        console.log(`💳 [TokenWallet] Purchase history save attempt ${purchaseAttempts}/${maxPurchaseAttempts}`);
+      while (!transactionResult && transactionAttempts < maxTransactionAttempts) {
+        transactionAttempts++;
+        console.log(`💳 [TokenWallet] User transaction save attempt ${transactionAttempts}/${maxTransactionAttempts}`);
         
         try {
-          // Try API endpoint first (bypasses RLS)
-          const response = await fetch('/api/payments/save-purchase-history', {
+          // Save to user_transactions table (links to wallet via user_id)
+          const response = await fetch('/api/payments/save-user-transaction', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               userId: userProfile.id,
-              purchaseType: 'tokens',
+              type: 'token_purchase',
               amount: amountPaidDollars,
-              tokensPurchased: totalTokens,
-              tokensSpent: 0,
-              stripePaymentIntentId: paymentIntent.id,
-              status: 'completed',
               description: `Purchased ${totalTokens} tokens via Stripe ($${amountPaidDollars})`,
+              status: 'completed',
+              stripePaymentIntentId: paymentIntent.id,
+              tokensPurchased: totalTokens,
               metadata: {
                 payment_intent_id: paymentIntent.id,
                 tokens: totalTokens,
@@ -394,74 +421,7 @@ export default function ProfessionalTokenWallet() {
 
           if (response.ok) {
             const result = await response.json();
-            console.log('✅ [TokenWallet] Purchase history saved via API:', result.purchaseId);
-            purchaseResult = true;
-            break;
-          } else {
-            const errorData = await response.json();
-            console.error(`❌ [TokenWallet] API endpoint failed attempt ${purchaseAttempts}:`, errorData);
-            if (purchaseAttempts < maxPurchaseAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 1000 * purchaseAttempts));
-            }
-          }
-        } catch (apiError: any) {
-          console.error(`❌ [TokenWallet] API endpoint exception attempt ${purchaseAttempts}:`, apiError);
-          if (purchaseAttempts < maxPurchaseAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * purchaseAttempts));
-          }
-        }
-      }
-      
-      if (!purchaseResult) {
-        console.error('❌ [TokenWallet] FAILED to save purchase history after', maxPurchaseAttempts, 'attempts!');
-        console.error('❌ [TokenWallet] Webhook may add duplicate tokens if history is not saved!');
-        // Continue anyway - tokens are already added, but warn user
-      }
-      
-      // Step 4: Add token transaction record
-      // This also helps prevent webhook duplicates
-      // Use API endpoint directly to bypass RLS issues
-      console.log('📝 [TokenWallet] Attempting to save token transaction via API...');
-      let transactionResult = false;
-      let transactionAttempts = 0;
-      const maxTransactionAttempts = 3;
-      
-      // Get current balance for transaction record
-      const currentPurchasedForTransaction = newBalance - totalTokens;
-      
-      while (!transactionResult && transactionAttempts < maxTransactionAttempts) {
-        transactionAttempts++;
-        console.log(`📝 [TokenWallet] Transaction save attempt ${transactionAttempts}/${maxTransactionAttempts}`);
-        
-        try {
-          // Try API endpoint first (bypasses RLS)
-          const response = await fetch('/api/payments/save-transaction', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: userProfile.id,
-              type: 'purchase',
-              amount: totalTokens,
-              balance_before: currentPurchasedForTransaction,
-              balance_after: newBalance,
-              description: `Purchased ${totalTokens} tokens via Stripe (added to purchased_tokens wallet)`,
-              stripePaymentIntentId: paymentIntent.id,
-              metadata: {
-                payment_intent_id: paymentIntent.id,
-                amount_paid: amountPaidDollars,
-                tokens: totalTokens,
-                timestamp: new Date().toISOString(),
-                wallet_type: 'purchased_tokens',
-                source: 'frontend_payment_success'
-              }
-            })
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log('✅ [TokenWallet] Token transaction saved via API:', result.transactionId);
+            console.log('✅ [TokenWallet] User transaction saved via API:', result.transactionId);
             transactionResult = true;
             break;
           } else {
@@ -480,8 +440,9 @@ export default function ProfessionalTokenWallet() {
       }
       
       if (!transactionResult) {
-        console.error('❌ [TokenWallet] FAILED to save token transaction after', maxTransactionAttempts, 'attempts!');
-        // Don't throw - tokens are already added, just log the issue
+        console.error('❌ [TokenWallet] FAILED to save user transaction after', maxTransactionAttempts, 'attempts!');
+        console.error('❌ [TokenWallet] Webhook may add duplicate tokens if transaction is not saved!');
+        // Continue anyway - tokens are already added, but warn user
       }
       
       // Step 5: Log activity for complete tracking
@@ -514,25 +475,48 @@ export default function ProfessionalTokenWallet() {
         throw new Error('Failed to verify token update');
       }
       
-      // Step 7: Reload transaction history and purchase history
-      console.log('🔄 [TokenWallet] Reloading transaction and purchase history...');
-      const transactions = await UserService.getUserTokenTransactions(userProfile.id);
-      setTokenTransactions(transactions);
-      console.log('✅ [TokenWallet] Transaction history reloaded:', transactions.length, 'transactions');
-      if (transactions.length === 0) {
-        console.warn('⚠️ [TokenWallet] No transactions found! This may indicate an RLS policy issue.');
-      }
+      // Step 7: Reload user transactions (purchases and winnings)
+      console.log('🔄 [TokenWallet] Reloading user transactions...');
+      const userTransactions = await UserService.getUserTransactions(userProfile.id);
       
-      const purchases = await UserService.getUserPurchaseHistory(userProfile.id);
-      setPurchaseHistory(purchases);
-      console.log('✅ [TokenWallet] Purchase history reloaded:', purchases.length, 'purchases');
-      if (purchases.length === 0) {
-        console.warn('⚠️ [TokenWallet] No purchase history found! This may indicate an RLS policy issue.');
-      }
+      // Separate purchases and winnings
+      const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
+      const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
+      
+      // Update state (keep compatibility with existing UI)
+      setTokenTransactions(userTransactions.map(tx => ({
+        id: tx.id,
+        userId: tx.user_id,
+        type: tx.type === 'token_purchase' ? 'purchase' : tx.type,
+        amount: tx.tokens_purchased || tx.tokens_won || tx.amount,
+        balance_before: null,
+        balance_after: null,
+        description: tx.description,
+        stripePaymentIntentId: tx.stripe_payment_intent_id,
+        metadata: tx.metadata || {},
+        created_at: tx.created_at
+      })));
+      
+      setPurchaseHistory(purchases.map(tx => ({
+        id: tx.id,
+        userId: tx.user_id,
+        purchaseType: 'tokens',
+        amount: tx.amount,
+        tokensPurchased: tx.tokens_purchased || 0,
+        tokensSpent: 0,
+        stripePaymentIntentId: tx.stripe_payment_intent_id,
+        status: tx.status || 'completed',
+        description: tx.description,
+        metadata: tx.metadata || {},
+        createdAt: tx.created_at
+      })));
+      
+      console.log('✅ [TokenWallet] User transactions reloaded:', userTransactions.length, 'transactions');
+      console.log('✅ [TokenWallet] Purchases:', purchases.length, 'Winnings:', winnings.length);
       
       // Verify the new transaction exists
-      const latestTransaction = transactions[0];
-      if (latestTransaction && latestTransaction.stripePaymentIntentId === paymentIntent.id) {
+      const latestTransaction = userTransactions[0];
+      if (latestTransaction && latestTransaction.stripe_payment_intent_id === paymentIntent.id) {
         console.log('✅ [TokenWallet] Latest transaction verified:', latestTransaction);
       } else {
         console.warn('⚠️ [TokenWallet] Latest transaction not found in history');
