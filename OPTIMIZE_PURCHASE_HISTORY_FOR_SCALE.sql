@@ -14,10 +14,11 @@ CREATE INDEX IF NOT EXISTS idx_purchase_history_user_date_range
 ON public.purchase_history(user_id, created_at DESC, status) 
 WHERE status = 'completed';
 
--- Index for recent purchases (last 30 days) - partial index for speed
+-- Index for recent purchases - optimized for date-based queries
+-- Note: Cannot use NOW() in index predicate (not immutable), so we use a regular index
+-- The query planner will still use this index efficiently for date range queries
 CREATE INDEX IF NOT EXISTS idx_purchase_history_recent 
-ON public.purchase_history(user_id, created_at DESC) 
-WHERE created_at >= NOW() - INTERVAL '30 days';
+ON public.purchase_history(user_id, created_at DESC);
 
 -- Index for pending/failed purchases (for monitoring)
 CREATE INDEX IF NOT EXISTS idx_purchase_history_pending_failed 
