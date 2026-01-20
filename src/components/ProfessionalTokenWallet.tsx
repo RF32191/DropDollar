@@ -1203,33 +1203,57 @@ export default function ProfessionalTokenWallet() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
-                      {tokenTransactions.map((transaction) => (
-                        <tr key={transaction.id} className="hover:bg-gray-700 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                            {new Date(transaction.created_at!).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              transaction.type === 'purchase' ? 'bg-green-100 text-green-800' :
-                              transaction.type === 'win' || transaction.type === 'game_win' ? 'bg-yellow-100 text-yellow-800' :
-                              transaction.type === 'game_entry' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
+                      {tokenTransactions.map((transaction) => {
+                        // Safe date parsing
+                        let dateDisplay = 'N/A';
+                        try {
+                          if (transaction.created_at) {
+                            dateDisplay = new Date(transaction.created_at).toLocaleString();
+                          }
+                        } catch (e) {
+                          console.error('Error parsing date:', e);
+                        }
+                        
+                        // Safe amount calculation
+                        const amount = transaction.amount || 0;
+                        const isPositive = transaction.type === 'purchase' || transaction.type === 'win' || transaction.type === 'game_win' || transaction.type === 'earning';
+                        
+                        // Safe type display
+                        let typeDisplay = 'Unknown';
+                        try {
+                          if (transaction.type) {
+                            typeDisplay = transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1).replace('_', ' ');
+                          }
+                        } catch (e) {
+                          console.error('Error formatting type:', e);
+                        }
+                        
+                        return (
+                          <tr key={transaction.id || `tx-${Math.random()}`} className="hover:bg-gray-700 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                              {dateDisplay}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                transaction.type === 'purchase' ? 'bg-green-100 text-green-800' :
+                                transaction.type === 'win' || transaction.type === 'game_win' || transaction.type === 'earning' ? 'bg-yellow-100 text-yellow-800' :
+                                transaction.type === 'game_entry' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {typeDisplay}
+                              </span>
+                            </td>
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
+                              isPositive ? 'text-green-400' : 'text-red-400'
                             }`}>
-                              {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1).replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
-                            transaction.type === 'purchase' || transaction.type === 'win' || transaction.type === 'game_win' 
-                              ? 'text-green-400' 
-                              : 'text-red-400'
-                          }`}>
-                            {transaction.type === 'purchase' || transaction.type === 'win' || transaction.type === 'game_win' ? '+' : '-'}{Math.abs(transaction.amount)} Tokens
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                            {transaction.description}
-                          </td>
-                        </tr>
-                      ))}
+                              {isPositive ? '+' : '-'}{Math.abs(amount)} Tokens
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                              {transaction.description || 'No description'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
