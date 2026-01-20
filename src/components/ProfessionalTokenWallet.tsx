@@ -200,8 +200,13 @@ export default function ProfessionalTokenWallet() {
             console.log('✅ [TokenWallet] Purchases:', purchases.length, 'Winnings:', winnings.length);
             
             // Load game history
-            const games = await UserService.getUserGameHistory(currentUser.id);
-            console.log('✅ [TokenWallet] Loaded', games.length, 'games');
+            try {
+              const games = await UserService.getUserGameHistory(currentUser.id);
+              console.log('✅ [TokenWallet] Loaded', games.length, 'games');
+            } catch (gameHistoryError: any) {
+              console.error('❌ [TokenWallet] Error loading game history:', gameHistoryError);
+              // Don't crash - just log the error
+            }
             } catch (historyError: any) {
               console.error('❌ [TokenWallet] Error loading transaction history:', historyError);
               console.error('❌ [TokenWallet] History error details:', historyError?.message);
@@ -315,8 +320,8 @@ export default function ProfessionalTokenWallet() {
       
       // Verify the payment amount matches what we expect
       const expectedAmount = (parseInt(customAmount) || 10) * 100; // Expected amount in cents
-      if (Math.abs(actualAmountPaid - expectedAmount) > 1) { // Allow 1 cent difference for rounding
-        console.warn(`⚠️ [TokenWallet] Payment amount mismatch! Expected ${expectedAmount} cents, got ${actualAmountPaid} cents`);
+      if (Math.abs(actualAmountPaidCents - expectedAmount) > 1) { // Allow 1 cent difference for rounding
+        console.warn(`⚠️ [TokenWallet] Payment amount mismatch! Expected ${expectedAmount} cents, got ${actualAmountPaidCents} cents`);
         console.warn(`⚠️ [TokenWallet] Using actual payment amount: ${totalTokens} tokens`);
       }
       
@@ -514,7 +519,7 @@ export default function ProfessionalTokenWallet() {
       // Step 4: Log activity for complete tracking
       await ActivityService.logActivity(userProfile.id, 'token_purchase', {
         tokens: totalTokens,
-        amount: amountPaid / 100,
+        amount: amountPaidDollars,
         payment_intent_id: paymentIntent.id,
         timestamp: new Date().toISOString()
       });
@@ -543,42 +548,44 @@ export default function ProfessionalTokenWallet() {
       
       // Step 4: Reload user transactions (purchases and winnings)
       console.log('🔄 [TokenWallet] Reloading user transactions...');
-      const userTransactions = await UserService.getUserTransactions(userProfile.id);
-      
-      // Separate purchases and winnings
-      const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
-      const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
-      
-      // Update state (keep compatibility with existing UI)
-      setTokenTransactions(userTransactions.map(tx => ({
-        id: tx.id,
-        userId: tx.user_id,
-        type: tx.type === 'token_purchase' ? 'purchase' : tx.type,
-        amount: tx.tokens_purchased || tx.tokens_won || tx.amount,
-        balance_before: null,
-        balance_after: null,
-        description: tx.description,
-        stripePaymentIntentId: tx.stripe_payment_intent_id,
-        metadata: tx.metadata || {},
-        created_at: tx.created_at
-      })));
-      
-      setPurchaseHistory(purchases.map(tx => ({
-        id: tx.id,
-        userId: tx.user_id,
-        purchaseType: 'tokens',
-        amount: tx.amount,
-        tokensPurchased: tx.tokens_purchased || 0,
-        tokensSpent: 0,
-        stripePaymentIntentId: tx.stripe_payment_intent_id,
-        status: tx.status || 'completed',
-        description: tx.description,
-        metadata: tx.metadata || {},
-        createdAt: tx.created_at
-      })));
-      
-      console.log('✅ [TokenWallet] User transactions reloaded:', userTransactions.length, 'transactions');
-      console.log('✅ [TokenWallet] Purchases:', purchases.length, 'Winnings:', winnings.length);
+      let userTransactions: any[] = [];
+      try {
+        userTransactions = await UserService.getUserTransactions(userProfile.id);
+        
+        // Separate purchases and winnings
+        const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
+        const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
+        
+        // Update state (keep compatibility with existing UI)
+        setTokenTransactions(userTransactions.map(tx => ({
+          id: tx.id,
+          userId: tx.user_id,
+          type: tx.type === 'token_purchase' ? 'purchase' : tx.type,
+          amount: tx.tokens_purchased || tx.tokens_won || tx.amount,
+          balance_before: null,
+          balance_after: null,
+          description: tx.description,
+          stripePaymentIntentId: tx.stripe_payment_intent_id,
+          metadata: tx.metadata || {},
+          created_at: tx.created_at
+        })));
+        
+        setPurchaseHistory(purchases.map(tx => ({
+          id: tx.id,
+          userId: tx.user_id,
+          purchaseType: 'tokens',
+          amount: tx.amount,
+          tokensPurchased: tx.tokens_purchased || 0,
+          tokensSpent: 0,
+          stripePaymentIntentId: tx.stripe_payment_intent_id,
+          status: tx.status || 'completed',
+          description: tx.description,
+          metadata: tx.metadata || {},
+          createdAt: tx.created_at
+        })));
+        
+        console.log('✅ [TokenWallet] User transactions reloaded:', userTransactions.length, 'transactions');
+        console.log('✅ [TokenWallet] Purchases:', purchases.length, 'Winnings:', winnings.length);
       } catch (historyError: any) {
         console.error('❌ [TokenWallet] Error reloading transaction history:', historyError);
         console.error('❌ [TokenWallet] History error details:', historyError?.message);
