@@ -33,8 +33,24 @@ BEGIN
             CONTINUE;
         END IF;
         
-        -- Determine entry fee (use tokens_wagered or default to 0.25)
-        v_entry_fee := COALESCE(v_game_record.tokens_wagered, 0.25);
+        -- Determine entry fee based on competition type
+        -- Check metadata for competition type
+        IF v_game_record.metadata->>'session_type' = 'coin_play' THEN
+            v_entry_fee := 0.25; -- Coin Play is always 0.25
+        ELSIF v_game_record.metadata->>'session_type' = 'winner_takes_all' OR
+              v_game_record.metadata->>'competition_type' = 'winner_takes_all' THEN
+            v_entry_fee := 1.00; -- WTA is always $1
+        ELSIF v_game_record.metadata->>'session_type' = 'hotsell' OR
+              v_game_record.metadata->>'competition_type' = 'hotsell' THEN
+            v_entry_fee := 1.00; -- Hot Sell is always $1
+        ELSIF v_game_record.metadata->>'session_type' = '1v1' OR
+              v_game_record.metadata->>'competition_type' = '1v1' THEN
+            -- 1v1 can be any amount - use tokens_wagered
+            v_entry_fee := COALESCE(v_game_record.tokens_wagered, 1.00);
+        ELSE
+            -- Unknown type - use tokens_wagered or default to 0.25
+            v_entry_fee := COALESCE(v_game_record.tokens_wagered, 0.25);
+        END IF;
         
         -- Create transaction
         INSERT INTO public.user_transactions (
