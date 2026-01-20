@@ -1405,39 +1405,6 @@ export default function HotSellPage() {
                   <TrophyIcon className="w-8 h-8 text-yellow-400" />
                 </div>
 
-                {/* Final Payout Breakdown - Based on Base Price (When Contest is Filled) */}
-                <div className="mb-4 p-3 bg-black/30 rounded-lg border border-orange-500/20">
-                  <div className="text-xs font-semibold text-orange-300 mb-2 text-center">🏆 Final Payout (When Filled)</div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-yellow-300">🥇 1st Place (50%)</span>
-                      <span className="text-yellow-400 font-bold">
-                        {formatAmount(session?.first_place_prize ?? (config.base_price * 0.50))}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-300">🥈 2nd Place (20%)</span>
-                      <span className="text-gray-300 font-bold">
-                        {formatAmount(session?.second_place_prize ?? (config.base_price * 0.20))}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-orange-300">🥉 3rd Place (15%)</span>
-                      <span className="text-orange-400 font-bold">
-                        {formatAmount(session?.third_place_prize ?? (config.base_price * 0.15))}
-                      </span>
-                    </div>
-                    <div className="border-t border-orange-500/30 pt-1.5 mt-1.5">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-red-300">Platform Fee (-15%)</span>
-                        <span className="text-red-300 font-bold">
-                          -{formatAmount(session?.platform_fee ?? (config.base_price * 0.15))}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Payout Countdown Banner */}
                 {payoutCountdown[config.id] !== undefined && (
                   <div className="mb-4 bg-gradient-to-r from-red-600 to-orange-600 border-2 border-red-400 rounded-xl p-4 animate-pulse">
@@ -1485,97 +1452,64 @@ export default function HotSellPage() {
                         : 'Waiting for first player'}
                     </p>
                     
-                    {/* Current Prize Pool Breakdown - Based on Current Prize Pool */}
+                    {/* Prize Pool Breakdown - Accurate Payouts */}
                     <div className="bg-black/30 rounded-lg p-3 mb-2">
                       <div className="text-[10px] font-semibold text-yellow-200 mb-1.5 text-center">💰 Current Pool Split</div>
                       <div className="space-y-1.5 text-xs">
-                        {/* 1st Place */}
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-yellow-400">🥇</span>
-                            <span className="text-yellow-200">1st Place (50%)</span>
-                          </div>
-                          <span className="font-bold text-yellow-300">
-                            {formatAmount((session?.prize_pool || 0) * 0.50)}
-                          </span>
-                        </div>
-                        
-                        {/* 2nd Place */}
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-gray-300">🥈</span>
-                            <span className="text-yellow-200">2nd Place (20%)</span>
-                          </div>
-                          <span className="font-bold text-yellow-300">
-                            {formatAmount((session?.prize_pool || 0) * 0.20)}
-                          </span>
-                        </div>
-                        
-                        {/* 3rd Place */}
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-orange-400">🥉</span>
-                            <span className="text-yellow-200">3rd Place (15%)</span>
-                          </div>
-                          <span className="font-bold text-yellow-300">
-                            {formatAmount((session?.prize_pool || 0) * 0.15)}
-                          </span>
-                        </div>
-                        
-                        {/* Platform Fee */}
-                        <div className="flex justify-between items-center pt-1.5 border-t border-yellow-500/30">
-                          <span className="text-red-300 text-[10px]">Platform Fee (-15%)</span>
-                          <span className="font-bold text-red-300">
-                            -{formatAmount((session?.prize_pool || 0) * 0.15)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Final Payout Breakdown - Based on Base Price (When Contest is Filled) */}
-                    <div className="bg-green-900/20 rounded-lg p-3 mb-2 border border-green-500/30">
-                      <div className="text-[10px] font-semibold text-green-300 mb-1.5 text-center">🏆 Final Payout (When Filled)</div>
-                      <div className="space-y-1.5 text-xs">
-                        {/* 1st Place */}
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-yellow-400">🥇</span>
-                            <span className="text-green-200">1st Place (50%)</span>
-                          </div>
-                          <span className="font-bold text-green-300">
-                            {formatAmount(session?.first_place_prize ?? (config.base_price * 0.50))}
-                          </span>
-                        </div>
-                        
-                        {/* 2nd Place */}
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-gray-300">🥈</span>
-                            <span className="text-green-200">2nd Place (20%)</span>
-                          </div>
-                          <span className="font-bold text-green-300">
-                            {formatAmount(session?.second_place_prize ?? (config.base_price * 0.20))}
-                          </span>
-                        </div>
-                        
-                        {/* 3rd Place */}
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-orange-400">🥉</span>
-                            <span className="text-green-200">3rd Place (15%)</span>
-                          </div>
-                          <span className="font-bold text-green-300">
-                            {formatAmount(session?.third_place_prize ?? (config.base_price * 0.15))}
-                          </span>
-                        </div>
-                        
-                        {/* Platform Fee */}
-                        <div className="flex justify-between items-center pt-1.5 border-t border-green-500/30">
-                          <span className="text-red-300 text-[10px]">Platform Fee (-15%)</span>
-                          <span className="font-bold text-red-300">
-                            -{formatAmount(session?.platform_fee ?? (config.base_price * 0.15))}
-                          </span>
-                        </div>
+                        {/* Calculate accurate payouts: Platform fee first (15%), then split remaining 85% */}
+                        {(() => {
+                          const totalPool = session?.prize_pool || 0;
+                          const platformFee = totalPool * 0.15;
+                          const payoutPool = totalPool * 0.85;
+                          const firstPlace = payoutPool * 0.50; // 50% of 85% = 42.5% total
+                          const secondPlace = payoutPool * 0.20; // 20% of 85% = 17% total
+                          const thirdPlace = payoutPool * 0.15; // 15% of 85% = 12.75% total
+                          
+                          return (
+                            <>
+                              {/* 1st Place */}
+                              <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-yellow-400">🥇</span>
+                                  <span className="text-yellow-200">1st Place (50%)</span>
+                                </div>
+                                <span className="font-bold text-yellow-300">
+                                  {formatAmount(firstPlace)}
+                                </span>
+                              </div>
+                              
+                              {/* 2nd Place */}
+                              <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-300">🥈</span>
+                                  <span className="text-yellow-200">2nd Place (20%)</span>
+                                </div>
+                                <span className="font-bold text-yellow-300">
+                                  {formatAmount(secondPlace)}
+                                </span>
+                              </div>
+                              
+                              {/* 3rd Place */}
+                              <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-orange-400">🥉</span>
+                                  <span className="text-yellow-200">3rd Place (15%)</span>
+                                </div>
+                                <span className="font-bold text-yellow-300">
+                                  {formatAmount(thirdPlace)}
+                                </span>
+                              </div>
+                              
+                              {/* Platform Fee */}
+                              <div className="flex justify-between items-center pt-1.5 border-t border-yellow-500/30">
+                                <span className="text-red-300 text-[10px]">Platform Fee (-15%)</span>
+                                <span className="font-bold text-red-300">
+                                  -{formatAmount(platformFee)}
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                     
