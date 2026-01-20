@@ -141,6 +141,7 @@ export default function PennyPasserGame3D({
   const [combo, setCombo] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   
   // CoD-style floating score indicators
   const { popups, addPopup, removePopup } = useFloatingScores();
@@ -1659,6 +1660,7 @@ export default function PennyPasserGame3D({
                 }}
               >
                 <video
+                  ref={videoRef}
                   autoPlay
                   loop
                   muted
@@ -1666,6 +1668,13 @@ export default function PennyPasserGame3D({
                   preload="metadata"
                   className="w-full h-full rounded-lg border-2 border-purple-400 shadow-2xl transition-transform group-hover:scale-105"
                   style={{ objectFit: 'contain' }}
+                  onTimeUpdate={(e) => {
+                    const video = e.currentTarget;
+                    // Limit to 15 seconds - loop back to start
+                    if (video.currentTime >= 15) {
+                      video.currentTime = 0;
+                    }
+                  }}
                 >
                   <source src="/penny-passer-gameplay.mp4" type="video/mp4" />
                   Your browser does not support the video tag.
