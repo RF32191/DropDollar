@@ -1790,6 +1790,12 @@ export default function GamesPage() {
                     </div>
                   )}
                   
+                  {game.id === 'click-draw' && (
+                    <div className="absolute inset-0">
+                      <LazyVideo src="/ClickDraw.mp4" className="w-full h-full" preload="none" />
+                    </div>
+                  )}
+                  
                   {game.id === 'cash-stack' && (
                     <div className="absolute inset-0">
                       <LazyVideo src="/cash-stack-gameplay.mp4" className="w-full h-full" preload="none" />

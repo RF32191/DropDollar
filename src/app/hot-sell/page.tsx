@@ -1027,6 +1027,7 @@ export default function HotSellPage() {
       case 'lightning_maze': return { name: '⚡ Lightning Maze', emoji: '⚡', video: '/lighteningmaze.mp4' };
       case 'parry_pro': return { name: '⚔️ Parry Pro', emoji: '⚔️', video: '/ParryPro.mp4' };
       case 'neon_striker': return { name: '⚡ Neon Striker', emoji: '⚡', video: '/NeonStriker.mp4' };
+      case 'click_draw': return { name: '🤠 Click Draw', emoji: '🤠', video: '/ClickDraw.mp4' };
       default: return { name: type, emoji: '🎮', video: null };
     }
   };

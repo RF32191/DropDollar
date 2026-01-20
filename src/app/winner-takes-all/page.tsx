@@ -1005,6 +1005,7 @@ export default function WinnerTakesAllPage() {
       case 'lightning_maze': return '/lighteningmaze.mp4';
       case 'parry_pro': return '/ParryPro.mp4';
       case 'neon_striker': return '/NeonStriker.mp4';
+      case 'click_draw': return '/ClickDraw.mp4';
       default: return null;
     }
   };
