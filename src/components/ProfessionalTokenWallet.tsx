@@ -909,57 +909,131 @@ export default function ProfessionalTokenWallet() {
         {/* History Tab Content */}
         {activeTab === 'history' && (
           <div className="max-w-4xl mx-auto bg-gray-800 rounded-2xl p-10 shadow-2xl border border-gray-700">
-            <h2 className="text-3xl font-bold text-white mb-8 text-center">Your Transaction History</h2>
-            {tokenTransactions.length === 0 ? (
-              <div className="text-center text-gray-400 text-lg">
-                No transactions yet. Purchase some tokens to get started!
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-700">
-                  <thead className="bg-gray-700">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Description
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {tokenTransactions.map((transaction) => (
-                      <tr key={transaction.id} className="hover:bg-gray-700 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {new Date(transaction.created_at!).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            transaction.type === 'purchase' ? 'bg-green-100 text-green-800' :
-                            transaction.type === 'win' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
-                            {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {transaction.amount} Tokens
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {transaction.description}
-                        </td>
+            <h2 className="text-3xl font-bold text-white mb-8 text-center">Your Purchase & Transaction History</h2>
+            
+            {/* Purchase History Section */}
+            <div className="mb-8">
+              <h3 className="text-xl font-bold text-green-400 mb-4">Recent Purchases</h3>
+              {(() => {
+                const purchases = tokenTransactions.filter(t => t.type === 'purchase');
+                return purchases.length === 0 ? (
+                  <div className="text-center text-gray-400 py-8 bg-gray-700/50 rounded-lg">
+                    No purchases yet. Buy tokens to get started!
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-700">
+                      <thead className="bg-gray-700">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Tokens
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Payment ID
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-700">
+                        {purchases.slice(0, 10).map((transaction) => {
+                          const paymentId = transaction.stripePaymentIntentId || transaction.metadata?.payment_intent_id || 'N/A';
+                          const amount = transaction.metadata?.amount_paid || (transaction.amount * 1).toFixed(2);
+                          return (
+                            <tr key={transaction.id} className="hover:bg-gray-700 transition-colors">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                {new Date(transaction.created_at!).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-400">
+                                +{transaction.amount} Tokens
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                                ${typeof amount === 'string' ? amount : amount.toFixed(2)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono text-xs">
+                                {paymentId.length > 20 ? paymentId.substring(0, 20) + '...' : paymentId}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                  Completed
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* All Transactions Section */}
+            <div className="mt-8 pt-8 border-t border-gray-700">
+              <h3 className="text-xl font-bold text-blue-400 mb-4">All Transactions</h3>
+              {tokenTransactions.length === 0 ? (
+                <div className="text-center text-gray-400 text-lg py-8 bg-gray-700/50 rounded-lg">
+                  No transactions yet. Purchase some tokens to get started!
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-700">
+                    <thead className="bg-gray-700">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          Description
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {tokenTransactions.map((transaction) => (
+                        <tr key={transaction.id} className="hover:bg-gray-700 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                            {new Date(transaction.created_at!).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              transaction.type === 'purchase' ? 'bg-green-100 text-green-800' :
+                              transaction.type === 'win' || transaction.type === 'game_win' ? 'bg-yellow-100 text-yellow-800' :
+                              transaction.type === 'game_entry' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1).replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
+                            transaction.type === 'purchase' || transaction.type === 'win' || transaction.type === 'game_win' 
+                              ? 'text-green-400' 
+                              : 'text-red-400'
+                          }`}>
+                            {transaction.type === 'purchase' || transaction.type === 'win' || transaction.type === 'game_win' ? '+' : '-'}{Math.abs(transaction.amount)} Tokens
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                            {transaction.description}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
