@@ -16,57 +16,91 @@ export default function MogMePrivacyPolicyPage() {
           .privacy-content {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background: white;
+            color: #d4f1d4;
+            background: rgba(22, 101, 52, 0.4);
+            backdrop-filter: blur(24px);
             padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 24px;
+            border: 2px solid rgba(250, 204, 21, 0.4);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
           }
           .privacy-content h1 {
-            color: #C9A063;
-            border-bottom: 3px solid #C9A063;
+            color: #fbbf24;
+            border-bottom: 3px solid #facc15;
             padding-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(251, 191, 36, 0.3);
           }
           .privacy-content h2 {
-            color: #1C1C1E;
+            color: #fde047;
             margin-top: 30px;
-            border-bottom: 1px solid #e0e0e0;
-            padding-bottom: 5px;
+            border-bottom: 2px solid rgba(250, 204, 21, 0.3);
+            padding-bottom: 8px;
+            text-shadow: 0 2px 8px rgba(253, 224, 71, 0.2);
           }
           .privacy-content h3 {
-            color: #666;
+            color: #bef264;
             margin-top: 20px;
+            font-weight: 600;
           }
           .privacy-content .highlight {
-            background: #FFF8E7;
-            padding: 15px;
-            border-left: 4px solid #C9A063;
+            background: rgba(250, 204, 21, 0.15);
+            padding: 20px;
+            border-left: 4px solid #fbbf24;
+            border-radius: 8px;
             margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(251, 191, 36, 0.1);
           }
           .privacy-content .warning {
-            background: #FFE5E5;
-            padding: 15px;
-            border-left: 4px solid #ff4444;
+            background: rgba(239, 68, 68, 0.15);
+            padding: 20px;
+            border-left: 4px solid #ef4444;
+            border-radius: 8px;
             margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+            color: #fecaca;
           }
           .privacy-content .no-share {
-            background: #E8F5E9;
-            padding: 15px;
-            border-left: 4px solid #4CAF50;
+            background: rgba(34, 197, 94, 0.15);
+            padding: 20px;
+            border-left: 4px solid #22c55e;
+            border-radius: 8px;
             margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);
+            color: #bbf7d0;
           }
           .privacy-content ul {
             padding-left: 20px;
+            color: #d4f1d4;
           }
           .privacy-content li {
             margin: 10px 0;
           }
+          .privacy-content p {
+            color: #d4f1d4;
+            margin-bottom: 12px;
+          }
+          .privacy-content strong {
+            color: #fde047;
+            font-weight: 600;
+          }
+          .privacy-content a {
+            color: #fbbf24;
+            text-decoration: underline;
+            transition: color 0.2s;
+          }
+          .privacy-content a:hover {
+            color: #fde047;
+          }
+          .privacy-content ol {
+            padding-left: 20px;
+            color: #d4f1d4;
+          }
           .privacy-content .footer {
             margin-top: 40px;
             padding-top: 20px;
-            border-top: 1px solid #ddd;
+            border-top: 2px solid rgba(250, 204, 21, 0.3);
             font-size: 0.9em;
-            color: #666;
+            color: #bef264;
           }
         `}</style>
 
