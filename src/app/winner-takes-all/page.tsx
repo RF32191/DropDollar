@@ -1001,6 +1001,7 @@ export default function WinnerTakesAllPage() {
       case 'color_sequence': return '/color-sequence-gameplay.mp4';
       case 'quick_click': return '/quick-click-gameplay.mp4';
       case 'penny_passer': return '/PennyPasser.mp4';
+      case 'dead_shot': return '/DEADSHOT1.mp4';
       default: return null;
     }
   };

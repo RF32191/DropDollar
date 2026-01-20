@@ -1766,6 +1766,12 @@ export default function GamesPage() {
                     </div>
                   )}
                   
+                  {game.id === 'dead-shot' && (
+                    <div className="absolute inset-0">
+                      <LazyVideo src="/DEADSHOT1.mp4" className="w-full h-full" preload="none" />
+                    </div>
+                  )}
+                  
                   {game.id === 'cash-stack' && (
                     <div className="absolute inset-0">
                       <LazyVideo src="/cash-stack-gameplay.mp4" className="w-full h-full" preload="none" />

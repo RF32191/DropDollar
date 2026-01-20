@@ -1023,6 +1023,7 @@ export default function HotSellPage() {
       case 'cash_stack': return { name: '💵 Cash Stack', emoji: '💵', video: '/cash-stack-gameplay.mp4' };
       case 'quick_click': return { name: '⚡ Quick Click', emoji: '⚡', video: '/quick-click-gameplay.mp4' };
       case 'penny_passer': return { name: '🪙 Penny Passer', emoji: '🪙', video: '/PennyPasser.mp4' };
+      case 'dead_shot': return { name: '🎯 Dead Shot', emoji: '🎯', video: '/DEADSHOT1.mp4' };
       default: return { name: type, emoji: '🎮', video: null };
     }
   };

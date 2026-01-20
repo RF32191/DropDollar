@@ -113,6 +113,8 @@ export default function DeadShotGame({
   const [isDrawing, setIsDrawing] = useState(false);
   const [hearts, setHearts] = useState(3);
   const [laserShotsRemaining, setLaserShotsRemaining] = useState(0);
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   
   // CoD-style floating score indicators
   const { popups, addPopup, removePopup } = useFloatingScores();
@@ -3770,6 +3772,44 @@ export default function DeadShotGame({
       {process.env.NODE_ENV === 'development' && (
         <div className="absolute bottom-4 left-4 text-white text-xs bg-black/50 p-2 rounded z-30">
           Ships: {shipsRef.current.length} | Arrows: {arrowsRef.current.length} | SubItems: {subItemsRef.current.length}
+        </div>
+      )}
+      
+      {/* Expanded Video Modal */}
+      {expandedVideo && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+          onClick={() => setExpandedVideo(null)}
+        >
+          <div 
+            className="relative w-full h-full max-w-6xl max-h-[90vh] p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setExpandedVideo(null)}
+              className="absolute top-4 right-4 z-10 bg-red-600 hover:bg-red-700 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl font-bold shadow-lg"
+            >
+              ×
+            </button>
+            <video
+              autoPlay
+              loop
+              controls
+              preload="auto"
+              className="w-full h-full rounded-lg"
+              style={{ objectFit: 'contain' }}
+              onTimeUpdate={(e) => {
+                const video = e.currentTarget;
+                // Limit to 15 seconds - loop back to start
+                if (video.currentTime >= 15) {
+                  video.currentTime = 0;
+                }
+              }}
+            >
+              <source src={expandedVideo} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
         </div>
       )}
     </div>
