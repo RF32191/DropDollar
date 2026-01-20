@@ -1000,6 +1000,7 @@ export default function WinnerTakesAllPage() {
       case 'falling_object': return '/falling-object-gameplay.mp4';
       case 'color_sequence': return '/color-sequence-gameplay.mp4';
       case 'quick_click': return '/quick-click-gameplay.mp4';
+      case 'penny_passer': return '/penny-passer-gameplay.mp4';
       default: return null;
     }
   };
