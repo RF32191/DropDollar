@@ -2698,6 +2698,48 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
             <h1 className="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500 bg-clip-text text-transparent">
               {currentTheme === 'reproductive' ? 'SPERM RACE' : 'CIRCUIT RUNNER'}
             </h1>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/lighteningmaze.mp4');
+                }}
+              >
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="w-full h-full rounded-lg border-2 border-amber-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                  onTimeUpdate={(e) => {
+                    const video = e.currentTarget;
+                    // Limit to 15 seconds - loop back to start
+                    if (video.currentTime >= 15) {
+                      video.currentTime = 0;
+                    }
+                  }}
+                >
+                  <source src="/lighteningmaze.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">
+                Watch how to play - Click video to expand
+              </p>
+            </div>
+            
             <div className="space-y-2 sm:space-y-3 text-left bg-green-950/60 rounded-xl p-4 sm:p-6 border border-green-500/40 mb-4 sm:mb-6">
               <p className="text-amber-300 font-bold text-base sm:text-xl">
                 {currentTheme === 'reproductive' ? '🏊 HOW TO PLAY:' : '⚡ HOW TO PLAY:'}
