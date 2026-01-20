@@ -348,7 +348,8 @@ export default function ProfessionalTokenWallet() {
       
       // Step 3: Save purchase history FIRST (before transaction record)
       // This MUST succeed to prevent webhook from adding duplicate tokens
-      console.log('💳 [TokenWallet] Attempting to save purchase history...');
+      // Use API endpoint directly to bypass RLS issues
+      console.log('💳 [TokenWallet] Attempting to save purchase history via API...');
       console.log('💳 [TokenWallet] User ID:', userProfile.id);
       console.log('💳 [TokenWallet] Payment Intent ID:', paymentIntent.id);
       console.log('💳 [TokenWallet] Tokens:', totalTokens);
@@ -362,32 +363,49 @@ export default function ProfessionalTokenWallet() {
         purchaseAttempts++;
         console.log(`💳 [TokenWallet] Purchase history save attempt ${purchaseAttempts}/${maxPurchaseAttempts}`);
         
-        purchaseResult = await UserService.savePurchaseHistory({
-          userId: userProfile.id,
-          purchaseType: 'tokens',
-          amount: amountPaidDollars,
-          tokensPurchased: totalTokens,
-          tokensSpent: 0,
-          stripePaymentIntentId: paymentIntent.id,
-          status: 'completed',
-          description: `Purchased ${totalTokens} tokens via Stripe ($${amountPaidDollars})`,
-          metadata: {
-            payment_intent_id: paymentIntent.id,
-            tokens: totalTokens,
-            amount_paid_cents: actualAmountPaid,
-            amount_paid_dollars: amountPaidDollars,
-            price_per_token: 1,
-            timestamp: new Date().toISOString(),
-            wallet_type: 'purchased_tokens',
-            source: 'frontend_payment_success'
+        try {
+          // Try API endpoint first (bypasses RLS)
+          const response = await fetch('/api/payments/save-purchase-history', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: userProfile.id,
+              purchaseType: 'tokens',
+              amount: amountPaidDollars,
+              tokensPurchased: totalTokens,
+              tokensSpent: 0,
+              stripePaymentIntentId: paymentIntent.id,
+              status: 'completed',
+              description: `Purchased ${totalTokens} tokens via Stripe ($${amountPaidDollars})`,
+              metadata: {
+                payment_intent_id: paymentIntent.id,
+                tokens: totalTokens,
+                amount_paid_cents: actualAmountPaid,
+                amount_paid_dollars: amountPaidDollars,
+                price_per_token: 1,
+                timestamp: new Date().toISOString(),
+                wallet_type: 'purchased_tokens',
+                source: 'frontend_payment_success'
+              }
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ [TokenWallet] Purchase history saved via API:', result.purchaseId);
+            purchaseResult = true;
+            break;
+          } else {
+            const errorData = await response.json();
+            console.error(`❌ [TokenWallet] API endpoint failed attempt ${purchaseAttempts}:`, errorData);
+            if (purchaseAttempts < maxPurchaseAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * purchaseAttempts));
+            }
           }
-        });
-        
-        if (purchaseResult) {
-          console.log('✅ [TokenWallet] Purchase history saved successfully');
-          break;
-        } else {
-          console.error(`❌ [TokenWallet] Purchase history save attempt ${purchaseAttempts} failed`);
+        } catch (apiError: any) {
+          console.error(`❌ [TokenWallet] API endpoint exception attempt ${purchaseAttempts}:`, apiError);
           if (purchaseAttempts < maxPurchaseAttempts) {
             await new Promise(resolve => setTimeout(resolve, 1000 * purchaseAttempts));
           }
@@ -396,45 +414,65 @@ export default function ProfessionalTokenWallet() {
       
       if (!purchaseResult) {
         console.error('❌ [TokenWallet] FAILED to save purchase history after', maxPurchaseAttempts, 'attempts!');
-        console.error('❌ [TokenWallet] This may be due to RLS policies or database permissions');
         console.error('❌ [TokenWallet] Webhook may add duplicate tokens if history is not saved!');
         // Continue anyway - tokens are already added, but warn user
       }
       
       // Step 4: Add token transaction record
       // This also helps prevent webhook duplicates
-      console.log('📝 [TokenWallet] Attempting to save token transaction...');
+      // Use API endpoint directly to bypass RLS issues
+      console.log('📝 [TokenWallet] Attempting to save token transaction via API...');
       let transactionResult = false;
       let transactionAttempts = 0;
       const maxTransactionAttempts = 3;
+      
+      // Get current balance for transaction record
+      const currentPurchasedForTransaction = newBalance - totalTokens;
       
       while (!transactionResult && transactionAttempts < maxTransactionAttempts) {
         transactionAttempts++;
         console.log(`📝 [TokenWallet] Transaction save attempt ${transactionAttempts}/${maxTransactionAttempts}`);
         
-        transactionResult = await UserService.addTokenTransaction({
-          userId: userProfile.id,
-          type: 'purchase',
-          amount: totalTokens,
-          balance_before: (newPurchasedBalance - totalTokens),
-          balance_after: newPurchasedBalance,
-          description: `Purchased ${totalTokens} tokens via Stripe (added to purchased_tokens wallet)`,
-          stripePaymentIntentId: paymentIntent.id,
-          metadata: {
-            payment_intent_id: paymentIntent.id,
-            amount_paid: amountPaidDollars,
-            tokens: totalTokens,
-            timestamp: new Date().toISOString(),
-            wallet_type: 'purchased_tokens',
-            source: 'frontend_payment_success'
+        try {
+          // Try API endpoint first (bypasses RLS)
+          const response = await fetch('/api/payments/save-transaction', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: userProfile.id,
+              type: 'purchase',
+              amount: totalTokens,
+              balance_before: currentPurchasedForTransaction,
+              balance_after: newBalance,
+              description: `Purchased ${totalTokens} tokens via Stripe (added to purchased_tokens wallet)`,
+              stripePaymentIntentId: paymentIntent.id,
+              metadata: {
+                payment_intent_id: paymentIntent.id,
+                amount_paid: amountPaidDollars,
+                tokens: totalTokens,
+                timestamp: new Date().toISOString(),
+                wallet_type: 'purchased_tokens',
+                source: 'frontend_payment_success'
+              }
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ [TokenWallet] Token transaction saved via API:', result.transactionId);
+            transactionResult = true;
+            break;
+          } else {
+            const errorData = await response.json();
+            console.error(`❌ [TokenWallet] API endpoint failed attempt ${transactionAttempts}:`, errorData);
+            if (transactionAttempts < maxTransactionAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
+            }
           }
-        });
-        
-        if (transactionResult) {
-          console.log('✅ [TokenWallet] Token transaction saved successfully');
-          break;
-        } else {
-          console.error(`❌ [TokenWallet] Transaction save attempt ${transactionAttempts} failed`);
+        } catch (apiError: any) {
+          console.error(`❌ [TokenWallet] API endpoint exception attempt ${transactionAttempts}:`, apiError);
           if (transactionAttempts < maxTransactionAttempts) {
             await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
           }
@@ -443,7 +481,6 @@ export default function ProfessionalTokenWallet() {
       
       if (!transactionResult) {
         console.error('❌ [TokenWallet] FAILED to save token transaction after', maxTransactionAttempts, 'attempts!');
-        console.error('❌ [TokenWallet] This may be due to RLS policies or database permissions');
         // Don't throw - tokens are already added, just log the issue
       }
       
