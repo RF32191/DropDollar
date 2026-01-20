@@ -255,7 +255,8 @@ export default function ProfessionalTokenWallet() {
         console.log('🔄 [TokenWallet] Refreshing transaction history and purchase history...');
         try {
           // Use getUserTransactions (unified method for user_transactions table)
-          const userTransactions = await UserService.getUserTransactions(userProfile.id);
+          // Fetch up to 1000 transactions to show complete history
+          const userTransactions = await UserService.getUserTransactions(userProfile.id, 1000);
           
           // Separate purchases and winnings
           const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
