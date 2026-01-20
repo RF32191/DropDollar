@@ -135,18 +135,41 @@ ALTER TABLE public.purchase_history ENABLE ROW LEVEL SECURITY;
 
 -- Step 7: Create RLS Policies
 -- Policy: Users can view their own purchase history
+-- Handle both TEXT and UUID user_id types
 DROP POLICY IF EXISTS "Users can view own purchase history" ON public.purchase_history;
 CREATE POLICY "Users can view own purchase history"
     ON public.purchase_history
     FOR SELECT
-    USING (auth.uid()::TEXT = user_id);
+    USING (
+        CASE 
+            WHEN EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_schema = 'public' 
+                AND table_name = 'purchase_history' 
+                AND column_name = 'user_id' 
+                AND data_type = 'uuid'
+            ) THEN auth.uid()::TEXT = user_id::TEXT
+            ELSE auth.uid()::TEXT = user_id
+        END
+    );
 
 -- Policy: Users can insert their own purchases (via server-side API)
 DROP POLICY IF EXISTS "Users can insert own purchases" ON public.purchase_history;
 CREATE POLICY "Users can insert own purchases"
     ON public.purchase_history
     FOR INSERT
-    WITH CHECK (auth.uid()::TEXT = user_id);
+    WITH CHECK (
+        CASE 
+            WHEN EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_schema = 'public' 
+                AND table_name = 'purchase_history' 
+                AND column_name = 'user_id' 
+                AND data_type = 'uuid'
+            ) THEN auth.uid()::TEXT = user_id::TEXT
+            ELSE auth.uid()::TEXT = user_id
+        END
+    );
 
 -- Policy: Service role can do everything (for server-side operations)
 DROP POLICY IF EXISTS "Service role full access" ON public.purchase_history;
