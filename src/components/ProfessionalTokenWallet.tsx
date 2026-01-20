@@ -1288,6 +1288,81 @@ export default function ProfessionalTokenWallet() {
               ) : null;
             })()}
 
+            {/* Game Entries & Token Deductions Section */}
+            {(() => {
+              const deductions = tokenTransactions.filter(tx => 
+                tx.type === 'entry_fee' || 
+                tx.type === 'game_entry' || 
+                tx.type === 'withdrawal' ||
+                (tx.amount && tx.amount < 0) // Also catch any negative amounts
+              );
+              return deductions.length > 0 ? (
+                <div className="mb-8 pt-8 border-t border-gray-700">
+                  <h3 className="text-xl font-bold text-red-400 mb-4">🎮 Game Entries & Token Deductions ({deductions.length})</h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-700">
+                      <thead className="bg-gray-700">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Type
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Tokens Spent
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                            Description
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-700">
+                        {deductions.map((transaction) => {
+                          // Safe date parsing
+                          let dateDisplay = 'N/A';
+                          try {
+                            if (transaction.created_at) {
+                              dateDisplay = new Date(transaction.created_at).toLocaleString();
+                            }
+                          } catch (e) {
+                            console.error('Error parsing date:', e);
+                          }
+                          
+                          // Get absolute value for display (always show positive in "Tokens Spent" column)
+                          const amount = Math.abs(transaction.amount || 0);
+                          const typeDisplay = transaction.type === 'entry_fee' ? 'Entry Fee' : 
+                                            transaction.type === 'game_entry' ? 'Game Entry' : 
+                                            transaction.type === 'withdrawal' ? 'Withdrawal' : 
+                                            transaction.type === 'refund' ? 'Refund' :
+                                            'Deduction';
+                          
+                          return (
+                            <tr key={transaction.id || `deduction-${Math.random()}`} className="hover:bg-gray-700 transition-colors">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                {dateDisplay}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                  {typeDisplay}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-400">
+                                -{amount} Tokens
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                {transaction.description || 'No description'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
             {/* All Transactions Section */}
             <div className="mt-8 pt-8 border-t border-gray-700">
               <h3 className="text-xl font-bold text-blue-400 mb-4">📋 Complete Transaction History ({tokenTransactions.length})</h3>
