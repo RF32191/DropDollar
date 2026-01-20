@@ -1446,7 +1446,7 @@ export default function HotSellPage() {
                       {session?.status === 'completed' ? 'Final Prize Pool' : 'Current Prize Pool'}
                     </p>
                     <p className="text-3xl font-black text-yellow-300 mb-1">
-                      {formatAmount(session?.prize_pool || 0)}
+                      {formatAmount((session?.participants_count || 0) * (config.entry_fee || 1))}
                     </p>
                     <p className="text-yellow-200/70 text-xs mb-3">
                       {session?.participants_count && session.participants_count > 0 
@@ -1510,15 +1510,15 @@ export default function HotSellPage() {
                         </div>
                       </div>
                     ) : (
-                      /* Show PROJECTED PAYOUTS if game is active/waiting */
+                      /* Show EXPECTED PAYOUTS based on FULL PRIZE when game fills (base_price) */
                       <div className="bg-black/30 rounded-lg p-3 mb-2">
-                        <div className="text-[10px] font-semibold text-yellow-200 mb-1.5 text-center">💰 Current Pool Split</div>
+                        <div className="text-[10px] font-semibold text-yellow-200 mb-1.5 text-center">💰 Expected Payout (When Full)</div>
                         <div className="space-y-1.5 text-xs">
-                          {/* Calculate accurate payouts: Platform fee first (15%), then split remaining 85% */}
+                          {/* Calculate accurate payouts based on BASE PRICE (full prize amount) */}
                           {(() => {
-                            const totalPool = session?.prize_pool || 0;
-                            const platformFee = totalPool * 0.15;
-                            const payoutPool = totalPool * 0.85;
+                            const fullPrize = config.base_price || 0; // Use base_price, not current pool
+                            const platformFee = fullPrize * 0.15;
+                            const payoutPool = fullPrize * 0.85;
                             const firstPlace = payoutPool * 0.50; // 50% of 85% = 42.5% total
                             const secondPlace = payoutPool * 0.20; // 20% of 85% = 17% total
                             const thirdPlace = payoutPool * 0.15; // 15% of 85% = 12.75% total
