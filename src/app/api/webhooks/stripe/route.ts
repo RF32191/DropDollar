@@ -228,24 +228,65 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       }
     }
 
-    // Call comprehensive backup function
-    const { data, error } = await supabase!.rpc('add_tokens_from_purchase', {
-      user_id_param: userId,
-      token_amount_param: tokensToCredit,
-      payment_amount_param: amountPaid,
-      stripe_payment_intent_id_param: paymentIntent.id,
-      payment_method_param: paymentMethod
-    });
-
-    if (error) {
-      console.error('❌ [Webhook] Error calling add_tokens_from_purchase:', error);
-      
-      // Fallback: Add tokens directly
+    // Use UserService to add tokens to purchased_tokens wallet (same as frontend)
+    console.log(`💵 [Webhook] Adding ${tokensToCredit} tokens to purchased_tokens wallet for user ${userId}`);
+    
+    const { UserService } = await import('@/lib/supabase/userService');
+    const tokensAdded = await UserService.addPurchasedTokens(userId, tokensToCredit);
+    
+    if (!tokensAdded) {
+      console.error('❌ [Webhook] Failed to add purchased tokens via UserService');
+      // Fallback: Add tokens directly (but to purchased_tokens field)
       console.log('🔄 [Webhook] Using fallback method to add tokens');
       await addTokensDirectly(userId, tokensToCredit, amountPaid, paymentIntent.id, paymentMethod);
     } else {
-      console.log('✅ [Webhook] Tokens added successfully:', data);
+      console.log('✅ [Webhook] Tokens added successfully to purchased_tokens wallet');
     }
+    
+    // Save purchase history (same as frontend)
+    const purchaseHistorySaved = await UserService.savePurchaseHistory({
+      userId: userId,
+      purchaseType: 'tokens',
+      amount: amountPaid,
+      tokensPurchased: tokensToCredit,
+      tokensSpent: 0,
+      stripePaymentIntentId: paymentIntent.id,
+      status: 'completed',
+      description: `Purchased ${tokensToCredit} tokens via Stripe webhook ($${amountPaid})`,
+      metadata: {
+        payment_intent_id: paymentIntent.id,
+        tokens: tokensToCredit,
+        amount_paid_cents: amountPaidCents,
+        amount_paid_dollars: amountPaid,
+        price_per_token: 1,
+        timestamp: new Date().toISOString(),
+        wallet_type: 'purchased_tokens',
+        source: 'stripe_webhook'
+      }
+    });
+    
+    if (!purchaseHistorySaved) {
+      console.error('❌ [Webhook] Failed to save purchase history');
+    } else {
+      console.log('✅ [Webhook] Purchase history saved');
+    }
+    
+    // Add token transaction
+    await UserService.addTokenTransaction({
+      userId: userId,
+      type: 'purchase',
+      amount: tokensToCredit,
+      description: `Purchased ${tokensToCredit} tokens via Stripe webhook (added to purchased_tokens wallet)`,
+      stripePaymentIntentId: paymentIntent.id,
+      metadata: {
+        payment_intent_id: paymentIntent.id,
+        amount_paid: amountPaid,
+        tokens: tokensToCredit,
+        timestamp: new Date().toISOString(),
+        wallet_type: 'purchased_tokens',
+        source: 'stripe_webhook'
+      }
+    });
 
     // Mark webhook as processed
     await supabase!
