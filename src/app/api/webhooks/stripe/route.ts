@@ -210,6 +210,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     // Get userId (already checked above, but get it again if not found)
     if (!userId) {
       userId = paymentIntent.metadata.userId || paymentIntent.metadata.user_id;
+    }
     
     // If no userId in metadata, try to find user by customer email
     if (!userId && paymentIntent.receipt_email) {
