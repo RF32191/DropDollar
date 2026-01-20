@@ -54,7 +54,13 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Step 2: Update wta_join_v2 function to save to user_transactions
+-- Step 2: Drop existing wta_join_v2 functions to avoid conflicts
+DROP FUNCTION IF EXISTS wta_join_v2(TEXT, UUID, DECIMAL);
+DROP FUNCTION IF EXISTS wta_join_v2(TEXT, UUID, NUMERIC);
+DROP FUNCTION IF EXISTS wta_join_v2(TEXT, TEXT, DECIMAL);
+DROP FUNCTION IF EXISTS wta_join_v2(TEXT, TEXT, NUMERIC);
+
+-- Step 3: Create/Update wta_join_v2 function to save to user_transactions
 CREATE OR REPLACE FUNCTION wta_join_v2(
     p_session TEXT,
     p_user UUID,
@@ -175,9 +181,10 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Step 3: Grant execute permissions
+-- Step 4: Grant execute permissions
 GRANT EXECUTE ON FUNCTION save_entry_fee_to_user_transactions TO authenticated;
-GRANT EXECUTE ON FUNCTION wta_join_v2 TO authenticated;
+GRANT EXECUTE ON FUNCTION save_game_entry_fee TO authenticated;
+GRANT EXECUTE ON FUNCTION wta_join_v2(TEXT, UUID, DECIMAL) TO authenticated;
 
 -- Step 4: Update Hot Sell join function to also save to user_transactions
 -- Find the current hs_join_v2 function and update it
