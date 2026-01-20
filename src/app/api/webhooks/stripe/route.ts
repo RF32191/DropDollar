@@ -136,16 +136,29 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     console.log(`💵 [Webhook] Payment Intent Amount: ${amountPaidCents} cents ($${amountPaid})`);
     console.log(`💵 [Webhook] Calculated: $${amountPaid} = ${tokensToCredit} tokens ($${amountPaid} / $1 per token)`);
     
-    // Check if tokens were already added by frontend
-    const { data: existingPurchase } = await supabase!
+    // Check if tokens were already added by frontend (check multiple ways)
+    // 1. Check purchase_history
+    const { data: existingPurchase, error: purchaseError } = await supabase!
       .from('purchase_history')
-      .select('id, tokens_purchased')
+      .select('id, tokens_purchased, created_at')
       .eq('stripe_payment_intent_id', paymentIntent.id)
-      .single();
+      .maybeSingle();
     
-    if (existingPurchase) {
-      console.log(`⚠️ [Webhook] Purchase already processed by frontend! Skipping duplicate credit.`);
-      console.log(`⚠️ [Webhook] Existing purchase ID: ${existingPurchase.id}, Tokens: ${existingPurchase.tokens_purchased}`);
+    // 2. Check token_transactions
+    const { data: existingTransaction } = await supabase!
+      .from('token_transactions')
+      .select('id, amount, created_at')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .maybeSingle();
+    
+    if (existingPurchase || existingTransaction) {
+      console.log(`⚠️ [Webhook] Purchase already processed! Skipping duplicate credit.`);
+      if (existingPurchase) {
+        console.log(`⚠️ [Webhook] Existing purchase ID: ${existingPurchase.id}, Tokens: ${existingPurchase.tokens_purchased}, Created: ${existingPurchase.created_at}`);
+      }
+      if (existingTransaction) {
+        console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Amount: ${existingTransaction.amount}, Created: ${existingTransaction.created_at}`);
+      }
       
       // Mark webhook as processed but skipped
       await supabase!
@@ -159,6 +172,8 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       
       return; // Exit early to prevent duplicate credits
     }
+    
+    console.log('✅ [Webhook] No existing purchase found - proceeding with token credit');
 
     // Try to get userId from metadata first
     let userId = paymentIntent.metadata.userId || paymentIntent.metadata.user_id;

@@ -380,29 +380,47 @@ export default function ProfessionalTokenWallet() {
       }
       
       // Step 4: Add token transaction record
+      // This also helps prevent webhook duplicates
       console.log('📝 [TokenWallet] Attempting to save token transaction...');
-      const transactionResult = await UserService.addTokenTransaction({
-        userId: userProfile.id,
-        type: 'purchase',
-        amount: totalTokens,
-        balance_before: (newPurchasedBalance - totalTokens),
-        balance_after: newPurchasedBalance,
-        description: `Purchased ${totalTokens} tokens via Stripe (added to purchased_tokens wallet)`,
-        stripePaymentIntentId: paymentIntent.id,
-        metadata: {
-          payment_intent_id: paymentIntent.id,
-          amount_paid: amountPaidDollars,
-          tokens: totalTokens,
-          timestamp: new Date().toISOString(),
-          wallet_type: 'purchased_tokens',
-          source: 'frontend_payment_success'
-        }
-      });
+      let transactionResult = false;
+      let transactionAttempts = 0;
+      const maxTransactionAttempts = 3;
       
-      if (transactionResult) {
-        console.log('✅ [TokenWallet] Token transaction saved successfully');
-      } else {
-        console.error('❌ [TokenWallet] FAILED to save token transaction!');
+      while (!transactionResult && transactionAttempts < maxTransactionAttempts) {
+        transactionAttempts++;
+        console.log(`📝 [TokenWallet] Transaction save attempt ${transactionAttempts}/${maxTransactionAttempts}`);
+        
+        transactionResult = await UserService.addTokenTransaction({
+          userId: userProfile.id,
+          type: 'purchase',
+          amount: totalTokens,
+          balance_before: (newPurchasedBalance - totalTokens),
+          balance_after: newPurchasedBalance,
+          description: `Purchased ${totalTokens} tokens via Stripe (added to purchased_tokens wallet)`,
+          stripePaymentIntentId: paymentIntent.id,
+          metadata: {
+            payment_intent_id: paymentIntent.id,
+            amount_paid: amountPaidDollars,
+            tokens: totalTokens,
+            timestamp: new Date().toISOString(),
+            wallet_type: 'purchased_tokens',
+            source: 'frontend_payment_success'
+          }
+        });
+        
+        if (transactionResult) {
+          console.log('✅ [TokenWallet] Token transaction saved successfully');
+          break;
+        } else {
+          console.error(`❌ [TokenWallet] Transaction save attempt ${transactionAttempts} failed`);
+          if (transactionAttempts < maxTransactionAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
+          }
+        }
+      }
+      
+      if (!transactionResult) {
+        console.error('❌ [TokenWallet] FAILED to save token transaction after', maxTransactionAttempts, 'attempts!');
         console.error('❌ [TokenWallet] This may be due to RLS policies or database permissions');
         // Don't throw - tokens are already added, just log the issue
       }

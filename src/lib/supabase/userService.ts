@@ -833,6 +833,8 @@ export class UserService {
       
       console.log('💳 [UserService] Insert data:', JSON.stringify(insertData, null, 2));
       
+      // Use service role client for inserts to bypass RLS if needed
+      // But first try with regular client
       const { data, error } = await supabase
         .from('purchase_history')
         .insert([insertData])
@@ -844,11 +846,20 @@ export class UserService {
         console.error('❌ [UserService] Error message:', error.message);
         console.error('❌ [UserService] Error details:', error.details);
         console.error('❌ [UserService] Error hint:', error.hint);
+        
+        // If RLS error, try to get more info
+        if (error.code === '42501' || error.message.includes('policy') || error.message.includes('RLS')) {
+          console.error('❌ [UserService] RLS POLICY ERROR - User may not have permission to insert');
+          console.error('❌ [UserService] User ID:', purchaseData.userId);
+          console.error('❌ [UserService] Check if auth.uid() matches user_id');
+        }
+        
         return false;
       }
 
       if (!data || data.length === 0) {
         console.error('❌ [UserService] No data returned from insert');
+        console.error('❌ [UserService] This may indicate RLS is blocking the insert silently');
         return false;
       }
 
