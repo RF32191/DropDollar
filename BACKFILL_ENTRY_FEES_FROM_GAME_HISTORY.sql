@@ -25,7 +25,7 @@ BEGIN
             gh.id,
             gh.user_id,
             gh.game_type,
-            gh.mode,
+            gh."mode",  -- Quote 'mode' because it's a reserved word
             gh.score,
             gh.tokens_wagered,
             gh.tokens_won,
@@ -33,7 +33,7 @@ BEGIN
             gh.created_at
         FROM public.game_history gh
         WHERE gh.user_id = v_user_id
-        AND gh.mode = 'competition' -- Only competition games (not practice)
+        AND gh."mode" = 'competition' -- Only competition games (not practice)
         ORDER BY gh.created_at ASC
     ) LOOP
         -- Check if we already have a transaction for this game
@@ -148,7 +148,7 @@ DECLARE
 BEGIN
     SELECT COUNT(*) INTO v_total_games
     FROM public.game_history
-    WHERE user_id = v_user_id AND mode = 'competition';
+    WHERE user_id = v_user_id AND "mode" = 'competition';
     
     SELECT COUNT(*) INTO v_total_transactions
     FROM public.user_transactions
