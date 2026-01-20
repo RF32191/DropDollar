@@ -199,6 +199,75 @@ export default function ProfessionalTokenWallet() {
             console.log('✅ [TokenWallet] Loaded', userTransactions.length, 'transactions');
             console.log('✅ [TokenWallet] Purchases:', purchases.length, 'Winnings:', winnings.length);
             
+            // Auto-sync purchases from Stripe after loading existing data
+            setTimeout(async () => {
+              try {
+                console.log('🔄 [TokenWallet] Auto-checking Stripe for missing purchases...');
+                
+                const checkResponse = await fetch(`/api/stripe/sync-purchases?userId=${currentUser.id}`);
+                const checkData = await checkResponse.json();
+                
+                if (checkData.needsSync && checkData.missingInDatabase > 0) {
+                  console.log(`⚠️ [TokenWallet] Found ${checkData.missingInDatabase} missing purchases, auto-syncing...`);
+                  
+                  const syncResponse = await fetch('/api/stripe/sync-purchases', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      userId: currentUser.id,
+                      userEmail: currentUser.email
+                    })
+                  });
+                  
+                  const syncData = await syncResponse.json();
+                  
+                  if (syncData.success && syncData.stats.newlySynced > 0) {
+                    console.log(`✅ [TokenWallet] Auto-synced ${syncData.stats.newlySynced} purchases from Stripe!`);
+                    
+                    // Reload transactions to show new data
+                    const refreshedTransactions = await UserService.getUserTransactions(currentUser.id);
+                    const refreshedPurchases = refreshedTransactions.filter(tx => tx.type === 'token_purchase' || tx.type === 'purchase');
+                    
+                    setTokenTransactions(refreshedTransactions.map(tx => ({
+                      id: tx.id,
+                      userId: tx.user_id,
+                      type: tx.type === 'token_purchase' ? 'purchase' : tx.type,
+                      amount: tx.tokens_purchased || tx.tokens_won || tx.amount,
+                      balance_before: null,
+                      balance_after: null,
+                      description: tx.description,
+                      stripePaymentIntentId: tx.stripe_payment_intent_id,
+                      metadata: tx.metadata || {},
+                      created_at: tx.created_at
+                    })));
+                    
+                    setPurchaseHistory(refreshedPurchases.map(tx => ({
+                      id: tx.id,
+                      userId: tx.user_id,
+                      purchaseType: 'tokens',
+                      amount: tx.amount,
+                      tokensPurchased: tx.tokens_purchased || 0,
+                      tokensSpent: 0,
+                      stripePaymentIntentId: tx.stripe_payment_intent_id,
+                      status: tx.status || 'completed',
+                      description: tx.description,
+                      metadata: tx.metadata || {},
+                      createdAt: tx.created_at
+                    })));
+                    
+                    console.log('✅ [TokenWallet] Transaction history refreshed after sync');
+                  }
+                } else {
+                  console.log('✅ [TokenWallet] All Stripe purchases already synced');
+                }
+              } catch (syncError) {
+                console.error('❌ [TokenWallet] Auto-sync failed:', syncError);
+                // Don't block UI if sync fails
+              }
+            }, 2000); // Wait 2 seconds after initial load
+            
             // Load game history
             try {
               const games = await UserService.getUserGameHistory(currentUser.id);
