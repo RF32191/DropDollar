@@ -44,8 +44,58 @@ export function PurchaseHistory() {
   useEffect(() => {
     if (user?.id) {
       loadPurchaseHistory();
+      
+      // Auto-sync from Stripe after initial load (with delay to not block UI)
+      setTimeout(() => {
+        autoSyncFromStripe();
+      }, 2000);
     }
   }, [user?.id]);
+
+  // Auto-sync purchases from Stripe if none found in database
+  const autoSyncFromStripe = async () => {
+    if (!user?.id || !user?.email) return;
+    
+    try {
+      console.log('🔄 [PurchaseHistory] Auto-checking Stripe for missing purchases...');
+      
+      // Check if we need to sync
+      const checkResponse = await fetch(`/api/stripe/sync-purchases?userId=${user.id}`);
+      const checkData = await checkResponse.json();
+      
+      if (checkData.needsSync && checkData.missingInDatabase > 0) {
+        console.log(`⚠️ [PurchaseHistory] Found ${checkData.missingInDatabase} missing purchases, auto-syncing...`);
+        
+        // Auto-sync missing purchases
+        const syncResponse = await fetch('/api/stripe/sync-purchases', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            userEmail: user.email
+          })
+        });
+        
+        const syncData = await syncResponse.json();
+        
+        if (syncData.success && syncData.stats.newlySynced > 0) {
+          console.log(`✅ [PurchaseHistory] Auto-synced ${syncData.stats.newlySynced} purchases from Stripe!`);
+          
+          // Reload purchase history to show new data
+          setTimeout(() => {
+            loadPurchaseHistory();
+          }, 1000);
+        }
+      } else {
+        console.log('✅ [PurchaseHistory] All Stripe purchases are already synced');
+      }
+    } catch (error) {
+      console.error('❌ [PurchaseHistory] Auto-sync failed:', error);
+      // Don't block the UI if auto-sync fails
+    }
+  };
 
   // Auto-refresh every 5 seconds for recent purchases
   useEffect(() => {
@@ -221,13 +271,13 @@ export function PurchaseHistory() {
 
       {/* Content */}
       <div className="p-6">
-        {/* Stripe Sync Tool and Manual Refresh */}
-        <div className="mb-6 flex gap-4 flex-wrap">
-          <StripeSyncButton />
+        {/* Manual Refresh Button (Auto-sync happens in background) */}
+        <div className="mb-4 flex justify-end">
           <button
             onClick={() => {
               console.log('🔄 [PurchaseHistory] Manual refresh triggered');
               loadPurchaseHistory();
+              autoSyncFromStripe();
             }}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
           >
