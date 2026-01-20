@@ -45,6 +45,8 @@ export interface PaymentIntent {
 
 export interface PaymentMetadata {
   userId: string;
+  userEmail?: string;
+  email?: string;
   type: 'listing' | 'tournament' | 'match' | 'hotsell' | 'ad_campaign' | 'tokens';
   listingId?: string;
   tournamentId?: string;
@@ -87,6 +89,7 @@ export class StripePaymentService {
             currency,
             metadata: {
               userId: metadata.userId,
+              userEmail: metadata.userEmail || metadata.email || '',
               type: metadata.type,
               listingId: metadata.listingId || '',
               tournamentId: metadata.tournamentId || '',
@@ -94,6 +97,7 @@ export class StripePaymentService {
               gameType: metadata.gameType || '',
               entryNumber: metadata.entryNumber?.toString() || ''
             },
+            receipt_email: metadata.userEmail || metadata.email || undefined,
             automatic_payment_methods: {
               enabled: true,
             },

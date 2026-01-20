@@ -181,6 +181,7 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
           currency: 'usd',
           metadata: {
             userId: userProfile.id,
+            userEmail: userProfile.email,
             type: 'tokens',
             gameType: 'token_purchase',
             tokensAmount: selectedPackage.tokens

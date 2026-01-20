@@ -54,9 +54,11 @@ export async function POST(request: NextRequest) {
       currency,
       metadata: {
         userId: metadata.userId,
+        userEmail: metadata.userEmail || metadata.email || '',
         type: metadata.type || 'tokens',
         gameType: metadata.gameType || 'token_purchase',
       },
+      receipt_email: metadata.userEmail || metadata.email || undefined,
       automatic_payment_methods: {
         enabled: true,
       },
