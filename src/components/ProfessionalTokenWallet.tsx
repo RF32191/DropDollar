@@ -571,6 +571,11 @@ export default function ProfessionalTokenWallet() {
       
       console.log('✅ [TokenWallet] User transactions reloaded:', userTransactions.length, 'transactions');
       console.log('✅ [TokenWallet] Purchases:', purchases.length, 'Winnings:', winnings.length);
+      } catch (historyError: any) {
+        console.error('❌ [TokenWallet] Error reloading transaction history:', historyError);
+        console.error('❌ [TokenWallet] History error details:', historyError?.message);
+        // Don't crash - just log the error
+      }
       
       // Verify the new transaction exists
       const latestTransaction = userTransactions[0];
