@@ -1167,18 +1167,18 @@ export class UserService {
   /**
    * Get user transactions (purchases and winnings)
    */
-  static async getUserTransactions(userId: string, limit: number = 50, offset: number = 0): Promise<any[]> {
+  static async getUserTransactions(userId: string, limit: number = 1000, offset: number = 0): Promise<any[]> {
     try {
       console.log('💳 [UserService] Fetching user transactions for user:', userId);
       
       // Ensure userId is treated as UUID (cast to TEXT for comparison)
+      // Fetch all transactions (up to 1000) sorted by most recent first
       const { data, error } = await supabase
         .from('user_transactions')
         .select('*')
         .eq('user_id', userId) // Supabase handles UUID comparison automatically
         .order('created_at', { ascending: false })
-        .limit(limit)
-        .range(offset, offset + limit - 1);
+        .limit(limit);
 
       if (error) {
         console.error('❌ [UserService] Error fetching user transactions:', error);

@@ -1141,11 +1141,11 @@ export default function ProfessionalTokenWallet() {
         {/* History Tab Content */}
         {activeTab === 'history' && (
           <div className="max-w-4xl mx-auto bg-gray-800 rounded-2xl p-10 shadow-2xl border border-gray-700">
-            <h2 className="text-3xl font-bold text-white mb-8 text-center">Your Purchase & Transaction History</h2>
+            <h2 className="text-3xl font-bold text-white mb-8 text-center">Your Complete Transaction History</h2>
             
             {/* Purchase History Section */}
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-green-400 mb-4">Recent Purchases</h3>
+              <h3 className="text-xl font-bold text-green-400 mb-4">💰 All Purchases ({purchaseHistory.length})</h3>
               {purchaseHistory.length === 0 ? (
                   <div className="text-center text-gray-400 py-8 bg-gray-700/50 rounded-lg">
                     No purchases yet. Buy tokens to get started!
@@ -1173,7 +1173,7 @@ export default function ProfessionalTokenWallet() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-700">
-                        {purchaseHistory.slice(0, 10).map((purchase) => {
+                        {purchaseHistory.map((purchase) => {
                           // Safe date parsing
                           let dateDisplay = 'N/A';
                           try {
