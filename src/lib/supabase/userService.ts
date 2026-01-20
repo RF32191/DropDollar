@@ -566,8 +566,45 @@ export class UserService {
         console.error('❌ [UserService] Error adding token transaction:', error);
         console.error('❌ [UserService] Error code:', error.code);
         console.error('❌ [UserService] Error message:', error.message);
-        console.error('❌ [UserService] Error details:', error.details);
-        console.error('❌ [UserService] Error hint:', error.hint);
+        
+        // If RLS error, try server-side API endpoint
+        if (error.code === '42501' || error.message.includes('policy') || error.message.includes('RLS')) {
+          console.error('❌ [UserService] RLS POLICY ERROR - Trying server-side API endpoint');
+          
+          try {
+            // Call server-side API endpoint that uses service role
+            const response = await fetch('/api/payments/save-transaction', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: transaction.userId,
+                type: transaction.type,
+                amount: transaction.amount,
+                balance_before: transaction.balance_before,
+                balance_after: transaction.balance_after,
+                description: transaction.description,
+                stripePaymentIntentId: transaction.stripePaymentIntentId,
+                metadata: transaction.metadata
+              })
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ [UserService] Transaction saved via API:', result.transactionId);
+              return true;
+            } else {
+              const errorData = await response.json();
+              console.error('❌ [UserService] API endpoint failed:', errorData);
+              return false;
+            }
+          } catch (apiError: any) {
+            console.error('❌ [UserService] API endpoint exception:', apiError);
+            return false;
+          }
+        }
+        
         return false;
       }
 
