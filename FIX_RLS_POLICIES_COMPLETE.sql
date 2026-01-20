@@ -45,9 +45,8 @@ CREATE POLICY "Users can view own purchase history"
     ON public.purchase_history
     FOR SELECT
     USING (
-        -- Handle both TEXT and UUID user_id types
-        (auth.uid()::TEXT = user_id::TEXT)
-        OR (auth.uid()::TEXT = user_id)
+        -- Cast both sides to TEXT to handle TEXT or UUID user_id types
+        auth.uid()::TEXT = user_id::TEXT
     );
 
 -- Policy: Users can insert their own purchases
@@ -56,9 +55,8 @@ CREATE POLICY "Users can insert own purchases"
     ON public.purchase_history
     FOR INSERT
     WITH CHECK (
-        -- Handle both TEXT and UUID user_id types
-        (auth.uid()::TEXT = user_id::TEXT)
-        OR (auth.uid()::TEXT = user_id)
+        -- Cast both sides to TEXT to handle TEXT or UUID user_id types
+        auth.uid()::TEXT = user_id::TEXT
     );
 
 -- Policy: Service role can do everything
@@ -79,9 +77,8 @@ CREATE POLICY "Users can view own transactions"
     ON public.token_transactions
     FOR SELECT
     USING (
-        -- Handle both TEXT and UUID user_id types
-        (auth.uid()::TEXT = user_id::TEXT)
-        OR (auth.uid()::TEXT = user_id)
+        -- Cast both sides to TEXT to handle TEXT or UUID user_id types
+        auth.uid()::TEXT = user_id::TEXT
     );
 
 -- Policy: Users can insert their own transactions
@@ -89,9 +86,8 @@ CREATE POLICY "Users can insert own transactions"
     ON public.token_transactions
     FOR INSERT
     WITH CHECK (
-        -- Handle both TEXT and UUID user_id types
-        (auth.uid()::TEXT = user_id::TEXT)
-        OR (auth.uid()::TEXT = user_id)
+        -- Cast both sides to TEXT to handle TEXT or UUID user_id types
+        auth.uid()::TEXT = user_id::TEXT
     );
 
 -- Policy: Service role can do everything
