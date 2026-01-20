@@ -1803,6 +1803,13 @@ export default function PennyPasserGame3D({
               preload="auto"
               className="w-full h-full rounded-lg"
               style={{ objectFit: 'contain' }}
+              onTimeUpdate={(e) => {
+                const video = e.currentTarget;
+                // Limit to 15 seconds - loop back to start
+                if (video.currentTime >= 15) {
+                  video.currentTime = 0;
+                }
+              }}
             >
               <source src={expandedVideo} type="video/mp4" />
               Your browser does not support the video tag.
