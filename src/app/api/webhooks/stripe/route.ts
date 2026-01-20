@@ -179,6 +179,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     if (existingTransaction) {
       console.log(`⚠️ [Webhook] Payment already processed by frontend! Skipping duplicate credit.`);
       console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Type: ${existingTransaction.type}, Tokens: ${existingTransaction.tokens_purchased}`);
+      console.log(`⚠️ [Webhook] Transaction created at: ${existingTransaction.created_at}`);
       
       // Mark webhook as processed but skipped
       await supabase!
@@ -186,12 +187,18 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
         .update({ 
           processed: true, 
           processed_at: new Date().toISOString(),
-          notes: 'Skipped - already processed by frontend (transaction found)'
+          notes: `Skipped - already processed by frontend (transaction ${existingTransaction.id} found)`
         })
         .eq('payment_intent_id', paymentIntent.id);
       
       return; // Exit early to prevent duplicate credits
     }
+    
+    console.log('⚠️ [Webhook] No transaction found after 3 checks. This could mean:');
+    console.log('⚠️ [Webhook] 1. Frontend failed to save transaction');
+    console.log('⚠️ [Webhook] 2. user_transactions table does not exist');
+    console.log('⚠️ [Webhook] 3. Database write is slow');
+    console.log('⚠️ [Webhook] Proceeding with token credit as fallback...');
     
     // Get userId (already checked above, but get it again if not found)
     if (!userId) {

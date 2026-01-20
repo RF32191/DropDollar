@@ -388,9 +388,11 @@ export default function ProfessionalTokenWallet() {
             
             if (!verified) {
               console.error('❌ [TokenWallet] Transaction NOT verified in database after 3 attempts!');
-              if (transactionAttempts < maxTransactionAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
-              }
+              console.error('❌ [TokenWallet] This means the transaction was NOT saved!');
+              console.error('❌ [TokenWallet] Check if user_transactions table exists in Supabase!');
+              // Don't retry - if verification fails, the transaction wasn't saved
+              // This prevents double-dipping
+              throw new Error('Transaction verification failed - transaction was not saved to database');
             } else {
               break; // Transaction verified, exit retry loop
             }

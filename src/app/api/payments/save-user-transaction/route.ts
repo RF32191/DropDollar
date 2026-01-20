@@ -82,6 +82,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert using service role (bypasses RLS)
+    console.log('💾 [SaveUserTransaction] Inserting into user_transactions:', JSON.stringify(insertData, null, 2));
+    
     const { data, error } = await supabaseAdmin
       .from('user_transactions')
       .insert([insertData])
@@ -90,38 +92,56 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('❌ [SaveUserTransaction] Error:', error);
       console.error('❌ [SaveUserTransaction] Error code:', error.code);
+      console.error('❌ [SaveUserTransaction] Error message:', error.message);
       console.error('❌ [SaveUserTransaction] Error details:', error.details);
       console.error('❌ [SaveUserTransaction] Error hint:', error.hint);
       
       // If table doesn't exist, provide helpful error
       if (error.code === '42P01') {
+        console.error('❌ [SaveUserTransaction] TABLE DOES NOT EXIST! Run CREATE_USER_TRANSACTIONS_TABLE.sql');
         return NextResponse.json(
-          { error: 'user_transactions table does not exist. Please run CREATE_USER_TRANSACTIONS_TABLE.sql in Supabase.', details: error.message },
+          { 
+            error: 'user_transactions table does not exist', 
+            details: 'Please run CREATE_USER_TRANSACTIONS_TABLE.sql in Supabase SQL Editor',
+            code: error.code,
+            hint: error.hint
+          },
           { status: 500 }
         );
       }
       
       return NextResponse.json(
-        { error: 'Failed to save transaction', details: error.message, code: error.code },
+        { 
+          error: 'Failed to save transaction', 
+          details: error.message, 
+          code: error.code,
+          hint: error.hint
+        },
         { status: 500 }
       );
     }
 
     if (!data || data.length === 0) {
       console.error('❌ [SaveUserTransaction] No data returned from insert');
+      console.error('❌ [SaveUserTransaction] This usually means RLS blocked the insert');
       return NextResponse.json(
-        { error: 'Transaction insert returned no data' },
+        { error: 'Transaction insert returned no data - check RLS policies' },
         { status: 500 }
       );
     }
 
-    console.log('✅ [SaveUserTransaction] Transaction saved:', data[0]?.id);
-    console.log('✅ [SaveUserTransaction] Transaction data:', JSON.stringify(data[0], null, 2));
+    console.log('✅ [SaveUserTransaction] Transaction saved successfully!');
+    console.log('✅ [SaveUserTransaction] Transaction ID:', data[0]?.id);
+    console.log('✅ [SaveUserTransaction] User ID:', data[0]?.user_id);
+    console.log('✅ [SaveUserTransaction] Type:', data[0]?.type);
+    console.log('✅ [SaveUserTransaction] Tokens:', data[0]?.tokens_purchased);
+    console.log('✅ [SaveUserTransaction] Payment Intent:', data[0]?.stripe_payment_intent_id);
 
     return NextResponse.json({
       success: true,
       transactionId: data[0]?.id,
-      verified: true
+      verified: true,
+      transaction: data[0]
     });
 
   } catch (error: any) {
