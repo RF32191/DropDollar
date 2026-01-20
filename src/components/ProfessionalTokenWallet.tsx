@@ -346,37 +346,58 @@ export default function ProfessionalTokenWallet() {
       }
       
       // Step 3: Save purchase history FIRST (before transaction record)
+      // This MUST succeed to prevent webhook from adding duplicate tokens
       console.log('💳 [TokenWallet] Attempting to save purchase history...');
       console.log('💳 [TokenWallet] User ID:', userProfile.id);
       console.log('💳 [TokenWallet] Payment Intent ID:', paymentIntent.id);
+      console.log('💳 [TokenWallet] Tokens:', totalTokens);
+      console.log('💳 [TokenWallet] Amount:', amountPaidDollars);
       
-      const purchaseResult = await UserService.savePurchaseHistory({
-        userId: userProfile.id,
-        purchaseType: 'tokens',
-        amount: amountPaidDollars,
-        tokensPurchased: totalTokens,
-        tokensSpent: 0,
-        stripePaymentIntentId: paymentIntent.id,
-        status: 'completed',
-        description: `Purchased ${totalTokens} tokens via Stripe ($${amountPaidDollars})`,
-        metadata: {
-          payment_intent_id: paymentIntent.id,
-          tokens: totalTokens,
-          amount_paid_cents: actualAmountPaid,
-          amount_paid_dollars: amountPaidDollars,
-          price_per_token: 1,
-          timestamp: new Date().toISOString(),
-          wallet_type: 'purchased_tokens',
-          source: 'frontend_payment_success'
+      let purchaseResult = false;
+      let purchaseAttempts = 0;
+      const maxPurchaseAttempts = 3;
+      
+      while (!purchaseResult && purchaseAttempts < maxPurchaseAttempts) {
+        purchaseAttempts++;
+        console.log(`💳 [TokenWallet] Purchase history save attempt ${purchaseAttempts}/${maxPurchaseAttempts}`);
+        
+        purchaseResult = await UserService.savePurchaseHistory({
+          userId: userProfile.id,
+          purchaseType: 'tokens',
+          amount: amountPaidDollars,
+          tokensPurchased: totalTokens,
+          tokensSpent: 0,
+          stripePaymentIntentId: paymentIntent.id,
+          status: 'completed',
+          description: `Purchased ${totalTokens} tokens via Stripe ($${amountPaidDollars})`,
+          metadata: {
+            payment_intent_id: paymentIntent.id,
+            tokens: totalTokens,
+            amount_paid_cents: actualAmountPaid,
+            amount_paid_dollars: amountPaidDollars,
+            price_per_token: 1,
+            timestamp: new Date().toISOString(),
+            wallet_type: 'purchased_tokens',
+            source: 'frontend_payment_success'
+          }
+        });
+        
+        if (purchaseResult) {
+          console.log('✅ [TokenWallet] Purchase history saved successfully');
+          break;
+        } else {
+          console.error(`❌ [TokenWallet] Purchase history save attempt ${purchaseAttempts} failed`);
+          if (purchaseAttempts < maxPurchaseAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * purchaseAttempts));
+          }
         }
-      });
+      }
       
-      if (purchaseResult) {
-        console.log('✅ [TokenWallet] Purchase history saved successfully');
-      } else {
-        console.error('❌ [TokenWallet] FAILED to save purchase history!');
+      if (!purchaseResult) {
+        console.error('❌ [TokenWallet] FAILED to save purchase history after', maxPurchaseAttempts, 'attempts!');
         console.error('❌ [TokenWallet] This may be due to RLS policies or database permissions');
-        // Don't throw - tokens are already added, just log the issue
+        console.error('❌ [TokenWallet] Webhook may add duplicate tokens if history is not saved!');
+        // Continue anyway - tokens are already added, but warn user
       }
       
       // Step 4: Add token transaction record
