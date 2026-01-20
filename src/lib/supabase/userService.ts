@@ -529,36 +529,64 @@ export class UserService {
   static async addTokenTransaction(transaction: Omit<TokenTransaction, 'id' | 'created_at'>): Promise<boolean> {
     try {
       console.log('📝 [UserService] Adding token transaction:', transaction);
+      console.log('📝 [UserService] User ID:', transaction.userId);
+      console.log('📝 [UserService] Type:', transaction.type);
+      console.log('📝 [UserService] Amount:', transaction.amount);
+      console.log('📝 [UserService] Stripe Payment Intent ID:', transaction.stripePaymentIntentId);
+      
+      const insertData: any = {
+        user_id: transaction.userId,
+        type: transaction.type,
+        amount: transaction.amount,
+        description: transaction.description,
+        metadata: transaction.metadata || {},
+        created_at: new Date().toISOString()
+      };
+      
+      // Add optional fields if they exist
+      if (transaction.balance_before !== undefined) {
+        insertData.balance_before = transaction.balance_before;
+      }
+      if (transaction.balance_after !== undefined) {
+        insertData.balance_after = transaction.balance_after;
+      }
+      if (transaction.stripePaymentIntentId) {
+        insertData.stripe_payment_intent_id = transaction.stripePaymentIntentId;
+      }
+      
+      console.log('📝 [UserService] Insert data:', JSON.stringify(insertData, null, 2));
       
       // Insert transaction
       const { data, error } = await supabase
         .from('token_transactions')
-        .insert([{
-          user_id: transaction.userId,
-          type: transaction.type,
-          amount: transaction.amount,
-          balance_before: transaction.balance_before,
-          balance_after: transaction.balance_after,
-          description: transaction.description,
-          stripe_payment_intent_id: transaction.stripePaymentIntentId,
-          metadata: transaction.metadata || {},
-          created_at: new Date().toISOString()
-        }])
+        .insert([insertData])
         .select();
 
       if (error) {
         console.error('❌ [UserService] Error adding token transaction:', error);
+        console.error('❌ [UserService] Error code:', error.code);
+        console.error('❌ [UserService] Error message:', error.message);
+        console.error('❌ [UserService] Error details:', error.details);
+        console.error('❌ [UserService] Error hint:', error.hint);
+        return false;
+      }
+
+      if (!data || data.length === 0) {
+        console.error('❌ [UserService] No data returned from insert');
         return false;
       }
 
       console.log('✅ [UserService] Token transaction added successfully:', data);
+      console.log('✅ [UserService] Transaction ID:', data[0]?.id);
       
       // NOTE: Token balance is updated separately before this method is called
       // This ensures the exact balance we want, avoiding race conditions
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [UserService] Exception in addTokenTransaction:', error);
+      console.error('❌ [UserService] Exception message:', error.message);
+      console.error('❌ [UserService] Exception stack:', error.stack);
       return false;
     }
   }

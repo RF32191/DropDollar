@@ -335,6 +335,10 @@ export default function ProfessionalTokenWallet() {
       }
       
       // Step 3: Save purchase history FIRST (before transaction record)
+      console.log('💳 [TokenWallet] Attempting to save purchase history...');
+      console.log('💳 [TokenWallet] User ID:', userProfile.id);
+      console.log('💳 [TokenWallet] Payment Intent ID:', paymentIntent.id);
+      
       const purchaseResult = await UserService.savePurchaseHistory({
         userId: userProfile.id,
         purchaseType: 'tokens',
@@ -352,14 +356,17 @@ export default function ProfessionalTokenWallet() {
           wallet_type: 'purchased_tokens'
         }
       });
-      console.log('✅ [TokenWallet] Purchase history saved:', purchaseResult);
       
-      if (!purchaseResult) {
-        console.error('❌ [TokenWallet] Failed to save purchase history!');
-        // Continue anyway - tokens are already added
+      if (purchaseResult) {
+        console.log('✅ [TokenWallet] Purchase history saved successfully');
+      } else {
+        console.error('❌ [TokenWallet] FAILED to save purchase history!');
+        console.error('❌ [TokenWallet] This may be due to RLS policies or database permissions');
+        // Don't throw - tokens are already added, just log the issue
       }
       
       // Step 4: Add token transaction record
+      console.log('📝 [TokenWallet] Attempting to save token transaction...');
       const transactionResult = await UserService.addTokenTransaction({
         userId: userProfile.id,
         type: 'purchase',
@@ -375,7 +382,14 @@ export default function ProfessionalTokenWallet() {
           wallet_type: 'purchased_tokens'
         }
       });
-      console.log('✅ [TokenWallet] Transaction recorded:', transactionResult);
+      
+      if (transactionResult) {
+        console.log('✅ [TokenWallet] Token transaction saved successfully');
+      } else {
+        console.error('❌ [TokenWallet] FAILED to save token transaction!');
+        console.error('❌ [TokenWallet] This may be due to RLS policies or database permissions');
+        // Don't throw - tokens are already added, just log the issue
+      }
       
       // Step 5: Log activity for complete tracking
       await ActivityService.logActivity(userProfile.id, 'token_purchase', {
