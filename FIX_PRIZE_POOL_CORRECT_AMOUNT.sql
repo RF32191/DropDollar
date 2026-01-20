@@ -18,7 +18,7 @@ SELECT
   id::TEXT,
   config_id,
   prize_pool,
-  current_pot,
+  current_pool,
   base_price,
   participants_count,
   status
@@ -43,16 +43,16 @@ BEGIN
     RAISE NOTICE '✅ Added prize_pool column';
   END IF;
 
-  -- Sync current_pot to prize_pool if current_pot exists
+  -- Sync current_pool to prize_pool if current_pool exists
   IF EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_name = 'hot_sell_sessions' 
-    AND column_name = 'current_pot'
+    AND column_name = 'current_pool'
   ) THEN
     UPDATE hot_sell_sessions
-    SET prize_pool = COALESCE(current_pot, 0)
+    SET prize_pool = COALESCE(current_pool, 0)
     WHERE prize_pool IS NULL OR prize_pool = 0;
-    RAISE NOTICE '✅ Synced current_pot to prize_pool';
+    RAISE NOTICE '✅ Synced current_pool to prize_pool';
   END IF;
 END $$;
 
