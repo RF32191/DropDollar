@@ -136,18 +136,63 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     console.log(`💵 [Webhook] Payment Intent Amount: ${amountPaidCents} cents ($${amountPaid})`);
     console.log(`💵 [Webhook] Calculated: $${amountPaid} = ${tokensToCredit} tokens ($${amountPaid} / $1 per token)`);
     
-    // Check if tokens were already added by frontend
-    // Check user_transactions table (links to wallet via user_id)
+    // CRITICAL: Check if tokens were already added by frontend
+    // Check 1: user_transactions table (frontend saves this FIRST)
     const { data: existingTransaction, error: transactionError } = await supabase!
       .from('user_transactions')
       .select('id, type, amount, tokens_purchased, created_at')
       .eq('stripe_payment_intent_id', paymentIntent.id)
       .maybeSingle();
     
-    // Check if transaction already exists (prevents double-dipping)
-    if (existingTransaction) {
-      console.log(`⚠️ [Webhook] Transaction already processed by frontend! Skipping duplicate credit.`);
-      console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Type: ${existingTransaction.type}, Amount: ${existingTransaction.amount}, Created: ${existingTransaction.created_at}`);
+    // Check 2: Also check if tokens were already added by checking user balance
+    // Get userId first to check balance
+    let userId = paymentIntent.metadata.userId || paymentIntent.metadata.user_id;
+    
+    // If no userId in metadata, try to find user by customer email
+    if (!userId && paymentIntent.receipt_email) {
+      const { data: userData } = await supabase!
+        .from('users')
+        .select('id')
+        .eq('email', paymentIntent.receipt_email)
+        .maybeSingle();
+      if (userData) userId = userData.id;
+    }
+    
+    // If we have userId, check if tokens were already added
+    let tokensAlreadyAdded = false;
+    if (userId) {
+      const { data: userProfile } = await supabase!
+        .from('users')
+        .select('purchased_tokens')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      // Check if user has recent transaction that matches this payment
+      if (userProfile) {
+        const { data: recentTransactions } = await supabase!
+          .from('user_transactions')
+          .select('tokens_purchased, created_at')
+          .eq('user_id', userId)
+          .eq('stripe_payment_intent_id', paymentIntent.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (recentTransactions && recentTransactions.length > 0) {
+          tokensAlreadyAdded = true;
+          console.log(`⚠️ [Webhook] Found matching transaction with ${recentTransactions[0].tokens_purchased} tokens`);
+        }
+      }
+    }
+    
+    // If transaction exists OR tokens already added, skip
+    if (existingTransaction || tokensAlreadyAdded) {
+      console.log(`⚠️ [Webhook] Payment already processed! Skipping duplicate credit.`);
+      if (existingTransaction) {
+        console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Type: ${existingTransaction.type}, Tokens: ${existingTransaction.tokens_purchased}`);
+      }
+      if (tokensAlreadyAdded) {
+        console.log(`⚠️ [Webhook] Tokens already added to user ${userId}`);
+      }
       
       // Mark webhook as processed but skipped
       await supabase!
@@ -155,17 +200,16 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
         .update({ 
           processed: true, 
           processed_at: new Date().toISOString(),
-          notes: 'Skipped - already processed by frontend (user_transactions)'
+          notes: 'Skipped - already processed by frontend'
         })
         .eq('payment_intent_id', paymentIntent.id);
       
       return; // Exit early to prevent duplicate credits
     }
     
-    console.log('✅ [Webhook] No existing transaction found - proceeding with token credit');
-
-    // Try to get userId from metadata first
-    let userId = paymentIntent.metadata.userId || paymentIntent.metadata.user_id;
+    // Get userId (already checked above, but get it again if not found)
+    if (!userId) {
+      userId = paymentIntent.metadata.userId || paymentIntent.metadata.user_id;
     
     // If no userId in metadata, try to find user by customer email
     if (!userId && paymentIntent.receipt_email) {

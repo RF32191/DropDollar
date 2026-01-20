@@ -439,13 +439,7 @@ export default function ProfessionalTokenWallet() {
         }
       }
       
-      if (!transactionResult) {
-        console.error('❌ [TokenWallet] FAILED to save user transaction after', maxTransactionAttempts, 'attempts!');
-        console.error('❌ [TokenWallet] Webhook may add duplicate tokens if transaction is not saved!');
-        // Continue anyway - tokens are already added, but warn user
-      }
-      
-      // Step 5: Log activity for complete tracking
+      // Step 4: Log activity for complete tracking
       await ActivityService.logActivity(userProfile.id, 'token_purchase', {
         tokens: totalTokens,
         amount: amountPaid / 100,
