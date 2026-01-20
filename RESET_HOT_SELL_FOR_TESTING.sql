@@ -1,93 +1,99 @@
 -- ============================================================================
--- RESET HOT SELL LISTINGS FOR TESTING
+-- RESET ALL HOT SELL LISTINGS FOR TESTING
 -- ============================================================================
--- This script resets all Hot Sell listings without changing any functions
--- or database structure. Use this to quickly reset for testing.
+-- This script clears all participants and resets all hot sell sessions to 0
+-- Use this to clean slate for testing the hot sell page
 -- ============================================================================
 
--- Step 1: Clear all participants
-DELETE FROM public.hot_sell_participants;
-SELECT '✅ Step 1: All hot_sell_participants cleared' as status;
+DO $$ 
+BEGIN
+  RAISE NOTICE '🔄 Starting Hot Sell Reset for Testing...';
+END $$;
 
--- Step 2: Reset all sessions to active state
-UPDATE public.hot_sell_sessions
-SET
-  status = 'active',
+-- ============================================================================
+-- STEP 1: Delete all Hot Sell participants
+-- ============================================================================
+DELETE FROM hot_sell_participants;
+
+DO $$ 
+BEGIN
+  RAISE NOTICE '✅ Deleted all Hot Sell participants';
+END $$;
+
+-- ============================================================================
+-- STEP 2: Reset all Hot Sell sessions
+-- ============================================================================
+UPDATE hot_sell_sessions
+SET 
   prize_pool = 0,
+  current_pool = 0,
   participants_count = 0,
+  status = 'waiting',
   first_place_user_id = NULL,
   second_place_user_id = NULL,
   third_place_user_id = NULL,
   first_place_prize = 0,
   second_place_prize = 0,
   third_place_prize = 0,
-  platform_fee_amount = 0,
+  platform_fee = 0,
   completed_at = NULL,
-  rng_seed = floor(random() * 1000000) + 1, -- Generate new RNG seed for fairness
-  created_at = NOW(), -- Reset creation time to bring to top of list
-  updated_at = NOW();
-SELECT '✅ Step 2: All hot_sell_sessions reset to active with new RNG seeds' as status;
+  updated_at = NOW()
+WHERE status IN ('active', 'completed', 'waiting');
 
--- Step 3: Ensure all configs have valid RNG seeds
-UPDATE public.hot_sell_configs
-SET rng_seed = floor(random() * 1000000) + 1
-WHERE rng_seed IS NULL OR rng_seed = 0;
-SELECT '✅ Step 3: All hot_sell_configs have valid RNG seeds' as status;
-
--- Step 4: Create missing sessions for any configs without an active session
-INSERT INTO public.hot_sell_sessions (
-    id, config_id, prize_pool, participants_count, max_participants, status, rng_seed, base_price
-)
-SELECT
-    uuid_generate_v4(),
-    c.id,
-    0,
-    0,
-    c.max_participants,
-    'active',
-    floor(random() * 1000000) + 1, -- Generate new RNG seed
-    c.entry_fee
-FROM public.hot_sell_configs c
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM public.hot_sell_sessions s
-    WHERE s.config_id = c.id AND s.status = 'active'
-);
-SELECT '✅ Step 4: Missing active sessions created for configs' as status;
+DO $$ 
+BEGIN
+  RAISE NOTICE '✅ Reset all Hot Sell sessions to 0 progress';
+END $$;
 
 -- ============================================================================
--- VERIFICATION
+-- STEP 3: Verify the reset
 -- ============================================================================
-
-SELECT '🎉 HOT SELL RESET COMPLETE!' as message;
+DO $$ 
+BEGIN
+  RAISE NOTICE '';
+  RAISE NOTICE '=== HOT SELL RESET COMPLETE ===';
+  RAISE NOTICE '✅ All participants removed';
+  RAISE NOTICE '✅ All sessions reset to waiting state';
+  RAISE NOTICE '✅ All prize pools set to $0.00';
+  RAISE NOTICE '';
+  RAISE NOTICE '📊 Current Hot Sell Sessions:';
+END $$;
 
 SELECT 
-    '📊 Current Active Sessions:' as info,
-    COUNT(*) as total_active_sessions
-FROM public.hot_sell_sessions 
-WHERE status = 'active';
+  config_id,
+  participants_count || ' players' as players,
+  '$' || COALESCE(prize_pool, 0)::TEXT as prize_pool,
+  status,
+  max_participants || ' max' as capacity
+FROM hot_sell_sessions
+WHERE status = 'waiting'
+ORDER BY config_id;
 
-SELECT 
-    '👥 Total Participants:' as info,
-    COUNT(*) as total_participants
-FROM public.hot_sell_participants;
+-- ============================================================================
+-- STEP 4: Show participant count (should be 0)
+-- ============================================================================
+DO $$ 
+DECLARE
+  participant_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO participant_count FROM hot_sell_participants;
+  RAISE NOTICE '';
+  RAISE NOTICE 'Total participants remaining: %', participant_count;
+  
+  IF participant_count = 0 THEN
+    RAISE NOTICE '✅ All Hot Sell listings successfully reset to 0!';
+  ELSE
+    RAISE WARNING '⚠️ Still have % participants remaining', participant_count;
+  END IF;
+END $$;
 
--- Show all active sessions with details
-SELECT 
-    '📋 Active Session Details:' as info,
-    s.id as session_id,
-    s.config_id,
-    c.title as game_title,
-    s.prize_pool,
-    s.participants_count,
-    s.max_participants,
-    s.status,
-    s.rng_seed,
-    s.created_at
-FROM public.hot_sell_sessions s
-JOIN public.hot_sell_configs c ON s.config_id = c.id
-WHERE s.status = 'active'
-ORDER BY s.created_at DESC;
-
-SELECT '✅ Ready for testing!' as status;
-
+-- ============================================================================
+-- SUCCESS MESSAGE
+-- ============================================================================
+DO $$ 
+BEGIN
+  RAISE NOTICE '';
+  RAISE NOTICE '🎮 Hot Sell page is ready for testing!';
+  RAISE NOTICE '📱 Refresh your browser to see all listings at 0%';
+  RAISE NOTICE '';
+END $$;
