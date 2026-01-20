@@ -47,16 +47,16 @@ export function PurchaseHistory() {
     }
   }, [user?.id]);
 
-  // Auto-refresh every 10 seconds to catch new purchases/transactions
+  // Auto-refresh every 5 seconds for recent purchases
   useEffect(() => {
     if (!user?.id) return;
 
-    console.log('✅ [PurchaseHistory] Auto-refresh enabled - will update every 10 seconds');
+    console.log('✅ [PurchaseHistory] Auto-refresh enabled - will update every 5 seconds');
     
     const intervalId = setInterval(() => {
       console.log('🔄 [PurchaseHistory] Auto-refreshing transaction history...');
       loadPurchaseHistory();
-    }, 10000); // 10 seconds
+    }, 5000); // 5 seconds
 
     return () => clearInterval(intervalId);
   }, [user?.id]);
@@ -221,9 +221,21 @@ export function PurchaseHistory() {
 
       {/* Content */}
       <div className="p-6">
-        {/* Stripe Sync Tool */}
-        <div className="mb-6">
+        {/* Stripe Sync Tool and Manual Refresh */}
+        <div className="mb-6 flex gap-4 flex-wrap">
           <StripeSyncButton />
+          <button
+            onClick={() => {
+              console.log('🔄 [PurchaseHistory] Manual refresh triggered');
+              loadPurchaseHistory();
+            }}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh History
+          </button>
         </div>
 
         {error && (
