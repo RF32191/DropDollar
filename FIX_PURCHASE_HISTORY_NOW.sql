@@ -49,7 +49,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION get_user_all_transactions(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_user_all_transactions(UUID) TO anon;
 
-RAISE NOTICE '✅ Query function created!';
+DO $$
+BEGIN
+    RAISE NOTICE '✅ Query function created!';
+END;
+$$;
 
 -- STEP 2: Fix RLS policies for user_transactions
 -- ============================================
@@ -83,7 +87,11 @@ FOR INSERT
 TO authenticated
 WITH CHECK (auth.uid() = user_id);
 
-RAISE NOTICE '✅ RLS policies updated!';
+DO $$
+BEGIN
+    RAISE NOTICE '✅ RLS policies updated!';
+END;
+$$;
 
 -- STEP 3: Check if purchases exist in user_transactions
 -- ============================================
