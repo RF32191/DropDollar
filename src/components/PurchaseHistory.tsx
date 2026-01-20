@@ -20,9 +20,13 @@ interface TokenTransaction {
   id: string;
   amount: number;
   type: string;
-  balance_before: number;
-  balance_after: number;
   description: string;
+  competition_type?: string;
+  competition_id?: string;
+  game_type?: string;
+  tokens_won?: number;
+  tokens_purchased?: number;
+  metadata?: any;
   created_at: string;
 }
 
@@ -33,48 +37,80 @@ export function PurchaseHistory() {
   const [activeTab, setActiveTab] = useState<'purchases' | 'transactions'>('purchases');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Initial load
   useEffect(() => {
     if (user?.id) {
       loadPurchaseHistory();
     }
   }, [user?.id]);
 
-  const loadPurchaseHistory = async () => {
+  // Auto-refresh every 10 seconds to catch new purchases/transactions
+  useEffect(() => {
     if (!user?.id) return;
 
-    setLoading(true);
+    const intervalId = setInterval(() => {
+      console.log('🔄 [PurchaseHistory] Auto-refreshing transaction history...');
+      loadPurchaseHistory();
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(intervalId);
+  }, [user?.id]);
+
+  const loadPurchaseHistory = async (isManualRefresh = false) => {
+    if (!user?.id) return;
+
+    // Only show main loading spinner on initial load, not on refresh
+    if (!isManualRefresh && (purchases.length === 0 && transactions.length === 0)) {
+      setLoading(true);
+    }
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    }
     setError(null);
 
     try {
       const supabase = createClient();
+
+      console.log('🔄 [PurchaseHistory] Loading transaction history for user:', user.id);
 
       // Load purchase history
       const { data: purchaseData, error: purchaseError } = await supabase
         .rpc('get_user_purchase_history', { user_id_param: user.id });
 
       if (purchaseError) {
-        console.error('Error loading purchase history:', purchaseError);
+        console.error('❌ [PurchaseHistory] Error loading purchase history:', purchaseError);
         setError('Failed to load purchase history');
       } else {
+        console.log(`✅ [PurchaseHistory] Loaded ${purchaseData?.length || 0} purchases`);
         setPurchases(purchaseData || []);
       }
 
-      // Load token transaction history
+      // Load token transaction history - USE NEW COMPREHENSIVE FUNCTION
       const { data: transactionData, error: transactionError } = await supabase
-        .rpc('get_user_token_history', { user_id_param: user.id });
+        .rpc('get_user_all_transactions', { user_id_param: user.id });
 
       if (transactionError) {
-        console.error('Error loading transaction history:', transactionError);
+        console.error('❌ [PurchaseHistory] Error loading transaction history:', transactionError);
+        console.error('❌ [PurchaseHistory] Error details:', transactionError.message, transactionError.hint);
       } else {
+        console.log(`✅ [PurchaseHistory] Loaded ${transactionData?.length || 0} transactions`);
         setTransactions(transactionData || []);
       }
     } catch (err: any) {
-      console.error('Error:', err);
+      console.error('❌ [PurchaseHistory] Error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
+  };
+
+  // Manual refresh handler
+  const handleRefresh = () => {
+    console.log('🔄 [PurchaseHistory] Manual refresh triggered');
+    loadPurchaseHistory(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -91,10 +127,12 @@ export function PurchaseHistory() {
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case 'purchase':
+      case 'token_purchase':
         return 'text-green-400';
       case 'game_win':
+      case 'earning':
         return 'text-yellow-400';
-      case 'game_loss':
+      case 'entry_fee':
         return 'text-red-400';
       case 'refund':
         return 'text-blue-400';
@@ -106,10 +144,12 @@ export function PurchaseHistory() {
   const getTransactionTypeIcon = (type: string) => {
     switch (type) {
       case 'purchase':
+      case 'token_purchase':
         return '💳';
       case 'game_win':
+      case 'earning':
         return '🏆';
-      case 'game_loss':
+      case 'entry_fee':
         return '🎮';
       case 'refund':
         return '↩️';
@@ -133,11 +173,23 @@ export function PurchaseHistory() {
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 p-6 border-b border-gray-700">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-          <span className="text-3xl">💰</span>
-          Purchase & Transaction History
-        </h2>
-        <p className="text-gray-400 mt-1">View all your purchases and token movements</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <span className="text-3xl">💰</span>
+              Purchase & Transaction History
+            </h2>
+            <p className="text-gray-400 mt-1">View all your purchases and token movements</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg text-white font-semibold transition-colors"
+          >
+            <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -253,12 +305,13 @@ export function PurchaseHistory() {
                           <p className="text-gray-400 text-sm mt-1">
                             {formatDate(transaction.created_at)}
                           </p>
+                          {/* Show game/competition details for entry fees and victories */}
+                          {(transaction.type === 'entry_fee' || transaction.type === 'game_win') && transaction.game_type && (
+                            <p className="text-gray-500 text-xs mt-1">
+                              {transaction.game_type} • {transaction.competition_type || 'Competition'}
+                            </p>
+                          )}
                         </div>
-                      </div>
-                      <div className="ml-11 mt-2 flex items-center gap-4 text-xs text-gray-500">
-                        <span>Before: {transaction.balance_before.toFixed(2)}</span>
-                        <span>→</span>
-                        <span>After: {transaction.balance_after.toFixed(2)}</span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -266,12 +319,12 @@ export function PurchaseHistory() {
                         {transaction.amount > 0 ? '+' : ''}{transaction.amount.toFixed(2)} tokens
                       </p>
                       <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                        transaction.type === 'purchase' ? 'bg-green-500/20 text-green-400' :
-                        transaction.type === 'game_win' ? 'bg-yellow-500/20 text-yellow-400' :
-                        transaction.type === 'game_loss' ? 'bg-red-500/20 text-red-400' :
+                        transaction.type === 'purchase' || transaction.type === 'token_purchase' ? 'bg-green-500/20 text-green-400' :
+                        transaction.type === 'game_win' || transaction.type === 'earning' ? 'bg-yellow-500/20 text-yellow-400' :
+                        transaction.type === 'entry_fee' ? 'bg-red-500/20 text-red-400' :
                         'bg-blue-500/20 text-blue-400'
                       }`}>
-                        {transaction.type}
+                        {transaction.type === 'token_purchase' ? 'purchase' : transaction.type}
                       </span>
                     </div>
                   </div>

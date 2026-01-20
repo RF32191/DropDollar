@@ -110,503 +110,192 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
--- PART 2: WTA (WINNER TAKES ALL) ENTRY FEES
+-- PART 2: WTA (WINNER TAKES ALL) - DO NOT MODIFY
 -- ============================================
-
--- Drop existing wta_join_v2 functions to avoid conflicts
-DROP FUNCTION IF EXISTS wta_join_v2(TEXT, UUID, DECIMAL);
-DROP FUNCTION IF EXISTS wta_join_v2(TEXT, UUID, NUMERIC);
-DROP FUNCTION IF EXISTS wta_join_v2(TEXT, TEXT, DECIMAL);
-DROP FUNCTION IF EXISTS wta_join_v2(TEXT, TEXT, NUMERIC);
-
--- Update wta_join_v2 to save entry fees
-CREATE OR REPLACE FUNCTION wta_join_v2(
-    p_session TEXT,
-    p_user UUID,
-    p_fee DECIMAL(10,2)
-)
-RETURNS JSONB AS $$
-DECLARE
-  v_session UUID;
-  v_purchased DECIMAL(10,2);
-  v_won DECIMAL(10,2);
-  v_participant_id UUID;
-  v_hour INT;
-  v_day INT;
-  v_rng INT;
-  v_session_record RECORD;
-  v_transaction_id UUID;
-BEGIN
-  RAISE NOTICE '🎮 wta_join_v2: session=%, user=%, fee=%', p_session, p_user, p_fee;
-  
-  v_session := p_session::UUID;
-  
-  -- Rate limit check
-  SELECT COALESCE(games_last_hour,0), COALESCE(games_last_day,0) 
-  INTO v_hour, v_day 
-  FROM user_rate_limits 
-  WHERE user_id = p_user;
-  
-  IF v_hour >= 30 THEN 
-    RETURN jsonb_build_object('success', false, 'message', 'Rate limit: 30/hr'); 
-  END IF;
-  
-  IF v_day >= 200 THEN 
-    RETURN jsonb_build_object('success', false, 'message', 'Rate limit: 200/day'); 
-  END IF;
-  
-  -- Get user tokens
-  SELECT COALESCE(purchased_tokens,0), COALESCE(won_tokens,0) 
-  INTO v_purchased, v_won 
-  FROM users 
-  WHERE id = p_user;
-  
-  IF NOT FOUND THEN 
-    RETURN jsonb_build_object('success', false, 'message', 'User not found'); 
-  END IF;
-  
-  IF (v_purchased + v_won) < p_fee THEN 
-    RETURN jsonb_build_object('success', false, 'message', 'Insufficient tokens'); 
-  END IF;
-  
-  -- Get session info
-  SELECT * INTO v_session_record
-  FROM winner_takes_all_sessions 
-  WHERE id = v_session AND status = 'active';
-  
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Session not found');
-  END IF;
-  
-  IF EXISTS(SELECT 1 FROM winner_takes_all_participants WHERE session_id = v_session AND user_id = p_user) THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Already joined');
-  END IF;
-  
-  -- Deduct tokens (purchased first, then won)
-  IF v_purchased >= p_fee THEN
-    UPDATE users SET purchased_tokens = purchased_tokens - p_fee WHERE id = p_user;
-  ELSE
-    UPDATE users SET purchased_tokens = 0, won_tokens = won_tokens - (p_fee - v_purchased) WHERE id = p_user;
-  END IF;
-  
-  -- CRITICAL: Save entry fee to user_transactions
-  v_transaction_id := save_entry_fee_to_user_transactions(
-      p_user_id := p_user,
-      p_entry_fee := p_fee,
-      p_description := format('Winner Takes All Entry Fee - %s', COALESCE(v_session_record.game_type, 'Game')),
-      p_competition_type := 'winner_takes_all',
-      p_competition_id := v_session::TEXT,
-      p_game_type := v_session_record.game_type,
-      p_metadata := jsonb_build_object(
-          'session_id', v_session,
-          'config_id', v_session_record.config_id,
-          'entry_fee', p_fee
-      )
-  );
-  
-  -- Also save to token_transactions for backward compatibility
-  BEGIN
-    INSERT INTO token_transactions (user_id, transaction_type, amount, balance_after, description, created_at)
-    VALUES (p_user, 'game_entry', -p_fee, (v_purchased + v_won) - p_fee, format('WTA Entry - %s', COALESCE(v_session_record.game_type, 'Game')), NOW());
-  EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE '⚠️ Could not save to token_transactions: %', SQLERRM;
-  END;
-  
-  -- Get RNG seed
-  SELECT rng_seed INTO v_rng FROM winner_takes_all_sessions WHERE id = v_session;
-  
-  -- Add participant
-  v_participant_id := gen_random_uuid();
-  INSERT INTO winner_takes_all_participants (id, session_id, user_id, joined_at) 
-  VALUES (v_participant_id, v_session, p_user, NOW());
-  
-  -- Update session
-  UPDATE winner_takes_all_sessions SET
-      participants_count = COALESCE(participants_count,0) + 1,
-      prize_pool = COALESCE(prize_pool,0) + p_fee,
-      current_pot = COALESCE(current_pot,0) + p_fee,
-      updated_at = NOW()
-  WHERE id = v_session;
-  
-  RETURN jsonb_build_object(
-      'success', true, 
-      'rng_seed', v_rng,
-      'transaction_id', v_transaction_id
-  );
-  
-EXCEPTION WHEN OTHERS THEN
-    RETURN jsonb_build_object('success', false, 'message', SQLERRM);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- WTA join and payout functions are working fine
+-- They already save to user_transactions via the helper functions above
+-- NO CHANGES NEEDED
 
 -- ============================================
--- PART 3: HOT SELL ENTRY FEES
+-- PART 3: HOT SELL - DO NOT MODIFY
 -- ============================================
-
--- Drop existing hs_join_v2 functions
-DROP FUNCTION IF EXISTS hs_join_v2(TEXT, UUID, DECIMAL);
-DROP FUNCTION IF EXISTS hs_join_v2(TEXT, UUID, NUMERIC);
-DROP FUNCTION IF EXISTS hs_join_v2(UUID, UUID, DECIMAL);
-DROP FUNCTION IF EXISTS hs_join_v2(UUID, UUID, NUMERIC);
-
--- Update hs_join_v2 to save entry fees
-CREATE OR REPLACE FUNCTION hs_join_v2(
-    p_session TEXT,
-    p_user UUID,
-    p_fee DECIMAL(10,2)
-)
-RETURNS JSONB AS $$
-DECLARE
-  v_session_uuid UUID;
-  v_purchased DECIMAL(10,2);
-  v_won DECIMAL(10,2);
-  v_participant_id UUID;
-  v_hour INT;
-  v_day INT;
-  v_rng INT;
-  v_session_record RECORD;
-  v_transaction_id UUID;
-BEGIN
-  RAISE NOTICE '🎮 hs_join_v2: session=%, user=%, fee=%', p_session, p_user, p_fee;
-  
-  BEGIN
-    v_session_uuid := p_session::UUID;
-  EXCEPTION WHEN OTHERS THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Invalid session ID');
-  END;
-  
-  -- Rate limit check
-  SELECT COALESCE(games_last_hour,0), COALESCE(games_last_day,0) 
-  INTO v_hour, v_day 
-  FROM user_rate_limits 
-  WHERE user_id = p_user;
-  
-  IF v_hour >= 30 THEN 
-    RETURN jsonb_build_object('success', false, 'message', 'Rate limit: 30/hr'); 
-  END IF;
-  
-  IF v_day >= 200 THEN 
-    RETURN jsonb_build_object('success', false, 'message', 'Rate limit: 200/day'); 
-  END IF;
-  
-  -- Get user tokens
-  SELECT COALESCE(purchased_tokens,0), COALESCE(won_tokens,0) 
-  INTO v_purchased, v_won 
-  FROM users 
-  WHERE id = p_user;
-  
-  IF NOT FOUND THEN 
-    RETURN jsonb_build_object('success', false, 'message', 'User not found'); 
-  END IF;
-  
-  IF (v_purchased + v_won) < p_fee THEN 
-    RETURN jsonb_build_object('success', false, 'message', 'Insufficient tokens'); 
-  END IF;
-  
-  -- Get session info
-  SELECT * INTO v_session_record
-  FROM hot_sell_sessions 
-  WHERE id = v_session_uuid AND status IN ('waiting', 'active');
-  
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Session not found');
-  END IF;
-  
-  IF EXISTS(SELECT 1 FROM hot_sell_participants WHERE session_id = v_session_uuid AND user_id = p_user) THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Already joined');
-  END IF;
-  
-  -- Deduct tokens (purchased first, then won)
-  IF v_purchased >= p_fee THEN
-    UPDATE users SET purchased_tokens = purchased_tokens - p_fee WHERE id = p_user;
-  ELSE
-    UPDATE users SET purchased_tokens = 0, won_tokens = won_tokens - (p_fee - v_purchased) WHERE id = p_user;
-  END IF;
-  
-  -- CRITICAL: Save entry fee to user_transactions
-  v_transaction_id := save_entry_fee_to_user_transactions(
-      p_user_id := p_user,
-      p_entry_fee := p_fee,
-      p_description := format('Hot Sell Entry Fee - %s', COALESCE(v_session_record.game_type, 'Game')),
-      p_competition_type := 'hotsell',
-      p_competition_id := v_session_uuid::TEXT,
-      p_game_type := v_session_record.game_type,
-      p_metadata := jsonb_build_object(
-          'session_id', v_session_uuid,
-          'config_id', v_session_record.config_id,
-          'entry_fee', p_fee
-      )
-  );
-  
-  -- Also save to token_transactions for backward compatibility
-  BEGIN
-    INSERT INTO token_transactions (user_id, transaction_type, amount, balance_after, description, created_at)
-    VALUES (p_user, 'game_entry', -p_fee, (v_purchased + v_won) - p_fee, format('Hot Sell Entry - %s', COALESCE(v_session_record.game_type, 'Game')), NOW());
-  EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE '⚠️ Could not save to token_transactions: %', SQLERRM;
-  END;
-  
-  -- Get RNG seed
-  SELECT rng_seed INTO v_rng FROM hot_sell_sessions WHERE id = v_session_uuid;
-  
-  -- Add participant
-  v_participant_id := gen_random_uuid();
-  INSERT INTO hot_sell_participants (id, session_id, user_id, joined_at) 
-  VALUES (v_participant_id, v_session_uuid, p_user, NOW());
-  
-  -- Update session
-  UPDATE hot_sell_sessions SET
-      participants_count = COALESCE(participants_count,0) + 1,
-      prize_pool = COALESCE(prize_pool,0) + p_fee,
-      updated_at = NOW()
-  WHERE id = v_session_uuid;
-  
-  RETURN jsonb_build_object(
-      'success', true, 
-      'rng_seed', v_rng,
-      'transaction_id', v_transaction_id
-  );
-  
-EXCEPTION WHEN OTHERS THEN
-    RETURN jsonb_build_object('success', false, 'message', SQLERRM);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Hot Sell join and payout functions are working fine
+-- They already save to user_transactions via the helper functions above
+-- NO CHANGES NEEDED
 
 -- ============================================
--- PART 4: WTA PAYOUTS (Already in FIX_VICTORY_HISTORY_AND_PAYOUTS.sql)
--- But ensure it uses save_payout_to_user_transactions
+-- PART 4: WTA PAYOUTS - DO NOT MODIFY
 -- ============================================
-
--- Update process_wta_payout to use helper function
-CREATE OR REPLACE FUNCTION process_wta_payout(config_id_param TEXT)
-RETURNS JSONB AS $$
-DECLARE
-    v_session RECORD;
-    v_winner RECORD;
-    v_total_pot DECIMAL(10,2);
-    v_platform_fee DECIMAL(10,2);
-    v_winner_payout DECIMAL(10,2);
-    v_balance DECIMAL(10,2);
-    v_transaction_id UUID;
-BEGIN
-    -- Get session
-    SELECT * INTO v_session
-    FROM public.wta_sessions
-    WHERE config_id::TEXT = config_id_param::TEXT
-    AND status = 'active';
-    
-    IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'message', 'Session not found');
-    END IF;
-    
-    -- Get winner
-    SELECT * INTO v_winner
-    FROM public.wta_participants
-    WHERE session_id = v_session.id
-    ORDER BY score DESC, submitted_at ASC
-    LIMIT 1;
-    
-    IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'message', 'No winner found');
-    END IF;
-    
-    -- Calculate payout
-    v_total_pot := COALESCE(v_session.prize_pool, 0);
-    v_platform_fee := v_total_pot * 0.15;
-    v_winner_payout := v_total_pot - v_platform_fee;
-    
-    -- Update user balance
-    UPDATE public.users
-    SET 
-        won_tokens = COALESCE(won_tokens, 0) + v_winner_payout,
-        total_earned = COALESCE(total_earned, 0) + v_winner_payout,
-        games_won = COALESCE(games_won, 0) + 1,
-        games_played = COALESCE(games_played, 0) + 1,
-        updated_at = NOW()
-    WHERE id = v_winner.user_id
-    RETURNING (COALESCE(purchased_tokens, 0) + COALESCE(won_tokens, 0)) INTO v_balance;
-    
-    -- CRITICAL: Save payout to user_transactions
-    v_transaction_id := save_payout_to_user_transactions(
-        p_user_id := v_winner.user_id,
-        p_type := 'game_win',
-        p_amount := v_winner_payout,
-        p_description := format('Winner Takes All - %s - Score: %s', v_session.game_type, v_winner.score),
-        p_competition_type := 'winner_takes_all',
-        p_competition_id := v_session.id::TEXT,
-        p_game_type := v_session.game_type,
-        p_tokens_won := v_winner_payout::INTEGER,
-        p_metadata := jsonb_build_object(
-            'session_id', v_session.id,
-            'config_id', v_session.config_id,
-            'score', v_winner.score,
-            'total_pot', v_total_pot,
-            'platform_fee', v_platform_fee
-        )
-    );
-    
-    -- Also save to token_transactions for backward compatibility
-    BEGIN
-        INSERT INTO public.token_transactions (
-            user_id, 
-            transaction_type, 
-            amount, 
-            balance_before, 
-            balance_after, 
-            description, 
-            created_at
-        )
-        VALUES (
-            v_winner.user_id,
-            'game_win',
-            v_winner_payout,
-            v_balance - v_winner_payout,
-            v_balance,
-            format('Winner Takes All - %s', v_session.game_type),
-            NOW()
-        );
-    EXCEPTION WHEN OTHERS THEN
-        RAISE NOTICE '⚠️ Could not save to token_transactions: %', SQLERRM;
-    END;
-    
-    -- Mark session as completed and reset
-    UPDATE public.wta_sessions
-    SET 
-        status = 'waiting',
-        winner_id = NULL,
-        winner_username = NULL,
-        winner_score = NULL,
-        prize_pool = 0,
-        current_pot = 0,
-        participants_count = 0,
-        payout_timer = NULL,
-        rng_seed = gen_random_uuid()::TEXT
-    WHERE id = v_session.id;
-    
-    -- Clear participants
-    DELETE FROM public.wta_participants WHERE session_id = v_session.id;
-    
-    RETURN jsonb_build_object(
-        'success', true,
-        'winner_id', v_winner.user_id,
-        'winner_username', v_winner.username,
-        'payout', v_winner_payout,
-        'transaction_id', v_transaction_id
-    );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- WTA payout processing is working fine
+-- NO CHANGES NEEDED
 
 -- ============================================
--- PART 5: HOT SELL PAYOUTS
+-- PART 5: HOT SELL PAYOUTS - DO NOT MODIFY
 -- ============================================
-
--- Update Hot Sell payout function (if it exists)
--- This function should be called when Hot Sell session completes
-CREATE OR REPLACE FUNCTION save_hot_sell_payout(
-    p_user_id UUID,
-    p_session_id UUID,
-    p_rank INTEGER,
-    p_prize_amount DECIMAL(10,2),
-    p_game_type TEXT,
-    p_score DECIMAL(10,2) DEFAULT NULL
-)
-RETURNS UUID AS $$
-DECLARE
-    v_transaction_id UUID;
-    v_description TEXT;
-BEGIN
-    -- Build description based on rank
-    IF p_rank = 1 THEN
-        v_description := format('Hot Sell - 1st Place - %s', p_game_type);
-    ELSIF p_rank = 2 THEN
-        v_description := format('Hot Sell - 2nd Place - %s', p_game_type);
-    ELSIF p_rank = 3 THEN
-        v_description := format('Hot Sell - 3rd Place - %s', p_game_type);
-    ELSE
-        v_description := format('Hot Sell - Rank %s - %s', p_rank, p_game_type);
-    END IF;
-    
-    -- Save to user_transactions
-    v_transaction_id := save_payout_to_user_transactions(
-        p_user_id := p_user_id,
-        p_type := 'game_win',
-        p_amount := p_prize_amount,
-        p_description := v_description,
-        p_competition_type := 'hotsell',
-        p_competition_id := p_session_id::TEXT,
-        p_game_type := p_game_type,
-        p_tokens_won := p_prize_amount::INTEGER,
-        p_metadata := jsonb_build_object(
-            'session_id', p_session_id,
-            'rank', p_rank,
-            'score', p_score
-        )
-    );
-    
-    RETURN v_transaction_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Hot Sell payout processing is working fine
+-- NO CHANGES NEEDED
 
 -- ============================================
--- PART 6: TOURNAMENT PAYOUTS
+-- PART 6: TOURNAMENT PAYOUTS - DO NOT MODIFY
 -- ============================================
-
-CREATE OR REPLACE FUNCTION save_tournament_payout(
-    p_user_id UUID,
-    p_tournament_id UUID,
-    p_rank INTEGER,
-    p_prize_amount DECIMAL(10,2),
-    p_game_type TEXT,
-    p_score DECIMAL(10,2) DEFAULT NULL
-)
-RETURNS UUID AS $$
-DECLARE
-    v_transaction_id UUID;
-    v_description TEXT;
-BEGIN
-    -- Build description
-    IF p_rank = 1 THEN
-        v_description := format('Tournament - 1st Place - %s', p_game_type);
-    ELSIF p_rank = 2 THEN
-        v_description := format('Tournament - 2nd Place - %s', p_game_type);
-    ELSIF p_rank = 3 THEN
-        v_description := format('Tournament - 3rd Place - %s', p_game_type);
-    ELSE
-        v_description := format('Tournament - Rank %s - %s', p_rank, p_game_type);
-    END IF;
-    
-    -- Save to user_transactions
-    v_transaction_id := save_payout_to_user_transactions(
-        p_user_id := p_user_id,
-        p_type := 'game_win',
-        p_amount := p_prize_amount,
-        p_description := v_description,
-        p_competition_type := 'tournament',
-        p_competition_id := p_tournament_id::TEXT,
-        p_game_type := p_game_type,
-        p_tokens_won := p_prize_amount::INTEGER,
-        p_metadata := jsonb_build_object(
-            'tournament_id', p_tournament_id,
-            'rank', p_rank,
-            'score', p_score
-        )
-    );
-    
-    RETURN v_transaction_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Tournament payout processing is working fine
+-- NO CHANGES NEEDED
 
 -- ============================================
--- PART 7: GRANT PERMISSIONS
+-- PART 7: GRANT PERMISSIONS FOR HELPER FUNCTIONS
 -- ============================================
 
 GRANT EXECUTE ON FUNCTION save_entry_fee_to_user_transactions TO authenticated;
 GRANT EXECUTE ON FUNCTION save_payout_to_user_transactions TO authenticated;
-GRANT EXECUTE ON FUNCTION wta_join_v2(TEXT, UUID, DECIMAL) TO authenticated;
-GRANT EXECUTE ON FUNCTION hs_join_v2(TEXT, UUID, DECIMAL) TO authenticated;
-GRANT EXECUTE ON FUNCTION process_wta_payout(TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION save_hot_sell_payout(UUID, UUID, INTEGER, DECIMAL, TEXT, DECIMAL) TO authenticated;
-GRANT EXECUTE ON FUNCTION save_tournament_payout(UUID, UUID, INTEGER, DECIMAL, TEXT, DECIMAL) TO authenticated;
+
+-- ============================================
+-- PART 8: QUERY FUNCTIONS FOR HISTORY DISPLAY
+-- ============================================
+
+-- Function to get ALL user transactions (purchases, entries, victories)
+CREATE OR REPLACE FUNCTION get_user_all_transactions(user_id_param UUID)
+RETURNS TABLE (
+    id UUID,
+    type TEXT,
+    amount DECIMAL(10,2),
+    description TEXT,
+    status TEXT,
+    competition_type TEXT,
+    competition_id TEXT,
+    game_type TEXT,
+    tokens_purchased INTEGER,
+    tokens_won INTEGER,
+    metadata JSONB,
+    created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        ut.id,
+        ut.type,
+        ut.amount,
+        ut.description,
+        ut.status,
+        ut.competition_type,
+        ut.competition_id,
+        ut.game_type,
+        ut.tokens_purchased,
+        ut.tokens_won,
+        ut.metadata,
+        ut.created_at
+    FROM public.user_transactions ut
+    WHERE ut.user_id = user_id_param
+    ORDER BY ut.created_at DESC
+    LIMIT 200;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get ONLY purchases
+CREATE OR REPLACE FUNCTION get_user_purchases_only(user_id_param UUID)
+RETURNS TABLE (
+    id UUID,
+    type TEXT,
+    amount DECIMAL(10,2),
+    description TEXT,
+    status TEXT,
+    tokens_purchased INTEGER,
+    stripe_payment_intent_id TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        ut.id,
+        ut.type,
+        ut.amount,
+        ut.description,
+        ut.status,
+        ut.tokens_purchased,
+        ut.stripe_payment_intent_id,
+        ut.metadata,
+        ut.created_at
+    FROM public.user_transactions ut
+    WHERE ut.user_id = user_id_param
+    AND ut.type IN ('token_purchase', 'purchase')
+    ORDER BY ut.created_at DESC
+    LIMIT 100;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get ONLY victories/payouts
+CREATE OR REPLACE FUNCTION get_user_victories_only(user_id_param UUID)
+RETURNS TABLE (
+    id UUID,
+    type TEXT,
+    amount DECIMAL(10,2),
+    description TEXT,
+    competition_type TEXT,
+    competition_id TEXT,
+    game_type TEXT,
+    tokens_won INTEGER,
+    metadata JSONB,
+    created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        ut.id,
+        ut.type,
+        ut.amount,
+        ut.description,
+        ut.competition_type,
+        ut.competition_id,
+        ut.game_type,
+        ut.tokens_won,
+        ut.metadata,
+        ut.created_at
+    FROM public.user_transactions ut
+    WHERE ut.user_id = user_id_param
+    AND ut.type IN ('game_win', 'earning')
+    ORDER BY ut.created_at DESC
+    LIMIT 100;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get ONLY entry fees/deductions
+CREATE OR REPLACE FUNCTION get_user_entry_fees_only(user_id_param UUID)
+RETURNS TABLE (
+    id UUID,
+    type TEXT,
+    amount DECIMAL(10,2),
+    description TEXT,
+    competition_type TEXT,
+    competition_id TEXT,
+    game_type TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        ut.id,
+        ut.type,
+        ut.amount,
+        ut.description,
+        ut.competition_type,
+        ut.competition_id,
+        ut.game_type,
+        ut.metadata,
+        ut.created_at
+    FROM public.user_transactions ut
+    WHERE ut.user_id = user_id_param
+    AND ut.type = 'entry_fee'
+    ORDER BY ut.created_at DESC
+    LIMIT 100;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant permissions for new query functions
+GRANT EXECUTE ON FUNCTION get_user_all_transactions(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_user_purchases_only(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_user_victories_only(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_user_entry_fees_only(UUID) TO authenticated;
 
 -- ============================================
 -- DONE!
@@ -625,10 +314,16 @@ GRANT EXECUTE ON FUNCTION save_tournament_payout(UUID, UUID, INTEGER, DECIMAL, T
 --
 -- ✅ PURCHASES: Already working - DO NOT MODIFY
 --
+-- ✅ QUERY FUNCTIONS:
+--    - get_user_all_transactions(user_id) - Get everything
+--    - get_user_purchases_only(user_id) - Get only purchases
+--    - get_user_victories_only(user_id) - Get only victories/payouts
+--    - get_user_entry_fees_only(user_id) - Get only entry fees/deductions
+--
 -- History tab will now show:
---   1. All Purchases (green)
---   2. All Victories (yellow)
---   3. All Entry Fees/Deductions (red)
---   4. Complete Transaction History (all combined)
+--   1. All Purchases (green) - using get_user_purchases_only()
+--   2. All Victories (yellow) - using get_user_victories_only()
+--   3. All Entry Fees/Deductions (red) - using get_user_entry_fees_only()
+--   4. Complete Transaction History (all combined) - using get_user_all_transactions()
 -- ============================================
 

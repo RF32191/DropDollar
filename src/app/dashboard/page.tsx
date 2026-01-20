@@ -508,6 +508,7 @@ export default function TriumphStyleDashboard() {
             created_at: game.created_at,
             is_practice: isPractice,
             tokens_won: game.tokens_won || 0,
+            tokens_wagered: game.tokens_wagered || game.tokens_spent || 0,
             avg_reaction_time: game.avg_reaction_time
           };
         });
@@ -1221,6 +1222,7 @@ export default function TriumphStyleDashboard() {
                           <p className="text-white font-medium capitalize">{formatGameType(game.game_type)}</p>
                           <p className="text-purple-200 text-sm">
                             {game.is_practice ? 'Practice' : 'Competition'} • {formatDate(game.created_at)}
+                            {!game.is_practice && game.tokens_wagered ? ` • $${game.tokens_wagered} entry` : ''}
                               </p>
                             </div>
                           </div>
@@ -1228,7 +1230,7 @@ export default function TriumphStyleDashboard() {
                         <p className="text-white font-bold text-lg">{formatScore(game.score)}</p>
                         <p className="text-purple-200 text-sm">
                           {game.accuracy ? `${game.accuracy}% accuracy` : ''}
-                          {game.tokens_won ? ` • +${game.tokens_won} tokens` : ''}
+                          {game.tokens_won ? ` • +${game.tokens_won} tokens` : !game.is_practice && game.tokens_wagered ? ` • -${game.tokens_wagered} tokens` : ''}
                         </p>
                           </div>
                         </div>
@@ -1384,7 +1386,7 @@ export default function TriumphStyleDashboard() {
                               <p className="font-medium text-white">{formatGameType(game.game_type)}</p>
                               <p className="text-sm text-gray-400">
                                 Competition • {formatDate(game.created_at)}
-                                {game.entry_fee ? ` • $${game.entry_fee} entry` : ''}
+                                {game.tokens_wagered ? ` • $${game.tokens_wagered} entry` : ''}
                               </p>
                             </div>
                           </div>
@@ -1394,8 +1396,8 @@ export default function TriumphStyleDashboard() {
                             ) : (
                               <p className="text-lg font-bold text-white">{formatScore(game.score)}</p>
                             )}
-                            <p className={`text-sm ${game.tokens_won ? 'text-green-400' : 'text-gray-400'}`}>
-                              {game.tokens_won ? `+${game.tokens_won} tokens` : 'No win'}
+                            <p className={`text-sm ${game.tokens_won ? 'text-green-400' : 'text-red-400'}`}>
+                              {game.tokens_won ? `+${game.tokens_won} tokens` : game.tokens_wagered ? `-${game.tokens_wagered} tokens` : 'No win'}
                             </p>
                           </div>
                         </div>

@@ -31,6 +31,7 @@ interface GameHistory {
   lotNumber?: string;
   
   prizeWon: number;
+  tokensWagered: number; // Entry fee amount
   createdAt: string;
 }
 
@@ -354,10 +355,10 @@ export default function GameHistoryTable({ gameHistory }: GameHistoryTableProps)
                         </div>
                         <div className="text-xs text-green-300">WON</div>
                       </div>
-                    ) : game.isCompetition ? (
+                    ) : game.isCompetition && game.tokensWagered ? (
                       <div className="space-y-1">
                         <div className="font-bold text-red-400 text-lg">
-                          -$1.00
+                          -${game.tokensWagered.toFixed(2)}
                         </div>
                         <div className="text-xs text-red-300">LOST</div>
                       </div>

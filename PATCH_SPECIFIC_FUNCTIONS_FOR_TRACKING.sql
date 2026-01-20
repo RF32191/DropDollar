@@ -1,0 +1,170 @@
+-- ============================================
+-- PATCH SPECIFIC GAME FUNCTIONS FOR TRANSACTION TRACKING
+-- ============================================
+-- This file adds transaction tracking to the EXACT functions your frontend uses
+-- Based on code analysis:
+--   WTA: wta_join_v2
+--   Hot Sell: hs_join_v2
+--   Coin Play: coin_play_join_v2
+--   1v1: join_1v1_session
+-- ============================================
+
+-- ============================================
+-- STEP 1: Find your current WTA join function
+-- ============================================
+-- INSTRUCTIONS:
+-- 1. Go to Supabase Dashboard → Database → Functions
+-- 2. Find "wta_join_v2" and click it
+-- 3. Scroll down to where it says "-- Deduct tokens" or "UPDATE users SET purchased_tokens"
+-- 4. AFTER the token deduction, ADD this line:
+--
+--    PERFORM save_entry_fee_to_user_transactions(
+--        p_user_id := p_user,
+--        p_entry_fee := p_fee,
+--        p_description := format('Winner Takes All Entry - %s', v_game_type),
+--        p_competition_type := 'winner_takes_all',
+--        p_competition_id := p_session::TEXT,
+--        p_game_type := v_game_type,
+--        p_metadata := jsonb_build_object('session_id', p_session)
+--    );
+--
+-- NOTE: Replace v_game_type with whatever variable holds the game type in your function
+-- If the function doesn't have the game type, use 'Competition Game' as a fallback
+
+-- ============================================
+-- STEP 2: Find your current WTA payout function
+-- ============================================
+-- INSTRUCTIONS:
+-- 1. Find "process_wta_payout" in Supabase Functions
+-- 2. Find where it awards tokens to the winner (likely "UPDATE users SET won_tokens = won_tokens + ...")
+-- 3. AFTER awarding the tokens, ADD this line:
+--
+--    PERFORM save_payout_to_user_transactions(
+--        p_user_id := v_winner_id,
+--        p_type := 'game_win',
+--        p_amount := v_prize_amount,
+--        p_description := format('Winner Takes All Victory - %s', v_game_type),
+--        p_competition_type := 'winner_takes_all',
+--        p_competition_id := p_config_id_param,
+--        p_game_type := v_game_type,
+--        p_tokens_won := v_prize_amount::INTEGER,
+--        p_metadata := jsonb_build_object('rank', 1, 'prize', v_prize_amount)
+--    );
+
+-- ============================================
+-- STEP 3: Find your current Hot Sell join function
+-- ============================================
+-- INSTRUCTIONS:
+-- 1. Find "hs_join_v2" in Supabase Functions
+-- 2. After token deduction, ADD:
+--
+--    PERFORM save_entry_fee_to_user_transactions(
+--        p_user_id := p_user,
+--        p_entry_fee := p_fee,
+--        p_description := format('Hot Sell Entry - %s', v_game_type),
+--        p_competition_type := 'hotsell',
+--        p_competition_id := p_session::TEXT,
+--        p_game_type := v_game_type,
+--        p_metadata := jsonb_build_object('session_id', p_session)
+--    );
+
+-- ============================================
+-- STEP 4: Find your current Hot Sell payout function
+-- ============================================
+-- INSTRUCTIONS:
+-- 1. Find the Hot Sell payout function (might be "save_hot_sell_payout" or similar)
+-- 2. After awarding tokens to winner, ADD:
+--
+--    PERFORM save_payout_to_user_transactions(
+--        p_user_id := v_winner_id,
+--        p_type := 'game_win',
+--        p_amount := v_prize_amount,
+--        p_description := format('Hot Sell Victory - %s', v_game_type),
+--        p_competition_type := 'hotsell',
+--        p_competition_id := p_session_id::TEXT,
+--        p_game_type := v_game_type,
+--        p_tokens_won := v_prize_amount::INTEGER,
+--        p_metadata := jsonb_build_object('prize', v_prize_amount)
+--    );
+
+-- ============================================
+-- STEP 5: Find your current Coin Play join function
+-- ============================================
+-- INSTRUCTIONS:
+-- 1. Find "coin_play_join_v2" in Supabase Functions
+-- 2. After token deduction, ADD:
+--
+--    PERFORM save_entry_fee_to_user_transactions(
+--        p_user_id := p_user,
+--        p_entry_fee := p_fee,
+--        p_description := format('Coin Play Entry - %s', v_game_type),
+--        p_competition_type := 'coin_play',
+--        p_competition_id := p_session::TEXT,
+--        p_game_type := v_game_type,
+--        p_metadata := jsonb_build_object('session_id', p_session, 'entry_fee', p_fee)
+--    );
+
+-- ============================================
+-- STEP 6: Find your current Coin Play payout function
+-- ============================================
+-- INSTRUCTIONS:
+-- 1. Find the Coin Play payout function
+-- 2. After awarding tokens, ADD:
+--
+--    PERFORM save_payout_to_user_transactions(
+--        p_user_id := v_winner_id,
+--        p_type := 'game_win',
+--        p_amount := v_prize_amount,
+--        p_description := format('Coin Play Victory - %s', v_game_type),
+--        p_competition_type := 'coin_play',
+--        p_competition_id := p_session_id::TEXT,
+--        p_game_type := v_game_type,
+--        p_tokens_won := v_prize_amount::INTEGER,
+--        p_metadata := jsonb_build_object('prize', v_prize_amount)
+--    );
+
+-- ============================================
+-- STEP 7: Find your current 1v1 join function
+-- ============================================
+-- INSTRUCTIONS:
+-- 1. Find "join_1v1_session" in Supabase Functions
+-- 2. After token deduction, ADD:
+--
+--    PERFORM save_entry_fee_to_user_transactions(
+--        p_user_id := user_id_param,
+--        p_entry_fee := entry_fee_param,
+--        p_description := format('1v1 Tournament Entry - %s', v_game_type),
+--        p_competition_type := '1v1',
+--        p_competition_id := session_id_param::TEXT,
+--        p_game_type := v_game_type,
+--        p_metadata := jsonb_build_object('session_id', session_id_param)
+--    );
+
+-- ============================================
+-- STEP 8: Find your current 1v1 payout function
+-- ============================================
+-- INSTRUCTIONS:
+-- 1. Find the 1v1 payout function
+-- 2. After awarding tokens, ADD:
+--
+--    PERFORM save_payout_to_user_transactions(
+--        p_user_id := v_winner_id,
+--        p_type := 'game_win',
+--        p_amount := v_prize_amount,
+--        p_description := format('1v1 Tournament Victory - %s', v_game_type),
+--        p_competition_type := '1v1',
+--        p_competition_id := p_session_id::TEXT,
+--        p_game_type := v_game_type,
+--        p_tokens_won := v_prize_amount::INTEGER,
+--        p_metadata := jsonb_build_object('prize', v_prize_amount)
+--    );
+
+-- ============================================
+-- DONE!
+-- ============================================
+-- After making these edits in Supabase Dashboard:
+-- 1. Click "Confirm" to save each function
+-- 2. Test ONE game to verify tracking works
+-- 3. Check transaction history to see entry fee and victory
+-- ============================================
+
