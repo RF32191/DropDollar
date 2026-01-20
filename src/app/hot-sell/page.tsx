@@ -1025,6 +1025,7 @@ export default function HotSellPage() {
       case 'penny_passer': return { name: '🪙 Penny Passer', emoji: '🪙', video: '/PennyPasser.mp4' };
       case 'dead_shot': return { name: '🎯 Dead Shot', emoji: '🎯', video: '/DEADSHOT1.mp4' };
       case 'lightning_maze': return { name: '⚡ Lightning Maze', emoji: '⚡', video: '/lighteningmaze.mp4' };
+      case 'parry_pro': return { name: '⚔️ Parry Pro', emoji: '⚔️', video: '/ParryPro.mp4' };
       default: return { name: type, emoji: '🎮', video: null };
     }
   };

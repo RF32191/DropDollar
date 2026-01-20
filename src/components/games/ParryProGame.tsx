@@ -112,6 +112,8 @@ export default function ParryProGame({ onGameEnd, onGameComplete, onExit, gameMo
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
   const [combo, setCombo] = useState(0);
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(GAME_DURATION);
   const [actionFeedback, setActionFeedback] = useState<'none' | 'perfect' | 'good' | 'miss' | 'dodge' | 'strike' | 'kill'>('none');
   const [isMobile, setIsMobile] = useState(false);
@@ -1928,6 +1930,47 @@ export default function ParryProGame({ onGameEnd, onGameComplete, onExit, gameMo
               PARRY PRO
             </h1>
             <p className="text-gray-400 mb-4">Master combat against multiple enemies!</p>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/ParryPro.mp4');
+                }}
+              >
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="w-full h-full rounded-lg border-2 border-red-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                  onTimeUpdate={(e) => {
+                    const video = e.currentTarget;
+                    // Limit to 15 seconds - loop back to start
+                    if (video.currentTime >= 15) {
+                      video.currentTime = 0;
+                    }
+                  }}
+                >
+                  <source src="/ParryPro.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">
+                Watch how to play - Click video to expand
+              </p>
+            </div>
             
             {/* Preview of action buttons */}
             <div className="flex justify-center gap-3 mb-4">

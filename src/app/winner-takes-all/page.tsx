@@ -1003,6 +1003,7 @@ export default function WinnerTakesAllPage() {
       case 'penny_passer': return '/PennyPasser.mp4';
       case 'dead_shot': return '/DEADSHOT1.mp4';
       case 'lightning_maze': return '/lighteningmaze.mp4';
+      case 'parry_pro': return '/ParryPro.mp4';
       default: return null;
     }
   };
