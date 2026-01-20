@@ -202,6 +202,14 @@ export default function ProfessionalTokenWallet() {
             // Load game history
             const games = await UserService.getUserGameHistory(currentUser.id);
             console.log('✅ [TokenWallet] Loaded', games.length, 'games');
+            } catch (historyError: any) {
+              console.error('❌ [TokenWallet] Error loading transaction history:', historyError);
+              console.error('❌ [TokenWallet] History error details:', historyError?.message);
+              // Don't crash - just show empty history
+              setTokenTransactions([]);
+              setPurchaseHistory([]);
+              setWinningsHistory([]);
+            }
           } else {
             console.log('🔍 No user profile found, creating basic user...');
             // Create a basic user if logged in but no profile
