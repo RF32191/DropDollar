@@ -775,33 +775,62 @@ export class UserService {
   static async savePurchaseHistory(purchaseData: Omit<PurchaseHistory, 'id' | 'createdAt'>): Promise<boolean> {
     try {
       console.log('💳 [UserService] Saving purchase history:', purchaseData);
+      console.log('💳 [UserService] User ID:', purchaseData.userId);
+      console.log('💳 [UserService] Purchase Type:', purchaseData.purchaseType);
+      console.log('💳 [UserService] Amount:', purchaseData.amount);
+      console.log('💳 [UserService] Tokens Purchased:', purchaseData.tokensPurchased);
+      console.log('💳 [UserService] Stripe Payment Intent ID:', purchaseData.stripePaymentIntentId);
+      
+      const insertData: any = {
+        user_id: purchaseData.userId,
+        purchase_type: purchaseData.purchaseType || 'tokens',
+        amount: purchaseData.amount,
+        tokens_purchased: purchaseData.tokensPurchased || 0,
+        status: purchaseData.status || 'completed',
+        description: purchaseData.description || `Purchased ${purchaseData.tokensPurchased || 0} tokens`,
+        metadata: purchaseData.metadata || {},
+        created_at: new Date().toISOString()
+      };
+      
+      // Add optional fields if they exist
+      if (purchaseData.tokensSpent !== undefined) {
+        insertData.tokens_spent = purchaseData.tokensSpent;
+      }
+      if (purchaseData.stripePaymentIntentId) {
+        insertData.stripe_payment_intent_id = purchaseData.stripePaymentIntentId;
+      }
+      if (purchaseData.stripeChargeId) {
+        insertData.stripe_charge_id = purchaseData.stripeChargeId;
+      }
+      
+      console.log('💳 [UserService] Insert data:', JSON.stringify(insertData, null, 2));
       
       const { data, error } = await supabase
         .from('purchase_history')
-        .insert([{
-          user_id: purchaseData.userId,
-          purchase_type: purchaseData.purchaseType,
-          amount: purchaseData.amount,
-          tokens_purchased: purchaseData.tokensPurchased,
-          tokens_spent: purchaseData.tokensSpent,
-          stripe_payment_intent_id: purchaseData.stripePaymentIntentId,
-          stripe_charge_id: purchaseData.stripeChargeId,
-          status: purchaseData.status,
-          description: purchaseData.description,
-          metadata: purchaseData.metadata,
-          created_at: new Date().toISOString()
-        }])
+        .insert([insertData])
         .select();
 
       if (error) {
         console.error('❌ [UserService] Error saving purchase history:', error);
+        console.error('❌ [UserService] Error code:', error.code);
+        console.error('❌ [UserService] Error message:', error.message);
+        console.error('❌ [UserService] Error details:', error.details);
+        console.error('❌ [UserService] Error hint:', error.hint);
+        return false;
+      }
+
+      if (!data || data.length === 0) {
+        console.error('❌ [UserService] No data returned from insert');
         return false;
       }
 
       console.log('✅ [UserService] Purchase history saved successfully:', data);
+      console.log('✅ [UserService] Saved purchase ID:', data[0]?.id);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [UserService] Exception in savePurchaseHistory:', error);
+      console.error('❌ [UserService] Exception message:', error.message);
+      console.error('❌ [UserService] Exception stack:', error.stack);
       return false;
     }
   }
