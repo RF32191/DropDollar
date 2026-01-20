@@ -833,8 +833,7 @@ export class UserService {
       
       console.log('💳 [UserService] Insert data:', JSON.stringify(insertData, null, 2));
       
-      // Use service role client for inserts to bypass RLS if needed
-      // But first try with regular client
+      // Try with regular client first
       const { data, error } = await supabase
         .from('purchase_history')
         .insert([insertData])
@@ -844,14 +843,46 @@ export class UserService {
         console.error('❌ [UserService] Error saving purchase history:', error);
         console.error('❌ [UserService] Error code:', error.code);
         console.error('❌ [UserService] Error message:', error.message);
-        console.error('❌ [UserService] Error details:', error.details);
-        console.error('❌ [UserService] Error hint:', error.hint);
         
-        // If RLS error, try to get more info
+        // If RLS error, try server-side API endpoint
         if (error.code === '42501' || error.message.includes('policy') || error.message.includes('RLS')) {
-          console.error('❌ [UserService] RLS POLICY ERROR - User may not have permission to insert');
+          console.error('❌ [UserService] RLS POLICY ERROR - Trying server-side API endpoint');
           console.error('❌ [UserService] User ID:', purchaseData.userId);
-          console.error('❌ [UserService] Check if auth.uid() matches user_id');
+          
+          try {
+            // Call server-side API endpoint that uses service role
+            const response = await fetch('/api/payments/save-purchase-history', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: purchaseData.userId,
+                purchaseType: purchaseData.purchaseType,
+                amount: purchaseData.amount,
+                tokensPurchased: purchaseData.tokensPurchased,
+                tokensSpent: purchaseData.tokensSpent,
+                stripePaymentIntentId: purchaseData.stripePaymentIntentId,
+                stripeChargeId: purchaseData.stripeChargeId,
+                status: purchaseData.status,
+                description: purchaseData.description,
+                metadata: purchaseData.metadata
+              })
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ [UserService] Purchase history saved via API:', result.purchaseId);
+              return true;
+            } else {
+              const errorData = await response.json();
+              console.error('❌ [UserService] API endpoint failed:', errorData);
+              return false;
+            }
+          } catch (apiError: any) {
+            console.error('❌ [UserService] API endpoint exception:', apiError);
+            return false;
+          }
         }
         
         return false;

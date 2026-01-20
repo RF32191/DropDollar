@@ -284,6 +284,7 @@ export default function ProfessionalTokenWallet() {
       // Step 1: Retry-wrapped token update
       let updateSuccess = false;
       let newBalance = 0;
+      let newPurchasedBalance = 0; // Declare outside loop for use later
       
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -305,7 +306,7 @@ export default function ProfessionalTokenWallet() {
           }
           
           const currentPurchased = freshProfile.purchased_tokens || 0;
-          const newPurchasedBalance = currentPurchased + totalTokens;
+          newPurchasedBalance = currentPurchased + totalTokens; // Assign to outer variable
           
           console.log(`💰 [TokenWallet] Current purchased_tokens: ${currentPurchased}`);
           console.log(`💰 [TokenWallet] Adding: ${totalTokens} tokens`);
