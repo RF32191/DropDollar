@@ -356,8 +356,30 @@ export default function ProfessionalTokenWallet() {
           if (response.ok) {
             const result = await response.json();
             console.log('✅ [TokenWallet] Transaction saved FIRST:', result.transactionId);
-            transactionResult = true;
-            break;
+            
+            // CRITICAL: Verify transaction was actually saved to database
+            console.log('🔍 [TokenWallet] Verifying transaction was saved to database...');
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms for DB write
+            
+            const verifyResponse = await fetch(`/api/payments/verify-transaction?paymentIntentId=${paymentIntent.id}`);
+            if (verifyResponse.ok) {
+              const verifyResult = await verifyResponse.json();
+              if (verifyResult.exists) {
+                console.log('✅ [TokenWallet] Transaction verified in database!');
+                transactionResult = true;
+                break;
+              } else {
+                console.error('❌ [TokenWallet] Transaction NOT found in database after save!');
+                if (transactionAttempts < maxTransactionAttempts) {
+                  await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
+                }
+              }
+            } else {
+              console.error('❌ [TokenWallet] Verification check failed');
+              if (transactionAttempts < maxTransactionAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
+              }
+            }
           } else {
             const errorData = await response.json();
             console.error(`❌ [TokenWallet] Transaction save failed attempt ${transactionAttempts}:`, errorData);

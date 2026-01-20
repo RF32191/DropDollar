@@ -137,15 +137,32 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     console.log(`💵 [Webhook] Calculated: $${amountPaid} = ${tokensToCredit} tokens ($${amountPaid} / $1 per token)`);
     
     // CRITICAL: Check if tokens were already added by frontend
-    // Check 1: user_transactions table (frontend saves this FIRST)
-    const { data: existingTransaction, error: transactionError } = await supabase!
-      .from('user_transactions')
-      .select('id, type, amount, tokens_purchased, created_at')
-      .eq('stripe_payment_intent_id', paymentIntent.id)
-      .maybeSingle();
+    // Wait 2 seconds to allow frontend to save transaction first
+    console.log('⏳ [Webhook] Waiting 2 seconds for frontend to save transaction...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Check 2: Also check if tokens were already added by checking user balance
-    // Get userId first to check balance
+    // Check 1: user_transactions table (frontend saves this FIRST)
+    let existingTransaction = null;
+    for (let checkAttempt = 0; checkAttempt < 3; checkAttempt++) {
+      const { data, error } = await supabase!
+        .from('user_transactions')
+        .select('id, type, amount, tokens_purchased, created_at')
+        .eq('stripe_payment_intent_id', paymentIntent.id)
+        .maybeSingle();
+      
+      if (data) {
+        existingTransaction = data;
+        console.log(`✅ [Webhook] Found transaction on attempt ${checkAttempt + 1}:`, data.id);
+        break;
+      }
+      
+      if (checkAttempt < 2) {
+        console.log(`⏳ [Webhook] Transaction not found, waiting 1 second before retry ${checkAttempt + 2}/3...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    // Get userId for additional checks
     let userId = paymentIntent.metadata.userId || paymentIntent.metadata.user_id;
     
     // If no userId in metadata, try to find user by customer email
@@ -158,41 +175,10 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       if (userData) userId = userData.id;
     }
     
-    // If we have userId, check if tokens were already added
-    let tokensAlreadyAdded = false;
-    if (userId) {
-      const { data: userProfile } = await supabase!
-        .from('users')
-        .select('purchased_tokens')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      // Check if user has recent transaction that matches this payment
-      if (userProfile) {
-        const { data: recentTransactions } = await supabase!
-          .from('user_transactions')
-          .select('tokens_purchased, created_at')
-          .eq('user_id', userId)
-          .eq('stripe_payment_intent_id', paymentIntent.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-        
-        if (recentTransactions && recentTransactions.length > 0) {
-          tokensAlreadyAdded = true;
-          console.log(`⚠️ [Webhook] Found matching transaction with ${recentTransactions[0].tokens_purchased} tokens`);
-        }
-      }
-    }
-    
-    // If transaction exists OR tokens already added, skip
-    if (existingTransaction || tokensAlreadyAdded) {
-      console.log(`⚠️ [Webhook] Payment already processed! Skipping duplicate credit.`);
-      if (existingTransaction) {
-        console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Type: ${existingTransaction.type}, Tokens: ${existingTransaction.tokens_purchased}`);
-      }
-      if (tokensAlreadyAdded) {
-        console.log(`⚠️ [Webhook] Tokens already added to user ${userId}`);
-      }
+    // If transaction exists, skip immediately
+    if (existingTransaction) {
+      console.log(`⚠️ [Webhook] Payment already processed by frontend! Skipping duplicate credit.`);
+      console.log(`⚠️ [Webhook] Existing transaction ID: ${existingTransaction.id}, Type: ${existingTransaction.type}, Tokens: ${existingTransaction.tokens_purchased}`);
       
       // Mark webhook as processed but skipped
       await supabase!
@@ -200,7 +186,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
         .update({ 
           processed: true, 
           processed_at: new Date().toISOString(),
-          notes: 'Skipped - already processed by frontend'
+          notes: 'Skipped - already processed by frontend (transaction found)'
         })
         .eq('payment_intent_id', paymentIntent.id);
       
