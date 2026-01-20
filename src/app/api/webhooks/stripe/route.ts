@@ -128,11 +128,37 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
 
     // Get payment details
     const amountPaid = paymentIntent.amount / 100; // Convert cents to dollars
+    const amountPaidCents = paymentIntent.amount; // Amount in cents
     
-    // Calculate tokens: $1 = 10 tokens (adjust ratio as needed)
-    const tokensToCredit = Math.floor(amountPaid * 10);
+    // Calculate tokens: $1 = 1 token (exact match with frontend)
+    const tokensToCredit = Math.floor(amountPaidCents / 100);
     
-    console.log(`💵 [Webhook] Calculated: $${amountPaid} = ${tokensToCredit} tokens`);
+    console.log(`💵 [Webhook] Payment Intent Amount: ${amountPaidCents} cents ($${amountPaid})`);
+    console.log(`💵 [Webhook] Calculated: $${amountPaid} = ${tokensToCredit} tokens ($${amountPaid} / $1 per token)`);
+    
+    // Check if tokens were already added by frontend
+    const { data: existingPurchase } = await supabase!
+      .from('purchase_history')
+      .select('id, tokens_purchased')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .single();
+    
+    if (existingPurchase) {
+      console.log(`⚠️ [Webhook] Purchase already processed by frontend! Skipping duplicate credit.`);
+      console.log(`⚠️ [Webhook] Existing purchase ID: ${existingPurchase.id}, Tokens: ${existingPurchase.tokens_purchased}`);
+      
+      // Mark webhook as processed but skipped
+      await supabase!
+        .from('stripe_webhook_log')
+        .update({ 
+          processed: true, 
+          processed_at: new Date().toISOString(),
+          notes: 'Skipped - already processed by frontend'
+        })
+        .eq('payment_intent_id', paymentIntent.id);
+      
+      return; // Exit early to prevent duplicate credits
+    }
 
     // Try to get userId from metadata first
     let userId = paymentIntent.metadata.userId || paymentIntent.metadata.user_id;
@@ -293,10 +319,10 @@ async function addTokensDirectly(
   try {
     console.log('🔄 [Webhook] Direct token addition for user:', userId);
 
-    // Get user's current balance
+    // Get user's current purchased_tokens balance
     const { data: userData, error: userError } = await supabase!
       .from('users')
-      .select('tokens, email')
+      .select('purchased_tokens, email')
       .eq('id', userId)
       .single();
 
@@ -305,16 +331,16 @@ async function addTokensDirectly(
       return;
     }
 
-    const currentBalance = userData?.tokens || 0;
+    const currentBalance = userData?.purchased_tokens || 0;
     const newBalance = currentBalance + tokenAmount;
 
     console.log(`💵 [Webhook] Balance: ${currentBalance} → ${newBalance}`);
 
-    // Update user's token balance
+    // Update user's purchased_tokens balance (not tokens field)
     const { error: updateError } = await supabase!
       .from('users')
       .update({ 
-        tokens: newBalance,
+        purchased_tokens: newBalance,
         updated_at: new Date().toISOString()
       })
       .eq('id', userId);

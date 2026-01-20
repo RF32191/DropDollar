@@ -264,11 +264,22 @@ export default function ProfessionalTokenWallet() {
       console.log('👤 [TokenWallet] User ID:', userProfile.id);
       console.log('👤 [TokenWallet] User Email:', userProfile.email);
       
-      const totalTokens = parseInt(customAmount) || 10;
-      const amountPaid = totalTokens * 100; // $1 per token in cents
+      // Calculate tokens from ACTUAL payment intent amount (not customAmount)
+      // This ensures we use the exact amount Stripe charged
+      const actualAmountPaid = paymentIntent.amount; // Amount in cents from Stripe
+      const totalTokens = Math.floor(actualAmountPaid / 100); // $1 per token, so divide cents by 100
+      const amountPaidDollars = actualAmountPaid / 100;
       
+      console.log(`💰 [TokenWallet] Payment Intent Amount: ${actualAmountPaid} cents ($${amountPaidDollars})`);
+      console.log(`💰 [TokenWallet] Calculated tokens: ${totalTokens} tokens ($${amountPaidDollars} / $1 per token)`);
       console.log(`💰 [TokenWallet] Adding ${totalTokens} tokens to account...`);
-      console.log(`💰 [TokenWallet] Amount paid: $${amountPaid / 100}`);
+      
+      // Verify the payment amount matches what we expect
+      const expectedAmount = (parseInt(customAmount) || 10) * 100; // Expected amount in cents
+      if (Math.abs(actualAmountPaid - expectedAmount) > 1) { // Allow 1 cent difference for rounding
+        console.warn(`⚠️ [TokenWallet] Payment amount mismatch! Expected ${expectedAmount} cents, got ${actualAmountPaid} cents`);
+        console.warn(`⚠️ [TokenWallet] Using actual payment amount: ${totalTokens} tokens`);
+      }
       
       // Step 1: Retry-wrapped token update
       let updateSuccess = false;
@@ -342,18 +353,21 @@ export default function ProfessionalTokenWallet() {
       const purchaseResult = await UserService.savePurchaseHistory({
         userId: userProfile.id,
         purchaseType: 'tokens',
-        amount: amountPaid / 100,
+        amount: amountPaidDollars,
         tokensPurchased: totalTokens,
         tokensSpent: 0,
         stripePaymentIntentId: paymentIntent.id,
         status: 'completed',
-        description: `Purchased ${totalTokens} tokens via Stripe`,
+        description: `Purchased ${totalTokens} tokens via Stripe ($${amountPaidDollars})`,
         metadata: {
           payment_intent_id: paymentIntent.id,
           tokens: totalTokens,
+          amount_paid_cents: actualAmountPaid,
+          amount_paid_dollars: amountPaidDollars,
           price_per_token: 1,
           timestamp: new Date().toISOString(),
-          wallet_type: 'purchased_tokens'
+          wallet_type: 'purchased_tokens',
+          source: 'frontend_payment_success'
         }
       });
       
@@ -377,9 +391,11 @@ export default function ProfessionalTokenWallet() {
         stripePaymentIntentId: paymentIntent.id,
         metadata: {
           payment_intent_id: paymentIntent.id,
-          amount_paid: amountPaid / 100,
+          amount_paid: amountPaidDollars,
+          tokens: totalTokens,
           timestamp: new Date().toISOString(),
-          wallet_type: 'purchased_tokens'
+          wallet_type: 'purchased_tokens',
+          source: 'frontend_payment_success'
         }
       });
       
