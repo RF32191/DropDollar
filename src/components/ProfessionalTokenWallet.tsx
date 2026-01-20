@@ -359,26 +359,40 @@ export default function ProfessionalTokenWallet() {
             
             // CRITICAL: Verify transaction was actually saved to database
             console.log('🔍 [TokenWallet] Verifying transaction was saved to database...');
-            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms for DB write
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second for DB write
             
-            const verifyResponse = await fetch(`/api/payments/verify-transaction?paymentIntentId=${paymentIntent.id}`);
-            if (verifyResponse.ok) {
-              const verifyResult = await verifyResponse.json();
-              if (verifyResult.exists) {
-                console.log('✅ [TokenWallet] Transaction verified in database!');
-                transactionResult = true;
-                break;
-              } else {
-                console.error('❌ [TokenWallet] Transaction NOT found in database after save!');
-                if (transactionAttempts < maxTransactionAttempts) {
-                  await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
+            let verified = false;
+            for (let verifyAttempt = 0; verifyAttempt < 3; verifyAttempt++) {
+              try {
+                const verifyResponse = await fetch(`/api/payments/verify-transaction?paymentIntentId=${paymentIntent.id}`);
+                if (verifyResponse.ok) {
+                  const verifyResult = await verifyResponse.json();
+                  if (verifyResult.exists) {
+                    console.log(`✅ [TokenWallet] Transaction verified in database on attempt ${verifyAttempt + 1}!`);
+                    verified = true;
+                    transactionResult = true;
+                    break;
+                  } else {
+                    console.log(`⏳ [TokenWallet] Transaction not found yet, retry ${verifyAttempt + 1}/3...`);
+                    if (verifyAttempt < 2) {
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                  }
+                } else {
+                  console.error(`❌ [TokenWallet] Verification check failed: ${verifyResponse.status}`);
                 }
+              } catch (verifyError: any) {
+                console.error(`❌ [TokenWallet] Verification exception:`, verifyError);
               }
-            } else {
-              console.error('❌ [TokenWallet] Verification check failed');
+            }
+            
+            if (!verified) {
+              console.error('❌ [TokenWallet] Transaction NOT verified in database after 3 attempts!');
               if (transactionAttempts < maxTransactionAttempts) {
                 await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
               }
+            } else {
+              break; // Transaction verified, exit retry loop
             }
           } else {
             const errorData = await response.json();

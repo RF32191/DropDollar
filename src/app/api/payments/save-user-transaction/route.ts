@@ -89,17 +89,39 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('❌ [SaveUserTransaction] Error:', error);
+      console.error('❌ [SaveUserTransaction] Error code:', error.code);
+      console.error('❌ [SaveUserTransaction] Error details:', error.details);
+      console.error('❌ [SaveUserTransaction] Error hint:', error.hint);
+      
+      // If table doesn't exist, provide helpful error
+      if (error.code === '42P01') {
+        return NextResponse.json(
+          { error: 'user_transactions table does not exist. Please run CREATE_USER_TRANSACTIONS_TABLE.sql in Supabase.', details: error.message },
+          { status: 500 }
+        );
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to save transaction', details: error.message },
+        { error: 'Failed to save transaction', details: error.message, code: error.code },
+        { status: 500 }
+      );
+    }
+
+    if (!data || data.length === 0) {
+      console.error('❌ [SaveUserTransaction] No data returned from insert');
+      return NextResponse.json(
+        { error: 'Transaction insert returned no data' },
         { status: 500 }
       );
     }
 
     console.log('✅ [SaveUserTransaction] Transaction saved:', data[0]?.id);
+    console.log('✅ [SaveUserTransaction] Transaction data:', JSON.stringify(data[0], null, 2));
 
     return NextResponse.json({
       success: true,
-      transactionId: data[0]?.id
+      transactionId: data[0]?.id,
+      verified: true
     });
 
   } catch (error: any) {
