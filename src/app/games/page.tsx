@@ -1779,8 +1779,8 @@ export default function GamesPage() {
                   )}
                   
                   {game.id === 'dead-shot' && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-600 flex items-center justify-center">
-                      <div className="text-white text-6xl font-bold animate-pulse">🎯</div>
+                    <div className="absolute inset-0">
+                      <LazyVideo src="/DEADSHOT1.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                 </div>
