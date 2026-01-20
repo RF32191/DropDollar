@@ -179,6 +179,64 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION save_entry_fee_to_user_transactions TO authenticated;
 GRANT EXECUTE ON FUNCTION wta_join_v2 TO authenticated;
 
+-- Step 4: Update Hot Sell join function to also save to user_transactions
+-- Find the current hs_join_v2 function and update it
+-- Note: This assumes hs_join_v2 exists. If it doesn't, you may need to check the actual function name.
+
+-- We'll create a wrapper or update the existing function
+-- For now, let's add a helper that can be called from Hot Sell join functions
+
+-- Step 5: Create comprehensive function to save ANY entry fee
+CREATE OR REPLACE FUNCTION save_game_entry_fee(
+    p_user_id UUID,
+    p_entry_fee DECIMAL(10,2),
+    p_description TEXT,
+    p_competition_type TEXT, -- 'winner_takes_all', 'hotsell', 'tournament', etc.
+    p_competition_id TEXT DEFAULT NULL,
+    p_game_type TEXT DEFAULT NULL,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID AS $$
+DECLARE
+    v_transaction_id UUID;
+BEGIN
+    -- Insert into user_transactions (unified table for all transactions)
+    INSERT INTO public.user_transactions (
+        user_id,
+        type,
+        amount,
+        description,
+        status,
+        competition_type,
+        competition_id,
+        game_type,
+        metadata,
+        created_at
+    ) VALUES (
+        p_user_id,
+        'entry_fee', -- Transaction type for entry fees
+        -p_entry_fee, -- Negative amount (deduction)
+        p_description,
+        'completed',
+        p_competition_type,
+        p_competition_id,
+        p_game_type,
+        p_metadata,
+        NOW()
+    )
+    RETURNING id INTO v_transaction_id;
+    
+    RAISE NOTICE '✅ [SaveGameEntryFee] Saved entry fee to user_transactions: % (ID: %)', p_description, v_transaction_id;
+    
+    RETURN v_transaction_id;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE '❌ [SaveGameEntryFee] Error saving entry fee: %', SQLERRM;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION save_game_entry_fee TO authenticated;
+
 -- ============================================
 -- DONE!
 -- ============================================
@@ -188,6 +246,9 @@ GRANT EXECUTE ON FUNCTION wta_join_v2 TO authenticated;
 -- - competition_type = 'winner_takes_all'
 -- - competition_id = session ID
 -- - game_type = game name
+--
+-- Hot Sell entry fees can use save_game_entry_fee() function
+-- with competition_type = 'hotsell'
 --
 -- This ensures entry fees show up in the "Game Entries & Token Deductions" section!
 -- ============================================
