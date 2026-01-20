@@ -422,13 +422,20 @@ export default function ProfessionalTokenWallet() {
       }
       
       // Step 7: Reload transaction history and purchase history
+      console.log('🔄 [TokenWallet] Reloading transaction and purchase history...');
       const transactions = await UserService.getUserTokenTransactions(userProfile.id);
       setTokenTransactions(transactions);
       console.log('✅ [TokenWallet] Transaction history reloaded:', transactions.length, 'transactions');
+      if (transactions.length === 0) {
+        console.warn('⚠️ [TokenWallet] No transactions found! This may indicate an RLS policy issue.');
+      }
       
       const purchases = await UserService.getUserPurchaseHistory(userProfile.id);
       setPurchaseHistory(purchases);
       console.log('✅ [TokenWallet] Purchase history reloaded:', purchases.length, 'purchases');
+      if (purchases.length === 0) {
+        console.warn('⚠️ [TokenWallet] No purchase history found! This may indicate an RLS policy issue.');
+      }
       
       // Verify the new transaction exists
       const latestTransaction = transactions[0];
