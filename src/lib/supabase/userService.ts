@@ -836,16 +836,45 @@ export class UserService {
   }
 
   /**
-   * Get user purchase history
+   * Get user purchase history (optimized for performance)
    */
-  static async getUserPurchaseHistory(userId: string): Promise<PurchaseHistory[]> {
+  static async getUserPurchaseHistory(userId: string, limit: number = 50, offset: number = 0): Promise<PurchaseHistory[]> {
     try {
-      console.log('💳 [UserService] Fetching purchase history for user:', userId);
+      console.log('💳 [UserService] Fetching purchase history for user:', userId, 'Limit:', limit, 'Offset:', offset);
+      
+      // Use optimized function if available, otherwise fall back to direct query
+      const { data: functionData, error: functionError } = await supabase
+        .rpc('get_user_recent_purchases_optimized', {
+          user_id_param: userId,
+          limit_count: limit,
+          offset_count: offset
+        });
+
+      if (!functionError && functionData && functionData.length > 0) {
+        console.log('✅ [UserService] Purchase history fetched via optimized function:', functionData.length);
+        return functionData.map((purchase: any) => ({
+          id: purchase.id,
+          userId: purchase.user_id || userId,
+          purchaseType: purchase.purchase_type,
+          amount: purchase.amount,
+          tokensPurchased: purchase.tokens_purchased,
+          tokensSpent: purchase.tokens_spent,
+          stripePaymentIntentId: purchase.stripe_payment_intent_id,
+          stripeChargeId: null, // Not returned by function
+          status: purchase.status,
+          description: purchase.description,
+          metadata: {},
+          createdAt: purchase.created_at
+        }));
+      }
+
+      // Fallback to direct query with limit for performance
       const { data, error } = await supabase
         .from('purchase_history')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1); // Use range instead of limit for better performance
 
       if (error) {
         console.error('❌ [UserService] Error fetching purchase history:', error);
