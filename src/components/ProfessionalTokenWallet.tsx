@@ -42,7 +42,6 @@ interface TokenPackage {
 }
 
 export default function ProfessionalTokenWallet() {
-  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
