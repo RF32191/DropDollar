@@ -20,12 +20,11 @@ BEGIN
     RAISE NOTICE '';
     
     -- Loop through all games in game_history for this user
-    FOR v_game_record IN (
+    FOR v_game_record IN 
         SELECT 
             gh.id,
             gh.user_id,
             gh.game_type,
-            gh."mode" as game_mode,  -- Alias 'mode' to avoid reserved word issues
             gh.score,
             gh.tokens_wagered,
             gh.tokens_won,
@@ -33,9 +32,14 @@ BEGIN
             gh.created_at
         FROM public.game_history gh
         WHERE gh.user_id = v_user_id
-        AND gh."mode" = 'competition' -- Only competition games (not practice)
         ORDER BY gh.created_at ASC
-    ) LOOP
+    LOOP
+        -- Skip practice games (only process competition games)
+        IF v_game_record.metadata->>'session_type' IS NULL OR 
+           v_game_record.metadata->>'session_type' IN ('practice', '') THEN
+            CONTINUE;
+        END IF;
+        
         -- Check if we already have a transaction for this game
         IF EXISTS (
             SELECT 1 FROM public.user_transactions ut
@@ -148,7 +152,7 @@ DECLARE
 BEGIN
     SELECT COUNT(*) INTO v_total_games
     FROM public.game_history
-    WHERE user_id = v_user_id AND "mode" = 'competition';
+    WHERE user_id = v_user_id;
     
     SELECT COUNT(*) INTO v_total_transactions
     FROM public.user_transactions
