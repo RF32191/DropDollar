@@ -1141,12 +1141,24 @@ export default function ProfessionalTokenWallet() {
                       </thead>
                       <tbody className="divide-y divide-gray-700">
                         {purchaseHistory.slice(0, 10).map((purchase) => {
+                          // Safe date parsing
+                          let dateDisplay = 'N/A';
+                          try {
+                            if (purchase.createdAt) {
+                              dateDisplay = new Date(purchase.createdAt).toLocaleString();
+                            }
+                          } catch (e) {
+                            console.error('Error parsing purchase date:', e);
+                          }
+                          
                           const paymentId = purchase.stripePaymentIntentId || 'N/A';
-                          const amount = typeof purchase.amount === 'number' ? purchase.amount.toFixed(2) : purchase.amount;
+                          const amount = typeof purchase.amount === 'number' ? purchase.amount.toFixed(2) : (purchase.amount || '0.00');
+                          const status = purchase.status || 'completed';
+                          
                           return (
-                            <tr key={purchase.id} className="hover:bg-gray-700 transition-colors">
+                            <tr key={purchase.id || `purchase-${Math.random()}`} className="hover:bg-gray-700 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {new Date(purchase.createdAt).toLocaleString()}
+                                {dateDisplay}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-400">
                                 +{purchase.tokensPurchased || 0} Tokens
@@ -1159,12 +1171,12 @@ export default function ProfessionalTokenWallet() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  purchase.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  purchase.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                  purchase.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                  status === 'completed' ? 'bg-green-100 text-green-800' :
+                                  status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  status === 'failed' ? 'bg-red-100 text-red-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {purchase.status.charAt(0).toUpperCase() + purchase.status.slice(1)}
+                                  {status.charAt(0).toUpperCase() + status.slice(1)}
                                 </span>
                               </td>
                             </tr>
