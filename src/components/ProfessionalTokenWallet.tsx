@@ -19,7 +19,7 @@ import {
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
-import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
+import { UserService, UserProfile, TokenTransaction, PurchaseHistory } from '@/lib/supabase/userService';
 import { ActivityService } from '@/lib/supabase/activityService';
 import MinimalCheckout from '@/components/MinimalCheckout';
 import CelebrationEffect from '@/components/CelebrationEffect';
