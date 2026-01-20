@@ -88,6 +88,8 @@ export default function NeonStrikerGame({
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'charging' | 'shooting' | 'complete'>('ready');
   const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const [score, setScore] = useState(0);
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [shotsUsed, setShotsUsed] = useState(0);
   const [power, setPower] = useState(0);
   const [aimAngle, setAimAngle] = useState(0);
