@@ -41,59 +41,15 @@ interface TokenPackage {
   icon: string;
 }
 
-const tokenPackages: TokenPackage[] = [
-  { 
-    id: 'starter', 
-    tokens: 10, 
-    price: 1000, // $10.00 (1 token = $1.00)
-    bonus: 0, 
-    description: 'Perfect for new players',
-    icon: '🎮'
-  },
-  { 
-    id: 'popular', 
-    tokens: 50, 
-    price: 5000, // $50.00 (1 token = $1.00, no bonus)
-    bonus: 0, 
-    description: 'Most popular choice', 
-    popular: true,
-    icon: '⭐'
-  },
-  { 
-    id: 'pro', 
-    tokens: 100, 
-    price: 10000, // $100.00 (1 token = $1.00, no bonus)
-    bonus: 0, 
-    description: 'For serious competitors',
-    icon: '💪'
-  },
-  { 
-    id: 'champion', 
-    tokens: 250, 
-    price: 25000, // $250.00 (1 token = $1.00, no bonus)
-    bonus: 0, 
-    description: 'Dominate the leaderboards',
-    icon: '🏆'
-  },
-  { 
-    id: 'elite', 
-    tokens: 500, 
-    price: 50000, // $500.00 (1 token = $1.00, no bonus)
-    bonus: 0, 
-    description: 'Ultimate gaming power',
-    icon: '👑'
-  },
-];
-
 export default function ProfessionalTokenWallet() {
-  const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(tokenPackages[1]); // Default to popular
+  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [customAmount, setCustomAmount] = useState('');
-  const [isCustomAmount, setIsCustomAmount] = useState(false);
+  const [customAmount, setCustomAmount] = useState('10');
+  const [isCustomAmount, setIsCustomAmount] = useState(true); // Always use custom amount
   const [showBalance, setShowBalance] = useState(true);
   const [tokenTransactions, setTokenTransactions] = useState<TokenTransaction[]>([]);
   const [activeTab, setActiveTab] = useState<'wallet' | 'purchase' | 'history'>('wallet');
@@ -303,8 +259,8 @@ export default function ProfessionalTokenWallet() {
       console.log('👤 [TokenWallet] User ID:', userProfile.id);
       console.log('👤 [TokenWallet] User Email:', userProfile.email);
       
-      const totalTokens = isCustomAmount ? parseInt(customAmount) : selectedPackage.tokens;
-      const amountPaid = isCustomAmount ? parseInt(customAmount) * 100 : selectedPackage.price;
+      const totalTokens = parseInt(customAmount) || 10;
+      const amountPaid = totalTokens * 100; // $1 per token in cents
       
       console.log(`💰 [TokenWallet] Adding ${totalTokens} tokens to account...`);
       console.log(`💰 [TokenWallet] Amount paid: $${amountPaid / 100}`);
@@ -522,20 +478,17 @@ export default function ProfessionalTokenWallet() {
     }
   };
 
-  const getCurrentPackage = () => {
-    if (isCustomAmount && customAmount) {
-      const tokens = parseInt(customAmount);
-      const price = tokens * 100; // $1 per token in cents
-      return {
-        id: 'custom',
-        tokens,
-        price,
-        bonus: 0,
-        description: 'Custom amount',
-        icon: '🎯'
-      };
-    }
-    return selectedPackage;
+  const getCurrentPackage = (): TokenPackage => {
+    const tokens = parseInt(customAmount) || 10;
+    const price = tokens * 100; // $1 per token in cents
+    return {
+      id: 'custom',
+      tokens,
+      price,
+      bonus: 0,
+      description: 'Custom amount',
+      icon: '💰'
+    };
   };
 
   const handleCustomAmountChange = (value: string) => {
@@ -763,92 +716,94 @@ export default function ProfessionalTokenWallet() {
               </div>
             )}
 
-            {/* Token Packages */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {tokenPackages.map((pkg) => (
-                <div
-                  key={pkg.id}
-                  className={`relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 cursor-pointer ${
-                    selectedPackage.id === pkg.id && !isCustomAmount
-                      ? 'border-green-500 shadow-2xl shadow-green-500/25'
-                      : 'border-gray-600 hover:border-green-400'
-                  } ${pkg.popular ? 'ring-2 ring-yellow-400 ring-opacity-50' : ''}`}
-                  onClick={() => {
-                    setSelectedPackage(pkg);
-                    setIsCustomAmount(false);
-                  }}
-                >
-                  {pkg.popular && (
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-1 rounded-full text-sm font-bold">
-                        MOST POPULAR
-                      </span>
-                    </div>
-                  )}
+            {/* Custom Amount Purchase Section - Enhanced Design */}
+            <div className="max-w-2xl mx-auto mb-12">
+              <div className="bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 rounded-3xl p-8 sm:p-12 border-2 border-green-500/30 shadow-2xl shadow-green-500/10">
+                {/* Header */}
+                <div className="text-center mb-8">
+                  <div className="text-6xl mb-4">💰</div>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+                    Purchase DropTokens
+                  </h2>
+                  <p className="text-gray-400 text-lg">
+                    Enter the amount of tokens you'd like to purchase
+                  </p>
+                </div>
 
-                  <div className="text-center">
-                    <div className="text-4xl mb-4">{pkg.icon}</div>
-                      <div className="text-4xl font-bold text-white mb-2">
-                        {pkg.tokens} Tokens
-                      </div>
-                    <div className="text-3xl font-bold text-green-400 mb-4">
-                      ${(pkg.price / 100).toFixed(2)}
+                {/* Custom Amount Input - Large and Prominent */}
+                <div className="mb-8">
+                  <label className="block text-sm font-semibold text-gray-300 mb-4 text-center">
+                    Number of Tokens
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      value={customAmount}
+                      onChange={(e) => handleCustomAmountChange(e.target.value)}
+                      placeholder="Enter amount"
+                      className="w-full px-6 py-6 bg-gray-700/50 border-2 border-green-500/50 rounded-2xl text-white placeholder-gray-500 focus:ring-4 focus:ring-green-500/50 focus:border-green-500 text-center text-4xl font-bold transition-all duration-300"
+                      autoFocus
+                    />
+                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-2xl text-gray-400">
+                      Tokens
                     </div>
-                    <p className="text-gray-400 text-sm mb-6">{pkg.description}</p>
+                  </div>
+                  
+                  {/* Quick Amount Buttons */}
+                  <div className="grid grid-cols-4 gap-3 mt-6">
+                    {[10, 25, 50, 100].map((amount) => (
+                      <button
+                        key={amount}
+                        onClick={() => setCustomAmount(amount.toString())}
+                        className={`px-4 py-3 rounded-xl font-bold text-sm transition-all duration-300 ${
+                          customAmount === amount.toString()
+                            ? 'bg-green-600 text-white scale-105 shadow-lg'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        ${amount}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
 
-              {/* Custom Amount Option */}
-              <div
-                className={`relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 cursor-pointer ${
-                  isCustomAmount
-                    ? 'border-blue-500 shadow-2xl shadow-blue-500/25'
-                    : 'border-gray-600 hover:border-blue-400'
-                }`}
-                onClick={() => setIsCustomAmount(true)}
-              >
-                <div className="text-center">
-                  <div className="text-4xl mb-4">🎯</div>
-                  <div className="text-4xl font-bold text-white mb-2">
-                    Custom Amount
-                  </div>
-                  <div className="text-3xl font-bold text-blue-400 mb-4">
-                    $1.00+ per Token
-                  </div>
-                  <p className="text-gray-400 text-sm mb-6">Choose your own amount</p>
-                  
-                  {isCustomAmount && (
-                    <div className="mt-4">
-                      <input
-                        type="number"
-                        min="1"
-                        value={customAmount}
-                        onChange={(e) => handleCustomAmountChange(e.target.value)}
-                        placeholder="Enter tokens"
-                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-xl font-bold"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      {customAmount && parseInt(customAmount) >= 1 && (
-                        <div className="mt-3 text-lg font-bold text-blue-400">
+                {/* Price Display */}
+                {customAmount && parseInt(customAmount) >= 1 && (
+                  <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl p-6 mb-6 border border-green-500/30">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">Total Cost</div>
+                        <div className="text-4xl font-bold text-green-400">
                           ${(parseInt(customAmount) * 1).toFixed(2)}
                         </div>
-                      )}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-400 mb-1">Tokens</div>
+                        <div className="text-4xl font-bold text-white">
+                          {parseInt(customAmount)}
+                        </div>
+                      </div>
                     </div>
-                  )}
+                    <div className="mt-4 pt-4 border-t border-green-500/20">
+                      <div className="flex justify-between text-sm text-gray-300">
+                        <span>Price per Token:</span>
+                        <span className="font-semibold text-green-400">$1.00</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                  <div className="space-y-2 text-sm text-gray-300 mt-4">
-                    <div className="flex justify-between">
-                      <span>Price per Token:</span>
-                      <span>$1.00</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Minimum:</span>
-                      <span>1 Token</span>
-                    </div>
-                    <div className="flex justify-between font-semibold text-white border-t border-gray-600 pt-2">
-                      <span>No Bonus:</span>
-                      <span>Standard Rate</span>
+                {/* Info Box */}
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">ℹ️</div>
+                    <div className="text-sm text-gray-300">
+                      <p className="font-semibold text-blue-300 mb-1">Important Information</p>
+                      <p className="mb-2">• Minimum purchase: <strong>1 token</strong></p>
+                      <p className="mb-2">• Rate: <strong>$1.00 per token</strong> (no bonuses)</p>
+                      <p className="text-red-300">• Purchased tokens are non-refundable and cannot be cashed out</p>
+                      <p className="text-green-300 mt-2">• Only tokens won from competitions can be cashed out</p>
                     </div>
                   </div>
                 </div>
@@ -934,18 +889,18 @@ export default function ProfessionalTokenWallet() {
               <div className="text-center">
                 <button
                   onClick={() => {
-                    if (isCustomAmount && (!customAmount || parseInt(customAmount) < 1)) {
+                    if (!customAmount || parseInt(customAmount) < 1) {
                       alert('Please enter a valid amount (1 or more tokens)');
                       return;
                     }
                     setShowCheckout(true);
                   }}
-                  disabled={isCustomAmount && (!customAmount || parseInt(customAmount) < 1)}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-12 py-6 rounded-xl font-bold text-xl shadow-lg hover:shadow-2xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed transition-all duration-300 inline-flex items-center space-x-3"
+                  disabled={!customAmount || parseInt(customAmount) < 1}
+                  className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 disabled:from-gray-600 disabled:via-gray-700 disabled:to-gray-800 text-white px-12 py-6 rounded-2xl font-bold text-xl sm:text-2xl shadow-2xl hover:shadow-green-500/50 hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed transition-all duration-300 inline-flex items-center space-x-4 transform"
                 >
-                  <CreditCardIcon className="h-8 w-8" />
+                  <CreditCardIcon className="h-8 w-8 sm:h-10 sm:w-10" />
                   <span>Purchase {getCurrentPackage().tokens} Tokens</span>
-                  <span className="text-green-200">${(getCurrentPackage().price / 100).toFixed(2)}</span>
+                  <span className="text-green-100 text-lg sm:text-xl">${(getCurrentPackage().price / 100).toFixed(2)}</span>
                 </button>
               </div>
             )}
