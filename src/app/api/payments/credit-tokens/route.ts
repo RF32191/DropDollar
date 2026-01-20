@@ -77,55 +77,61 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const currentTokens = currentProfile.tokens;
-    const newBalance = currentTokens + tokensToCredit;
+    const currentPurchased = currentProfile.purchased_tokens || 0;
+    const newPurchasedBalance = currentPurchased + tokensToCredit;
 
-    console.log(`💰 [CreditTokens] Current balance: ${currentTokens}`);
-    console.log(`💰 [CreditTokens] New balance: ${newBalance}`);
+    console.log(`💰 [CreditTokens] Current purchased_tokens: ${currentPurchased}`);
+    console.log(`💰 [CreditTokens] Adding: ${tokensToCredit} tokens`);
+    console.log(`💰 [CreditTokens] New purchased_tokens balance: ${newPurchasedBalance}`);
 
-    // Step 5: Update tokens
-    const updateResult = await UserService.updateUserTokens(userId, newBalance);
+    // Step 5: Add tokens to purchased_tokens wallet (play wallet)
+    const updateResult = await UserService.addPurchasedTokens(userId, tokensToCredit);
     if (!updateResult) {
-      throw new Error('Failed to update tokens');
+      throw new Error('Failed to add purchased tokens');
     }
 
-    console.log('✅ [CreditTokens] Tokens updated successfully');
+    console.log('✅ [CreditTokens] Purchased tokens added successfully');
 
-    // Step 6: Record transaction
-    await UserService.addTokenTransaction({
-      userId,
-      type: 'purchase',
-      amount: tokensToCredit,
-      description: `Manual credit for payment ${paymentIntentId} - ${tokensToCredit} tokens`,
-      stripePaymentIntentId: paymentIntentId,
-      metadata: {
-        payment_intent_id: paymentIntentId,
-        amount_paid: paymentIntent.amount / 100,
-        manual_credit: true,
-        timestamp: new Date().toISOString()
-      }
-    });
-
-    console.log('✅ [CreditTokens] Transaction recorded');
-
-    // Step 7: Save purchase history
+    // Step 6: Save purchase history FIRST
     await UserService.savePurchaseHistory({
       userId,
       purchaseType: 'tokens',
       amount: paymentIntent.amount / 100,
       tokensPurchased: tokensToCredit,
+      tokensSpent: 0,
       stripePaymentIntentId: paymentIntentId,
       status: 'completed',
-      description: `Manual credit - Purchased ${tokensToCredit} tokens`,
+      description: `Manual credit - Purchased ${tokensToCredit} tokens via Stripe`,
       metadata: {
         payment_intent_id: paymentIntentId,
         tokens: tokensToCredit,
         manual_credit: true,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        wallet_type: 'purchased_tokens'
       }
     });
 
     console.log('✅ [CreditTokens] Purchase history saved');
+
+    // Step 7: Record transaction
+    await UserService.addTokenTransaction({
+      userId,
+      type: 'purchase',
+      amount: tokensToCredit,
+      balance_before: currentPurchased,
+      balance_after: newPurchasedBalance,
+      description: `Manual credit for payment ${paymentIntentId} - ${tokensToCredit} tokens (added to purchased_tokens wallet)`,
+      stripePaymentIntentId: paymentIntentId,
+      metadata: {
+        payment_intent_id: paymentIntentId,
+        amount_paid: paymentIntent.amount / 100,
+        manual_credit: true,
+        timestamp: new Date().toISOString(),
+        wallet_type: 'purchased_tokens'
+      }
+    });
+
+    console.log('✅ [CreditTokens] Transaction recorded');
 
     // Step 8: Log activity
     await ActivityService.logActivity(userId, 'token_purchase', {
@@ -142,13 +148,17 @@ export async function POST(request: NextRequest) {
     const updatedProfile = await UserService.getUserProfile(userId);
     
     console.log('✅ [CreditTokens] Manual credit completed successfully!');
-    console.log('💰 [CreditTokens] Final balance:', updatedProfile?.tokens);
+    console.log('💰 [CreditTokens] Final purchased_tokens:', updatedProfile?.purchased_tokens);
+    console.log('💰 [CreditTokens] Final won_tokens:', updatedProfile?.won_tokens);
+    const totalBalance = (updatedProfile?.purchased_tokens || 0) + (updatedProfile?.won_tokens || 0);
+    console.log('💰 [CreditTokens] Total balance:', totalBalance);
 
     return NextResponse.json({
       success: true,
-      message: `Successfully credited ${tokensToCredit} tokens`,
+      message: `Successfully credited ${tokensToCredit} tokens to purchased_tokens wallet`,
       tokensAdded: tokensToCredit,
-      newBalance: updatedProfile?.tokens || newBalance,
+      newPurchasedBalance: updatedProfile?.purchased_tokens || newPurchasedBalance,
+      newBalance: totalBalance,
       paymentAmount: paymentIntent.amount / 100
     });
 
