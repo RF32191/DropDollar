@@ -43,11 +43,9 @@ CREATE TABLE IF NOT EXISTS public.purchase_history (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Step 2: Create indexes for fast queries (only if columns exist)
+-- Step 2: Create basic indexes (for columns that always exist)
 CREATE INDEX IF NOT EXISTS idx_purchase_history_user_id ON public.purchase_history(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_purchase_history_stripe_payment_intent ON public.purchase_history(stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_purchase_history_status ON public.purchase_history(status, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_purchase_history_type ON public.purchase_history(purchase_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_purchase_history_created_at ON public.purchase_history(created_at DESC);
 
 -- Step 3: Add any missing columns (if table already exists)
@@ -88,14 +86,31 @@ BEGIN
     END IF;
 END $$;
 
--- Step 2b: Create stripe_charge_id index only if column exists
+-- Step 2b: Create conditional indexes (only if columns exist)
 DO $$ 
 BEGIN
+    -- Create stripe_payment_intent_id index if column exists
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_schema = 'public' 
+               AND table_name = 'purchase_history' 
+               AND column_name = 'stripe_payment_intent_id') THEN
+        CREATE INDEX IF NOT EXISTS idx_purchase_history_stripe_payment_intent ON public.purchase_history(stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;
+    END IF;
+    
+    -- Create stripe_charge_id index if column exists
     IF EXISTS (SELECT 1 FROM information_schema.columns 
                WHERE table_schema = 'public' 
                AND table_name = 'purchase_history' 
                AND column_name = 'stripe_charge_id') THEN
         CREATE INDEX IF NOT EXISTS idx_purchase_history_stripe_charge ON public.purchase_history(stripe_charge_id) WHERE stripe_charge_id IS NOT NULL;
+    END IF;
+    
+    -- Create purchase_type index if column exists
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_schema = 'public' 
+               AND table_name = 'purchase_history' 
+               AND column_name = 'purchase_type') THEN
+        CREATE INDEX IF NOT EXISTS idx_purchase_history_type ON public.purchase_history(purchase_type, created_at DESC);
     END IF;
 END $$;
 
