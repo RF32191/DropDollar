@@ -528,7 +528,6 @@ BEGIN
     UPDATE hot_sell_sessions
     SET 
         participants_count = COALESCE(participants_count, 0) + 1,
-        current_pot = COALESCE(current_pot, 0) + p_fee,
         updated_at = NOW()
     WHERE id = v_session_uuid;
     
