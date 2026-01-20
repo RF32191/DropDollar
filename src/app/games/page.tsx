@@ -102,10 +102,6 @@ const WormholeGame = dynamic(() => import('@/components/games/WormholeGame'), {
   loading: () => <GameLoadingSkeleton name="Wormhole" color="orange" />
 });
 
-const TowerTapGame = dynamic(() => import('@/components/games/TowerTapGame'), { 
-  ssr: false, 
-  loading: () => <GameLoadingSkeleton name="Tower Tap" color="green" />
-});
 
 const OrbitalDodgeGame = dynamic(() => import('@/components/games/OrbitalDodgeGame'), { 
   ssr: false, 
@@ -357,16 +353,6 @@ const GAMES = [
     avgTime: '120s',
     skills: ['FPS Combat', 'Puzzle Solving', 'Portal Strategy', 'Spatial Awareness'],
     component: WormholeGame
-  },
-  {
-    id: 'tower-tap',
-    name: 'Tower Tap: Collapse',
-    description: 'Strategic 3D tower destruction! Tap glowing weak points to score. Miss and the tower crumbles!',
-    icon: CubeIcon,
-    difficulty: 'Medium',
-    avgTime: '90s',
-    skills: ['Precision', 'Timing', 'Strategy', 'Structural Awareness'],
-    component: TowerTapGame
   },
   {
     id: 'orbital-dodge',

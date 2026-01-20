@@ -272,6 +272,11 @@ DECLARE
     v_winner_payout NUMERIC;
     v_time_elapsed NUMERIC;
     v_winner_username TEXT;
+    grace_period_seconds NUMERIC := 15;
+    time_since_timer_expired NUMERIC;
+    total_participants INTEGER;
+    participants_with_scores INTEGER;
+    participants_without_scores INTEGER;
 BEGIN
     RAISE NOTICE '💰 [PAYOUT] Starting payout for config: %', config_id_param;
     
@@ -354,6 +359,43 @@ BEGIN
             'success', false, 
             'message', 'Timer has not expired yet. Time elapsed: ' || ROUND(v_time_elapsed, 1) || 's'
         );
+    END IF;
+
+    -- CRITICAL: GRACE PERIOD - Wait 15 seconds after timer expires to ensure all scores are recorded
+    -- This gives players time to finish their games and save their scores
+    time_since_timer_expired := v_time_elapsed - COALESCE(session_record.timer_duration, 10);
+    
+    IF time_since_timer_expired < grace_period_seconds THEN
+        RAISE NOTICE '⏳ [PAYOUT] Grace period active - waiting for all scores to be recorded. Time since timer expired: %s / %s', 
+            ROUND(time_since_timer_expired, 1), grace_period_seconds;
+        
+        -- Check how many participants still don't have scores
+        SELECT COUNT(*) INTO total_participants
+        FROM public.winner_takes_all_participants
+        WHERE session_id = session_record.id;
+        
+        SELECT COUNT(*) INTO participants_with_scores
+        FROM public.winner_takes_all_participants
+        WHERE session_id = session_record.id
+        AND score IS NOT NULL
+        AND completed_at IS NOT NULL;
+        
+        participants_without_scores := total_participants - participants_with_scores;
+        
+        RAISE NOTICE '📊 [PAYOUT] Score Status: %/% participants have scores (% still playing)', 
+            participants_with_scores, total_participants, participants_without_scores;
+        
+        -- If there are participants without scores, wait a bit more
+        IF participants_without_scores > 0 THEN
+            RETURN jsonb_build_object(
+                'success', false,
+                'message', 'Waiting for all players to finish... (' || participants_with_scores || '/' || total_participants || ' scores recorded). Please wait ' || ROUND(grace_period_seconds - time_since_timer_expired, 1) || ' more seconds.',
+                'grace_period', true,
+                'scores_recorded', participants_with_scores,
+                'total_participants', total_participants,
+                'time_remaining', ROUND(grace_period_seconds - time_since_timer_expired, 1)
+            );
+        END IF;
     END IF;
 
     -- CRITICAL: Find winner from CURRENT participants with HIGHEST SCORE
