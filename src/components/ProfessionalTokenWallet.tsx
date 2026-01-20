@@ -293,14 +293,15 @@ export default function ProfessionalTokenWallet() {
             continue;
           }
           
-          const currentTokens = freshProfile.tokens || 0;
-          newBalance = currentTokens + totalTokens;
+          const currentPurchased = freshProfile.purchased_tokens || 0;
+          const newPurchasedBalance = currentPurchased + totalTokens;
           
-          console.log(`💰 [TokenWallet] Current tokens: ${currentTokens}`);
-          console.log(`💰 [TokenWallet] New balance: ${newBalance}`);
+          console.log(`💰 [TokenWallet] Current purchased_tokens: ${currentPurchased}`);
+          console.log(`💰 [TokenWallet] Adding: ${totalTokens} tokens`);
+          console.log(`💰 [TokenWallet] New purchased_tokens balance: ${newPurchasedBalance}`);
           
-          // Update tokens in Supabase
-          const updateResult = await UserService.updateUserTokens(userProfile.id, newBalance);
+          // Add tokens to purchased_tokens wallet (play wallet)
+          const updateResult = await UserService.addPurchasedTokens(userProfile.id, totalTokens);
           
           if (!updateResult) {
             throw new Error('Update returned false');
@@ -308,12 +309,13 @@ export default function ProfessionalTokenWallet() {
           
           // Verify the update
           const verifyProfile = await UserService.getUserProfile(userProfile.id);
-          if (verifyProfile && verifyProfile.tokens === newBalance) {
-            console.log(`✅ [TokenWallet] Tokens updated and verified on attempt ${attempt}`);
+          if (verifyProfile && verifyProfile.purchased_tokens === newPurchasedBalance) {
+            console.log(`✅ [TokenWallet] Purchased tokens updated and verified on attempt ${attempt}`);
             updateSuccess = true;
+            newBalance = newPurchasedBalance; // Set for later use
             break;
           } else {
-            throw new Error(`Verification failed: Expected ${newBalance}, got ${verifyProfile?.tokens}`);
+            throw new Error(`Verification failed: Expected ${newPurchasedBalance} purchased_tokens, got ${verifyProfile?.purchased_tokens}`);
           }
           
         } catch (attemptError: any) {
@@ -332,40 +334,48 @@ export default function ProfessionalTokenWallet() {
         throw new Error('Failed to update tokens after 3 attempts');
       }
       
-      // Step 3: Add token transaction record
-      const transactionResult = await UserService.addTokenTransaction({
-        userId: userProfile.id,
-        type: 'purchase',
-        amount: totalTokens,
-        balance_before: (newBalance - totalTokens),
-        balance_after: newBalance,
-        description: `Purchased ${totalTokens} tokens via Stripe`,
-        stripePaymentIntentId: paymentIntent.id,
-        metadata: {
-          payment_intent_id: paymentIntent.id,
-          amount_paid: amountPaid / 100,
-          timestamp: new Date().toISOString()
-        }
-      });
-      console.log('✅ [TokenWallet] Transaction recorded:', transactionResult);
-      
-      // Step 4: Save purchase history
+      // Step 3: Save purchase history FIRST (before transaction record)
       const purchaseResult = await UserService.savePurchaseHistory({
         userId: userProfile.id,
         purchaseType: 'tokens',
         amount: amountPaid / 100,
         tokensPurchased: totalTokens,
+        tokensSpent: 0,
         stripePaymentIntentId: paymentIntent.id,
         status: 'completed',
-        description: `Purchased ${totalTokens} tokens`,
+        description: `Purchased ${totalTokens} tokens via Stripe`,
         metadata: {
           payment_intent_id: paymentIntent.id,
           tokens: totalTokens,
           price_per_token: 1,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          wallet_type: 'purchased_tokens'
         }
       });
       console.log('✅ [TokenWallet] Purchase history saved:', purchaseResult);
+      
+      if (!purchaseResult) {
+        console.error('❌ [TokenWallet] Failed to save purchase history!');
+        // Continue anyway - tokens are already added
+      }
+      
+      // Step 4: Add token transaction record
+      const transactionResult = await UserService.addTokenTransaction({
+        userId: userProfile.id,
+        type: 'purchase',
+        amount: totalTokens,
+        balance_before: (newPurchasedBalance - totalTokens),
+        balance_after: newPurchasedBalance,
+        description: `Purchased ${totalTokens} tokens via Stripe (added to purchased_tokens wallet)`,
+        stripePaymentIntentId: paymentIntent.id,
+        metadata: {
+          payment_intent_id: paymentIntent.id,
+          amount_paid: amountPaid / 100,
+          timestamp: new Date().toISOString(),
+          wallet_type: 'purchased_tokens'
+        }
+      });
+      console.log('✅ [TokenWallet] Transaction recorded:', transactionResult);
       
       // Step 5: Log activity for complete tracking
       await ActivityService.logActivity(userProfile.id, 'token_purchase', {
@@ -381,14 +391,16 @@ export default function ProfessionalTokenWallet() {
       if (updatedProfile) {
         setUserProfile(updatedProfile);
         console.log('✅ [TokenWallet] User profile refreshed from Supabase');
-        console.log('💰 [TokenWallet] Verified new balance:', updatedProfile.tokens);
+        console.log('💰 [TokenWallet] Verified purchased_tokens:', updatedProfile.purchased_tokens);
+        console.log('💰 [TokenWallet] Won tokens:', updatedProfile.won_tokens);
+        console.log('💰 [TokenWallet] Total tokens:', (updatedProfile.purchased_tokens || 0) + (updatedProfile.won_tokens || 0));
         
         // Verify the update was successful
-        if (updatedProfile.tokens !== newBalance) {
-          console.error(`❌ [TokenWallet] Token mismatch! Expected ${newBalance}, got ${updatedProfile.tokens}`);
-          throw new Error(`Token update verification failed. Expected ${newBalance}, got ${updatedProfile.tokens}`);
+        if (updatedProfile.purchased_tokens !== newPurchasedBalance) {
+          console.error(`❌ [TokenWallet] Token mismatch! Expected ${newPurchasedBalance} purchased_tokens, got ${updatedProfile.purchased_tokens}`);
+          throw new Error(`Token update verification failed. Expected ${newPurchasedBalance} purchased_tokens, got ${updatedProfile.purchased_tokens}`);
         } else {
-          console.log('✅ [TokenWallet] Token balance verified successfully!');
+          console.log('✅ [TokenWallet] Purchased tokens balance verified successfully!');
         }
       } else {
         console.error('❌ [TokenWallet] Could not fetch updated profile');
@@ -413,9 +425,10 @@ export default function ProfessionalTokenWallet() {
       }
       
       // Step 8: Show success message
+      const totalBalance = (updatedProfile.purchased_tokens || 0) + (updatedProfile.won_tokens || 0);
       setPaymentResult({
         success: true,
-        message: `🎉 Successfully purchased ${totalTokens} tokens! Your new balance is ${newBalance} tokens.`
+        message: `🎉 Successfully purchased ${totalTokens} tokens! Your new balance is ${totalBalance} tokens (${updatedProfile.purchased_tokens} purchased + ${updatedProfile.won_tokens || 0} won).`
       });
       
       setShowCheckout(false);

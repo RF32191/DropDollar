@@ -390,7 +390,7 @@ export class UserService {
   }
 
   /**
-   * Update user tokens in Supabase
+   * Update user tokens in Supabase (legacy - updates tokens field)
    */
   static async updateUserTokens(userId: string, newTokenAmount: number): Promise<boolean> {
     try {
@@ -430,6 +430,65 @@ export class UserService {
       return true;
     } catch (error) {
       console.error('❌ [UserService] Exception in updateUserTokens:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Add purchased tokens to user's purchased_tokens wallet (play wallet)
+   */
+  static async addPurchasedTokens(userId: string, tokenAmount: number): Promise<boolean> {
+    try {
+      console.log('💰 [UserService] Adding purchased tokens:', userId, 'Amount:', tokenAmount);
+      
+      // First, get current purchased_tokens balance
+      const currentProfile = await this.getUserProfile(userId);
+      if (!currentProfile) {
+        console.error('❌ [UserService] User profile not found');
+        return false;
+      }
+      
+      const currentPurchased = currentProfile.purchased_tokens || 0;
+      const newPurchasedBalance = currentPurchased + tokenAmount;
+      
+      console.log(`💰 [UserService] Current purchased_tokens: ${currentPurchased}, Adding: ${tokenAmount}, New balance: ${newPurchasedBalance}`);
+      
+      // Update purchased_tokens field
+      const { data, error } = await supabase
+        .from('users')
+        .update({ 
+          purchased_tokens: newPurchasedBalance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .select();
+
+      if (error) {
+        console.error('❌ [UserService] Error adding purchased tokens:', error);
+        return false;
+      }
+
+      console.log('✅ [UserService] Purchased tokens added successfully:', data);
+      console.log('💰 [UserService] New purchased_tokens balance:', newPurchasedBalance);
+      
+      // Trigger cross-page synchronization events
+      if (typeof window !== 'undefined') {
+        // Update localStorage with total tokens
+        const totalTokens = newPurchasedBalance + (currentProfile.won_tokens || 0);
+        localStorage.setItem('tokenBalance', totalTokens.toString());
+        
+        // Dispatch custom event for other components
+        const event = new CustomEvent('tokenUpdated', {
+          detail: { userId, tokens: totalTokens, purchased_tokens: newPurchasedBalance }
+        });
+        window.dispatchEvent(event);
+        
+        console.log('🔄 [UserService] Token synchronization events triggered');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ [UserService] Exception in addPurchasedTokens:', error);
       return false;
     }
   }
