@@ -164,8 +164,8 @@ export default function ProfessionalTokenWallet() {
             try {
               const userTransactions = await UserService.getUserTransactions(currentUser.id);
               
-              // Separate purchases and winnings
-              const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
+              // Separate purchases and winnings (accept both 'purchase' and 'token_purchase')
+              const purchases = userTransactions.filter(tx => tx.type === 'token_purchase' || tx.type === 'purchase');
               const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
               
               // Update state (keep compatibility with existing UI)
@@ -258,8 +258,8 @@ export default function ProfessionalTokenWallet() {
           // Fetch up to 1000 transactions to show complete history
           const userTransactions = await UserService.getUserTransactions(userProfile.id, 1000);
           
-          // Separate purchases and winnings
-          const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
+          // Separate purchases and winnings (accept both 'purchase' and 'token_purchase')
+          const purchases = userTransactions.filter(tx => tx.type === 'token_purchase' || tx.type === 'purchase');
           const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
           
           // Update token transactions (all transactions)
@@ -586,8 +586,8 @@ export default function ProfessionalTokenWallet() {
       try {
         userTransactions = await UserService.getUserTransactions(userProfile.id);
         
-        // Separate purchases and winnings
-        const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
+        // Separate purchases and winnings (accept both 'purchase' and 'token_purchase')
+        const purchases = userTransactions.filter(tx => tx.type === 'token_purchase' || tx.type === 'purchase');
         const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
         
         // Update state (keep compatibility with existing UI)
