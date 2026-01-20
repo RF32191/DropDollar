@@ -25,7 +25,7 @@ BEGIN
             gh.id,
             gh.user_id,
             gh.game_type,
-            gh."mode",  -- Quote 'mode' because it's a reserved word
+            gh."mode" as game_mode,  -- Alias 'mode' to avoid reserved word issues
             gh.score,
             gh.tokens_wagered,
             gh.tokens_won,
