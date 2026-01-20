@@ -1656,7 +1656,7 @@ export default function PennyPasserGame3D({
                 style={{ aspectRatio: '16/9' }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setExpandedVideo('/penny-passer-gameplay.mp4');
+                  setExpandedVideo('/PennyPasser.mp4');
                 }}
               >
                 <video
@@ -1676,7 +1676,7 @@ export default function PennyPasserGame3D({
                     }
                   }}
                 >
-                  <source src="/penny-passer-gameplay.mp4" type="video/mp4" />
+                  <source src="/PennyPasser.mp4" type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">

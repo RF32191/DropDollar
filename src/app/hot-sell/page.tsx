@@ -1022,7 +1022,7 @@ export default function HotSellPage() {
       case 'color_sequence': return { name: '🎨 Color Memory', emoji: '🎨', video: '/color-sequence-gameplay.mp4' };
       case 'cash_stack': return { name: '💵 Cash Stack', emoji: '💵', video: '/cash-stack-gameplay.mp4' };
       case 'quick_click': return { name: '⚡ Quick Click', emoji: '⚡', video: '/quick-click-gameplay.mp4' };
-      case 'penny_passer': return { name: '🪙 Penny Passer', emoji: '🪙', video: '/penny-passer-gameplay.mp4' };
+      case 'penny_passer': return { name: '🪙 Penny Passer', emoji: '🪙', video: '/PennyPasser.mp4' };
       default: return { name: type, emoji: '🎮', video: null };
     }
   };

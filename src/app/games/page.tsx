@@ -1762,7 +1762,7 @@ export default function GamesPage() {
                   
                   {game.id === 'penny-passer' && (
                     <div className="absolute inset-0">
-                      <LazyVideo src="/penny-passer-gameplay.mp4" className="w-full h-full" preload="none" />
+                      <LazyVideo src="/PennyPasser.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
