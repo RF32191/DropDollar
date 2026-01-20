@@ -1513,13 +1513,14 @@ export default function HotSellPage() {
                     </div>
                   </div>
                 ) : (
-                  /* Show EXPECTED PAYOUTS based on FULL PRIZE when game fills (base_price) */
+                  /* Show EXPECTED PAYOUTS based on FULL PRIZE when game fills */
                   <div className="mb-4 p-4 bg-blue-900/20 rounded-xl border border-blue-500/30">
                     <div className="text-[10px] font-semibold text-blue-300 mb-2 text-center">🎯 Expected Payout (When Full)</div>
                     <div className="space-y-1.5 text-xs">
-                      {/* Calculate accurate payouts based on BASE PRICE (full prize amount) */}
+                      {/* Calculate accurate payouts based on max_participants × entry_fee */}
                       {(() => {
-                        const fullPrize = config.base_price || 0; // Use base_price, not current pool
+                        // Full prize = max players × entry fee (e.g., 10 players × $1 = $10)
+                        const fullPrize = (config.max_participants || 0) * (config.entry_fee || 1);
                         const platformFee = fullPrize * 0.15;
                         const payoutPool = fullPrize * 0.85;
                         const firstPlace = payoutPool * 0.50; // 50% of 85% = 42.5% total
