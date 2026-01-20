@@ -254,15 +254,48 @@ export default function ProfessionalTokenWallet() {
       if (activeTab === 'history' && userProfile) {
         console.log('🔄 [TokenWallet] Refreshing transaction history and purchase history...');
         try {
-          const transactions = await UserService.getUserTokenTransactions(userProfile.id);
-          setTokenTransactions(transactions);
-          console.log('✅ [TokenWallet] Transaction history refreshed:', transactions.length, 'transactions');
+          // Use getUserTransactions (unified method for user_transactions table)
+          const userTransactions = await UserService.getUserTransactions(userProfile.id);
           
-          const purchases = await UserService.getUserPurchaseHistory(userProfile.id);
-          setPurchaseHistory(purchases);
-          console.log('✅ [TokenWallet] Purchase history refreshed:', purchases.length, 'purchases');
-        } catch (error) {
+          // Separate purchases and winnings
+          const purchases = userTransactions.filter(tx => tx.type === 'token_purchase');
+          const winnings = userTransactions.filter(tx => tx.type === 'earning' || tx.type === 'game_win');
+          
+          // Update token transactions (all transactions)
+          setTokenTransactions(userTransactions.map(tx => ({
+            id: tx.id,
+            userId: tx.user_id,
+            type: tx.type === 'token_purchase' ? 'purchase' : tx.type,
+            amount: tx.tokens_purchased || tx.tokens_won || tx.amount,
+            balance_before: null,
+            balance_after: null,
+            description: tx.description,
+            stripePaymentIntentId: tx.stripe_payment_intent_id,
+            metadata: tx.metadata || {},
+            created_at: tx.created_at
+          })));
+          
+          // Update purchase history
+          setPurchaseHistory(purchases.map(tx => ({
+            id: tx.id,
+            userId: tx.user_id,
+            purchaseType: 'tokens',
+            amount: tx.amount,
+            tokensPurchased: tx.tokens_purchased || 0,
+            tokensSpent: 0,
+            stripePaymentIntentId: tx.stripe_payment_intent_id,
+            status: tx.status || 'completed',
+            description: tx.description,
+            metadata: tx.metadata || {},
+            createdAt: tx.created_at
+          })));
+          
+          console.log('✅ [TokenWallet] Transaction history refreshed:', userTransactions.length, 'transactions');
+          console.log('✅ [TokenWallet] Purchases:', purchases.length, 'Winnings:', winnings.length);
+        } catch (error: any) {
           console.error('❌ [TokenWallet] Failed to refresh history:', error);
+          console.error('❌ [TokenWallet] Error details:', error?.message);
+          // Don't clear history on error - keep what we have
         }
       }
     };
