@@ -309,14 +309,84 @@ export default function ProfessionalTokenWallet() {
         console.warn(`⚠️ [TokenWallet] Using actual payment amount: ${totalTokens} tokens`);
       }
       
-      // Step 1: Retry-wrapped token update
+      // CRITICAL: Step 1 - Save transaction FIRST to prevent webhook from adding duplicate tokens
+      // This MUST happen BEFORE adding tokens so webhook can detect it
+      console.log('💳 [TokenWallet] Step 1: Saving transaction FIRST to prevent webhook duplicates...');
+      console.log('💳 [TokenWallet] User ID:', userProfile.id);
+      console.log('💳 [TokenWallet] Payment Intent ID:', paymentIntent.id);
+      console.log('💳 [TokenWallet] Tokens:', totalTokens);
+      console.log('💳 [TokenWallet] Amount:', amountPaidDollars);
+      
+      let transactionResult = false;
+      let transactionAttempts = 0;
+      const maxTransactionAttempts = 3;
+      
+      while (!transactionResult && transactionAttempts < maxTransactionAttempts) {
+        transactionAttempts++;
+        console.log(`💳 [TokenWallet] Transaction save attempt ${transactionAttempts}/${maxTransactionAttempts}`);
+        
+        try {
+          // Save to user_transactions table FIRST (before adding tokens)
+          const response = await fetch('/api/payments/save-user-transaction', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: userProfile.id,
+              type: 'token_purchase',
+              amount: amountPaidDollars,
+              description: `Purchased ${totalTokens} tokens via Stripe ($${amountPaidDollars})`,
+              status: 'completed',
+              stripePaymentIntentId: paymentIntent.id,
+              tokensPurchased: totalTokens,
+              metadata: {
+                payment_intent_id: paymentIntent.id,
+                tokens: totalTokens,
+                amount_paid_cents: actualAmountPaid,
+                amount_paid_dollars: amountPaidDollars,
+                price_per_token: 1,
+                timestamp: new Date().toISOString(),
+                wallet_type: 'purchased_tokens',
+                source: 'frontend_payment_success'
+              }
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ [TokenWallet] Transaction saved FIRST:', result.transactionId);
+            transactionResult = true;
+            break;
+          } else {
+            const errorData = await response.json();
+            console.error(`❌ [TokenWallet] Transaction save failed attempt ${transactionAttempts}:`, errorData);
+            if (transactionAttempts < maxTransactionAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
+            }
+          }
+        } catch (apiError: any) {
+          console.error(`❌ [TokenWallet] Transaction save exception attempt ${transactionAttempts}:`, apiError);
+          if (transactionAttempts < maxTransactionAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * transactionAttempts));
+          }
+        }
+      }
+      
+      if (!transactionResult) {
+        console.error('❌ [TokenWallet] FAILED to save transaction! Webhook may add duplicate tokens!');
+        throw new Error('Failed to save transaction - cannot proceed with token addition');
+      }
+      
+      // Step 2: NOW add tokens AFTER transaction is saved
+      console.log('💰 [TokenWallet] Step 2: Adding tokens AFTER transaction saved...');
       let updateSuccess = false;
       let newBalance = 0;
       let newPurchasedBalance = 0; // Declare outside loop for use later
       
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          console.log(`🔄 [TokenWallet] Update attempt ${attempt}/3...`);
+          console.log(`🔄 [TokenWallet] Token update attempt ${attempt}/3...`);
           
           // Fetch fresh user data from Supabase
           const freshProfile = await UserService.getUserProfile(userProfile.id);
@@ -374,7 +444,7 @@ export default function ProfessionalTokenWallet() {
         throw new Error('Failed to update tokens after 3 attempts');
       }
       
-      // Step 3: Save to user_transactions table (links to wallet via user_id)
+      // Step 3: Transaction already saved in Step 1, skip duplicate save
       // This MUST succeed to prevent webhook from adding duplicate tokens
       // Use API endpoint directly to bypass RLS issues
       console.log('💳 [TokenWallet] Attempting to save user transaction via API...');
@@ -469,7 +539,7 @@ export default function ProfessionalTokenWallet() {
         throw new Error('Failed to verify token update');
       }
       
-      // Step 7: Reload user transactions (purchases and winnings)
+      // Step 4: Reload user transactions (purchases and winnings)
       console.log('🔄 [TokenWallet] Reloading user transactions...');
       const userTransactions = await UserService.getUserTransactions(userProfile.id);
       
@@ -516,7 +586,7 @@ export default function ProfessionalTokenWallet() {
         console.warn('⚠️ [TokenWallet] Latest transaction not found in history');
       }
       
-      // Step 8: Show success message
+      // Step 5: Show success message
       const totalBalance = (updatedProfile.purchased_tokens || 0) + (updatedProfile.won_tokens || 0);
       setPaymentResult({
         success: true,
