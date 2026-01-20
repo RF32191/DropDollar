@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import StripeSyncButton from './StripeSyncButton';
 
 interface PurchaseRecord {
   id: string;
@@ -218,6 +219,11 @@ export function PurchaseHistory() {
 
       {/* Content */}
       <div className="p-6">
+        {/* Stripe Sync Tool */}
+        <div className="mb-6">
+          <StripeSyncButton />
+        </div>
+
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
             <p className="text-red-400">{error}</p>
