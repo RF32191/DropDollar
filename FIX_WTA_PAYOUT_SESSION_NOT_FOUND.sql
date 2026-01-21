@@ -116,6 +116,23 @@ BEGIN
   RAISE NOTICE 'Payout calculation - Total: $%, Winner: $%, Platform: $%', 
     total_pot, v_winner_payout, v_platform_fee;
 
+  -- FIRST: Mark session with winner info (but keep status 'active' for 30 seconds)
+  -- This allows frontend to show winner announcement and countdown
+  UPDATE public.winner_takes_all_sessions
+  SET 
+    winner_user_id = winner_record.user_id,
+    winner_prize = v_winner_payout,
+    platform_fee_amount = v_platform_fee,
+    updated_at = NOW()
+  WHERE id = session_record.id;
+
+  RAISE NOTICE 'Winner announced: % - waiting 30 seconds for countdown...', winner_record.username;
+
+  -- Wait 30 seconds (gives frontend time to show winner and countdown)
+  PERFORM pg_sleep(30);
+
+  RAISE NOTICE 'Countdown complete - processing payout...';
+
   -- Pay winner to won_tokens wallet and get new balance
   DECLARE
     v_balance_after NUMERIC;
@@ -148,20 +165,17 @@ BEGIN
     RAISE NOTICE 'Transaction recorded';
   END;
 
-  -- Mark session as completed
+  -- Mark session as completed NOW (after payout)
   UPDATE public.winner_takes_all_sessions
   SET 
     status = 'completed',
-    winner_user_id = winner_record.user_id,
-    winner_prize = v_winner_payout,
-    platform_fee_amount = v_platform_fee,
     completed_at = NOW(),
     updated_at = NOW()
   WHERE id = session_record.id;
 
-  RAISE NOTICE 'Session marked as completed';
+  RAISE NOTICE 'Session marked as completed after payout';
 
-  -- Wait 5 seconds before creating new session (gives frontend time to show results)
+  -- Wait 5 more seconds before creating new session
   PERFORM pg_sleep(5);
 
   -- Automatically create a NEW session for the next round (only if one doesn't exist)
