@@ -95,22 +95,22 @@ BEGIN
   RETURN QUERY
   -- First place winners
   SELECT 
-    s.id as session_id,
-    s.config_id,
-    c.title as game_title,
-    c.game_type,
-    s.first_place_user_id as winner_user_id,
+    s.id::UUID as session_id,
+    s.config_id::TEXT,
+    c.title::TEXT as game_title,
+    c.game_type::TEXT,
+    s.first_place_user_id::UUID as winner_user_id,
     COALESCE(u.username, SPLIT_PART(u.email, '@', 1), 'Player')::TEXT as winner_username,
     '1st Place'::TEXT as winner_placement,
-    p.score::NUMERIC as winner_score,
-    s.first_place_prize as winner_prize,
-    s.platform_fee,
-    s.prize_pool as total_pot,
-    s.completed_at
+    COALESCE(p.score, 0)::NUMERIC as winner_score,
+    s.first_place_prize::NUMERIC as winner_prize,
+    s.platform_fee::NUMERIC,
+    s.prize_pool::NUMERIC as total_pot,
+    s.completed_at::TIMESTAMPTZ
   FROM public.hot_sell_sessions s
   INNER JOIN public.hot_sell_configs c ON s.config_id = c.id
   LEFT JOIN public.users u ON s.first_place_user_id = u.id
-  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = s.first_place_user_id::TEXT
+  LEFT JOIN public.hot_sell_participants p ON (p.session_id = s.id AND p.user_id::UUID = s.first_place_user_id)
   WHERE s.status = 'completed'
     AND s.first_place_user_id IS NOT NULL
     AND s.first_place_prize IS NOT NULL
@@ -119,22 +119,22 @@ BEGIN
   
   -- Second place winners
   SELECT 
-    s.id as session_id,
-    s.config_id,
-    c.title as game_title,
-    c.game_type,
-    s.second_place_user_id as winner_user_id,
+    s.id::UUID as session_id,
+    s.config_id::TEXT,
+    c.title::TEXT as game_title,
+    c.game_type::TEXT,
+    s.second_place_user_id::UUID as winner_user_id,
     COALESCE(u.username, SPLIT_PART(u.email, '@', 1), 'Player')::TEXT as winner_username,
     '2nd Place'::TEXT as winner_placement,
-    p.score::NUMERIC as winner_score,
-    s.second_place_prize as winner_prize,
-    s.platform_fee,
-    s.prize_pool as total_pot,
-    s.completed_at
+    COALESCE(p.score, 0)::NUMERIC as winner_score,
+    s.second_place_prize::NUMERIC as winner_prize,
+    s.platform_fee::NUMERIC,
+    s.prize_pool::NUMERIC as total_pot,
+    s.completed_at::TIMESTAMPTZ
   FROM public.hot_sell_sessions s
   INNER JOIN public.hot_sell_configs c ON s.config_id = c.id
   LEFT JOIN public.users u ON s.second_place_user_id = u.id
-  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = s.second_place_user_id::TEXT
+  LEFT JOIN public.hot_sell_participants p ON (p.session_id = s.id AND p.user_id::UUID = s.second_place_user_id)
   WHERE s.status = 'completed'
     AND s.second_place_user_id IS NOT NULL
     AND s.second_place_prize IS NOT NULL
@@ -143,22 +143,22 @@ BEGIN
   
   -- Third place winners
   SELECT 
-    s.id as session_id,
-    s.config_id,
-    c.title as game_title,
-    c.game_type,
-    s.third_place_user_id as winner_user_id,
+    s.id::UUID as session_id,
+    s.config_id::TEXT,
+    c.title::TEXT as game_title,
+    c.game_type::TEXT,
+    s.third_place_user_id::UUID as winner_user_id,
     COALESCE(u.username, SPLIT_PART(u.email, '@', 1), 'Player')::TEXT as winner_username,
     '3rd Place'::TEXT as winner_placement,
-    p.score::NUMERIC as winner_score,
-    s.third_place_prize as winner_prize,
-    s.platform_fee,
-    s.prize_pool as total_pot,
-    s.completed_at
+    COALESCE(p.score, 0)::NUMERIC as winner_score,
+    s.third_place_prize::NUMERIC as winner_prize,
+    s.platform_fee::NUMERIC,
+    s.prize_pool::NUMERIC as total_pot,
+    s.completed_at::TIMESTAMPTZ
   FROM public.hot_sell_sessions s
   INNER JOIN public.hot_sell_configs c ON s.config_id = c.id
   LEFT JOIN public.users u ON s.third_place_user_id = u.id
-  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = s.third_place_user_id::TEXT
+  LEFT JOIN public.hot_sell_participants p ON (p.session_id = s.id AND p.user_id::UUID = s.third_place_user_id)
   WHERE s.status = 'completed'
     AND s.third_place_user_id IS NOT NULL
     AND s.third_place_prize IS NOT NULL
