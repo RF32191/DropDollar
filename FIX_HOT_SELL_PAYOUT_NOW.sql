@@ -13,15 +13,12 @@ AS $$
 DECLARE
   v_session_record RECORD;
   v_config_record RECORD;
-  v_winners RECORD[];
-  v_winner RECORD;
   v_total_pool NUMERIC;
   v_first_prize NUMERIC;
   v_second_prize NUMERIC;
   v_third_prize NUMERIC;
   v_platform_fee NUMERIC;
   v_new_session_id UUID;
-  v_winner_data JSON[];
   v_first_user_id TEXT;
   v_second_user_id TEXT;
   v_third_user_id TEXT;
