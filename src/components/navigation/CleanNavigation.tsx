@@ -20,9 +20,10 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
     { href: '/games', label: 'Games', emoji: '🎮' },
     { href: '/tournaments', label: 'Tournaments', emoji: '🏆' },
     { href: '/hot-sell', label: 'Hot Sell', emoji: '🔥' },
-    { href: '/rewards', label: 'RP Rewards', emoji: '⭐' },
     { href: '/winner-takes-all', label: 'Winner Takes It All', emoji: '👑' },
     { href: '/tournaments/1v1', label: '1v1', emoji: '⚔️' },
+    { href: '/winners', label: 'Winners Hall', emoji: '🏅' },
+    { href: '/rewards', label: 'RP Rewards', emoji: '⭐' },
     { href: '/categories', label: 'Categories', emoji: '📦' },
     { href: '/buy-tokens', label: 'Buy Tokens', emoji: '💰' },
   ];
