@@ -110,7 +110,7 @@ BEGIN
   FROM public.hot_sell_sessions s
   INNER JOIN public.hot_sell_configs c ON s.config_id = c.id
   LEFT JOIN public.users u ON s.first_place_user_id = u.id
-  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = u.id::TEXT
+  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = s.first_place_user_id::TEXT
   WHERE s.status = 'completed'
     AND s.first_place_user_id IS NOT NULL
     AND s.first_place_prize IS NOT NULL
@@ -134,7 +134,7 @@ BEGIN
   FROM public.hot_sell_sessions s
   INNER JOIN public.hot_sell_configs c ON s.config_id = c.id
   LEFT JOIN public.users u ON s.second_place_user_id = u.id
-  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = u.id::TEXT
+  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = s.second_place_user_id::TEXT
   WHERE s.status = 'completed'
     AND s.second_place_user_id IS NOT NULL
     AND s.second_place_prize IS NOT NULL
@@ -158,7 +158,7 @@ BEGIN
   FROM public.hot_sell_sessions s
   INNER JOIN public.hot_sell_configs c ON s.config_id = c.id
   LEFT JOIN public.users u ON s.third_place_user_id = u.id
-  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = u.id::TEXT
+  LEFT JOIN public.hot_sell_participants p ON p.session_id = s.id AND p.user_id = s.third_place_user_id::TEXT
   WHERE s.status = 'completed'
     AND s.third_place_user_id IS NOT NULL
     AND s.third_place_prize IS NOT NULL
