@@ -213,7 +213,69 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 3: Verify setup
+-- STEP 3: Ensure all active configs have sessions
+-- ============================================================================
+DO $$
+DECLARE
+  config_rec RECORD;
+  session_exists BOOLEAN;
+  new_session_id UUID;
+BEGIN
+  RAISE NOTICE ' ';
+  RAISE NOTICE 'Ensuring all configs have active sessions...';
+  
+  FOR config_rec IN 
+    SELECT id, game_type, title, base_price, timer_duration
+    FROM winner_takes_all_configs
+    WHERE is_active = true
+  LOOP
+    -- Check if this config has an active session
+    SELECT EXISTS (
+      SELECT 1 FROM winner_takes_all_sessions
+      WHERE config_id = config_rec.id
+      AND status IN ('waiting', 'active')
+    ) INTO session_exists;
+    
+    IF NOT session_exists THEN
+      -- Create a new session for this config
+      new_session_id := gen_random_uuid();
+      
+      INSERT INTO winner_takes_all_sessions (
+        id,
+        config_id,
+        prize_pool,
+        base_price,
+        participants_count,
+        status,
+        timer_started_at,
+        timer_duration,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        new_session_id,
+        config_rec.id,
+        0,
+        config_rec.base_price,
+        0,
+        'waiting',
+        NULL,
+        COALESCE(config_rec.timer_duration, 7200),
+        NOW(),
+        NOW()
+      );
+      
+      RAISE NOTICE 'Created session for: % (ID: %)', config_rec.title, new_session_id;
+    ELSE
+      RAISE NOTICE 'Session exists for: %', config_rec.title;
+    END IF;
+  END LOOP;
+  
+  RAISE NOTICE 'All configs have sessions';
+END $$;
+
+-- ============================================================================
+-- STEP 4: Verify setup
 -- ============================================================================
 DO $$ 
 BEGIN
@@ -221,7 +283,20 @@ BEGIN
   RAISE NOTICE '=== WTA JOIN AND SCORE SUBMISSION FIX COMPLETE ===';
   RAISE NOTICE 'Fixed join function - users can join new sessions';
   RAISE NOTICE 'Fixed score submission - scores save to correct session';
+  RAISE NOTICE 'Created missing sessions for all active configs';
   RAISE NOTICE 'Progress bar will now update correctly';
   RAISE NOTICE ' ';
+  RAISE NOTICE 'Active Sessions:';
 END $$;
+
+SELECT 
+  s.config_id,
+  c.title,
+  s.participants_count || ' players' as players,
+  '$' || s.prize_pool::TEXT as prize_pool,
+  s.status
+FROM winner_takes_all_sessions s
+JOIN winner_takes_all_configs c ON s.config_id = c.id
+WHERE s.status IN ('waiting', 'active')
+ORDER BY c.base_price;
 
