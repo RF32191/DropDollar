@@ -92,7 +92,14 @@ export default function WinnersPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    return date.toLocaleDateString('en-US', options);
   };
 
   const formatMoney = (amount: number) => {
@@ -227,9 +234,9 @@ export default function WinnersPage() {
                                 {winner.winner_username}
                               </h3>
                               <p className="text-purple-200">{winner.game_title}</p>
-                              <p className="text-purple-300 text-sm">
+                              <p className="text-yellow-300 text-sm font-semibold">
                                 <ClockIcon className="w-4 h-4 inline mr-1" />
-                                {formatDate(winner.completed_at)}
+                                Victory: {formatDate(winner.completed_at)}
                               </p>
                             </div>
                           </div>
@@ -307,9 +314,9 @@ export default function WinnersPage() {
                                 </span>
                               </div>
                               <p className="text-purple-200">{winner.game_title}</p>
-                              <p className="text-purple-300 text-sm">
+                              <p className="text-yellow-300 text-sm font-semibold">
                                 <ClockIcon className="w-4 h-4 inline mr-1" />
-                                {formatDate(winner.completed_at)}
+                                Victory: {formatDate(winner.completed_at)}
                               </p>
                             </div>
                           </div>
