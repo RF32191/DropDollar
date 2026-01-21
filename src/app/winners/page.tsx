@@ -49,6 +49,7 @@ export default function WinnersPage() {
   const [wtaWinners, setWtaWinners] = useState<WTAWinner[]>([]);
   const [hotSellWinners, setHotSellWinners] = useState<HotSellWinner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWinners();
@@ -56,6 +57,7 @@ export default function WinnersPage() {
 
   const fetchWinners = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       // Fetch Winner Takes All winners
       const { data: wtaData, error: wtaError } = await supabase.rpc('get_wta_winners', {
@@ -64,6 +66,7 @@ export default function WinnersPage() {
 
       if (wtaError) {
         console.error('Error fetching WTA winners:', wtaError);
+        setError(`WTA Error: ${wtaError.message}`);
       } else {
         setWtaWinners(wtaData || []);
       }
@@ -75,11 +78,13 @@ export default function WinnersPage() {
 
       if (hotSellError) {
         console.error('Error fetching Hot Sell winners:', hotSellError);
+        setError(`Hot Sell Error: ${hotSellError.message}`);
       } else {
         setHotSellWinners(hotSellData || []);
       }
     } catch (error) {
       console.error('Error fetching winners:', error);
+      setError(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -172,8 +177,24 @@ export default function WinnersPage() {
           </div>
         )}
 
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-8 text-center mb-8">
+            <h3 className="text-2xl font-bold text-red-300 mb-4">⚠️ Setup Required</h3>
+            <p className="text-red-200 mb-4">{error}</p>
+            <div className="bg-black/30 rounded-lg p-6 text-left max-w-2xl mx-auto">
+              <p className="text-yellow-200 font-semibold mb-2">To fix this:</p>
+              <ol className="text-purple-200 space-y-2">
+                <li>1. Open Supabase SQL Editor</li>
+                <li>2. Run <code className="bg-white/10 px-2 py-1 rounded">WINNERS_PAGE_SQL.sql</code></li>
+                <li>3. Refresh this page</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
         {/* Winners Content */}
-        {!isLoading && (
+        {!isLoading && !error && (
           <div className="space-y-8">
             {/* Winner Takes All Section */}
             {(selectedCategory === 'all' || selectedCategory === 'wta') && (
