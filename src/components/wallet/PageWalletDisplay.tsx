@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ShoppingCartIcon, TrophyIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
-type WalletVariant = 'default' | 'hot-sell' | 'winner-takes-all' | '1v1' | 'coin-play';
+type WalletVariant = 'default' | 'hot-sell' | 'winner-takes-all' | '1v1' | 'coin-play' | 'winners';
 
 interface PageWalletDisplayProps {
   variant?: WalletVariant;
@@ -71,6 +71,11 @@ export default function PageWalletDisplay({ variant = 'default' }: PageWalletDis
       total: { bg: 'from-amber-600/50 to-orange-700/50', border: 'border-amber-400/60', text: 'text-amber-100', icon: 'text-amber-200', value: 'text-white' },
       purchased: { bg: 'from-orange-800/60 to-amber-900/60', border: 'border-orange-400/60', text: 'text-orange-100', icon: 'text-orange-200', value: 'text-white', badge: 'bg-orange-800/60 text-orange-200' },
       winnings: { bg: 'from-yellow-600/60 to-amber-700/60', border: 'border-yellow-300/70', text: 'text-yellow-100', icon: 'text-yellow-200', value: 'text-white', badge: 'bg-yellow-800/60 text-yellow-100', glow: 'from-yellow-300/25 to-amber-300/25' }
+    },
+    'winners': {
+      total: { bg: 'from-yellow-600/30 to-purple-600/30', border: 'border-yellow-500/40', text: 'text-yellow-300', icon: 'text-yellow-400', value: 'text-white' },
+      purchased: { bg: 'from-purple-900/40 to-indigo-800/40', border: 'border-purple-500/40', text: 'text-purple-300', icon: 'text-purple-400', value: 'text-purple-200', badge: 'bg-purple-900/40 text-purple-400' },
+      winnings: { bg: 'from-yellow-600/40 to-orange-600/40', border: 'border-yellow-400/50', text: 'text-yellow-300', icon: 'text-yellow-400', value: 'text-yellow-100', badge: 'bg-yellow-900/40 text-yellow-300', glow: 'from-yellow-400/10 to-orange-400/10' }
     }
   };
 
