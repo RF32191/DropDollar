@@ -1239,6 +1239,18 @@ export default function HotSellPage() {
           </div>
           <p className="text-2xl text-orange-200 mb-2 font-semibold">1 Token Entry - Top 3 Win Prizes!</p>
           <p className="text-xl text-orange-300">1st: 50% | 2nd: 20% | 3rd: 15%</p>
+          
+          {/* Winners Hall Link */}
+          <div className="mt-6">
+            <a
+              href="/winners"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-gray-900 font-bold px-6 py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+            >
+              <span className="text-2xl">🏆</span>
+              <span>View Winners Hall</span>
+              <span className="text-2xl">🏅</span>
+            </a>
+          </div>
         </div>
 
         {/* Message Display */}
