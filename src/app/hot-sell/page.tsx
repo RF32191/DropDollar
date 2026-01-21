@@ -834,7 +834,7 @@ export default function HotSellPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleManualPayout = async (configId: string) => {
+  const handleManualPayout = useCallback(async (configId: string) => {
     try {
       console.log('💰 [Hot Sell] COMPLETE PAYOUT triggered for:', configId);
       
@@ -914,7 +914,7 @@ export default function HotSellPage() {
       await loadSessions();
       await refreshTokens();
     }
-  };
+  }, [configs, refreshTokens, loadSessions]);
 
   // Auto-payout with countdown timer
   useEffect(() => {
@@ -997,7 +997,7 @@ export default function HotSellPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [handleManualPayout]); // Add handleManualPayout to dependencies
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
