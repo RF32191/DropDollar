@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
@@ -916,6 +916,12 @@ export default function HotSellPage() {
     }
   }, [configs, refreshTokens, loadSessions]);
 
+  // Store the latest handleManualPayout in a ref to avoid resetting the timer
+  const handleManualPayoutRef = useRef(handleManualPayout);
+  useEffect(() => {
+    handleManualPayoutRef.current = handleManualPayout;
+  }, [handleManualPayout]);
+
   // Auto-payout with countdown timer
   useEffect(() => {
     if (!sessions.length || !user) return;
@@ -986,10 +992,10 @@ export default function HotSellPage() {
           }
         });
 
-        // Trigger payout outside of setState
+        // Trigger payout outside of setState using the ref
         if (shouldPayout) {
           console.log('💰 [Hot Sell] Calling handleManualPayout for:', shouldPayout);
-          handleManualPayout(shouldPayout);
+          handleManualPayoutRef.current(shouldPayout);
         }
 
         return updated;
@@ -997,7 +1003,7 @@ export default function HotSellPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [handleManualPayout]); // Add handleManualPayout to dependencies
+  }, []); // Empty array - timer never resets!
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
