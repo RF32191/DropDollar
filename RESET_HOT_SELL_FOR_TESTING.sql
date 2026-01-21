@@ -7,7 +7,7 @@
 
 DO $$ 
 BEGIN
-  RAISE NOTICE '🔄 Starting Hot Sell Reset for Testing...';
+  RAISE NOTICE 'Starting Hot Sell Reset for Testing...';
 END $$;
 
 -- ============================================================================
@@ -17,7 +17,7 @@ DELETE FROM hot_sell_participants;
 
 DO $$ 
 BEGIN
-  RAISE NOTICE '✅ Deleted all Hot Sell participants';
+  RAISE NOTICE 'Deleted all Hot Sell participants';
 END $$;
 
 -- ============================================================================
@@ -42,7 +42,7 @@ WHERE status IN ('active', 'completed', 'waiting');
 
 DO $$ 
 BEGIN
-  RAISE NOTICE '✅ Reset all Hot Sell sessions to 0 progress';
+  RAISE NOTICE 'Reset all Hot Sell sessions to 0 progress';
 END $$;
 
 -- ============================================================================
@@ -50,13 +50,13 @@ END $$;
 -- ============================================================================
 DO $$ 
 BEGIN
-  RAISE NOTICE '';
+  RAISE NOTICE ' ';
   RAISE NOTICE '=== HOT SELL RESET COMPLETE ===';
-  RAISE NOTICE '✅ All participants removed';
-  RAISE NOTICE '✅ All sessions reset to waiting state';
-  RAISE NOTICE '✅ All prize pools set to $0.00';
-  RAISE NOTICE '';
-  RAISE NOTICE '📊 Current Hot Sell Sessions:';
+  RAISE NOTICE 'All participants removed';
+  RAISE NOTICE 'All sessions reset to waiting state';
+  RAISE NOTICE 'All prize pools set to $0.00';
+  RAISE NOTICE ' ';
+  RAISE NOTICE 'Current Hot Sell Sessions:';
 END $$;
 
 SELECT 
@@ -77,13 +77,13 @@ DECLARE
   participant_count INTEGER;
 BEGIN
   SELECT COUNT(*) INTO participant_count FROM hot_sell_participants;
-  RAISE NOTICE '';
+  RAISE NOTICE ' ';
   RAISE NOTICE 'Total participants remaining: %', participant_count;
   
   IF participant_count = 0 THEN
-    RAISE NOTICE '✅ All Hot Sell listings successfully reset to 0!';
+    RAISE NOTICE 'All Hot Sell listings successfully reset to 0!';
   ELSE
-    RAISE WARNING '⚠️ Still have % participants remaining', participant_count;
+    RAISE WARNING 'Still have % participants remaining', participant_count;
   END IF;
 END $$;
 
@@ -92,8 +92,8 @@ END $$;
 -- ============================================================================
 DO $$ 
 BEGIN
-  RAISE NOTICE '';
-  RAISE NOTICE '🎮 Hot Sell page is ready for testing!';
-  RAISE NOTICE '📱 Refresh your browser to see all listings at 0%';
-  RAISE NOTICE '';
+  RAISE NOTICE ' ';
+  RAISE NOTICE 'Hot Sell page is ready for testing!';
+  RAISE NOTICE 'Refresh your browser to see all listings at 0%%';
+  RAISE NOTICE ' ';
 END $$;
