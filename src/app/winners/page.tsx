@@ -58,29 +58,48 @@ export default function WinnersPage() {
   const fetchWinners = async () => {
     setIsLoading(true);
     setError(null);
+    
     try {
       // Fetch Winner Takes All winners
-      const { data: wtaData, error: wtaError } = await supabase.rpc('get_wta_winners', {
-        limit_count: 100
-      });
+      try {
+        const { data: wtaData, error: wtaError } = await supabase.rpc('get_wta_winners', {
+          limit_count: 100
+        });
 
-      if (wtaError) {
-        console.error('Error fetching WTA winners:', wtaError);
-        setError(`WTA Error: ${wtaError.message}`);
-      } else {
-        setWtaWinners(wtaData || []);
+        if (wtaError) {
+          console.error('Error fetching WTA winners:', wtaError);
+          if (wtaError.message.includes('function') && wtaError.message.includes('does not exist')) {
+            setError('SQL functions not set up. Please run SETUP_WINNERS_PAGE.sql in Supabase.');
+            setIsLoading(false);
+            return;
+          }
+          setError(`WTA Error: ${wtaError.message}`);
+        } else {
+          setWtaWinners(wtaData || []);
+        }
+      } catch (wtaErr) {
+        console.error('WTA fetch failed:', wtaErr);
       }
 
       // Fetch Hot Sell winners
-      const { data: hotSellData, error: hotSellError } = await supabase.rpc('get_hot_sell_winners', {
-        limit_count: 100
-      });
+      try {
+        const { data: hotSellData, error: hotSellError } = await supabase.rpc('get_hot_sell_winners', {
+          limit_count: 100
+        });
 
-      if (hotSellError) {
-        console.error('Error fetching Hot Sell winners:', hotSellError);
-        setError(`Hot Sell Error: ${hotSellError.message}`);
-      } else {
-        setHotSellWinners(hotSellData || []);
+        if (hotSellError) {
+          console.error('Error fetching Hot Sell winners:', hotSellError);
+          if (hotSellError.message.includes('function') && hotSellError.message.includes('does not exist')) {
+            setError('SQL functions not set up. Please run SETUP_WINNERS_PAGE.sql in Supabase.');
+            setIsLoading(false);
+            return;
+          }
+          setError(`Hot Sell Error: ${hotSellError.message}`);
+        } else {
+          setHotSellWinners(hotSellData || []);
+        }
+      } catch (hsErr) {
+        console.error('Hot Sell fetch failed:', hsErr);
       }
     } catch (error) {
       console.error('Error fetching winners:', error);
