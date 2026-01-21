@@ -926,15 +926,26 @@ export default function HotSellPage() {
         if (!config) continue;
 
         // Skip if already paid out
-        if (session.first_place_user_id) continue;
+        if (session.first_place_user_id) {
+          // If countdown exists but session is paid, clear it
+          if (payoutCountdown[session.config_id] !== undefined) {
+            setPayoutCountdown(prev => {
+              const updated = { ...prev };
+              delete updated[session.config_id];
+              return updated;
+            });
+          }
+          continue;
+        }
 
         // Check if session is full and all players have scores
         const isFull = session.participants.length >= config.max_participants;
         const allHaveScores = session.participants.every(p => p.score !== null && p.score !== undefined);
         
         if (isFull && allHaveScores) {
-          // Start 30-second countdown if not already started
-          if (!payoutCountdown[session.config_id]) {
+          // Start 30-second countdown if not already started or processing
+          const currentCountdown = payoutCountdown[session.config_id];
+          if (currentCountdown === undefined || currentCountdown === null) {
             console.log('⏰ [Hot Sell] Starting 30-second countdown for:', session.config_id);
             setPayoutCountdown(prev => ({
               ...prev,
@@ -946,7 +957,7 @@ export default function HotSellPage() {
     };
 
     checkAndStartCountdown();
-  }, [sessions, user, configs]);
+  }, [sessions, user, configs, payoutCountdown]);
 
   // Countdown timer that triggers payout at zero
   useEffect(() => {
@@ -956,20 +967,28 @@ export default function HotSellPage() {
         let shouldPayout: string | null = null;
 
         Object.keys(updated).forEach(configId => {
-          if (updated[configId] > 0) {
+          const currentValue = updated[configId];
+          
+          // Only process if countdown is positive
+          if (currentValue > 0) {
             updated[configId]--;
             
-            // When countdown reaches 0, trigger payout and KEEP at 0 (don't remove)
+            // When countdown reaches 0, trigger payout ONCE
             if (updated[configId] === 0) {
               console.log('🔔 [Hot Sell] COUNTDOWN COMPLETE! Triggering payout for:', configId);
               shouldPayout = configId;
-              // Keep countdown at 0 to show "Processing..." state
+              // Set to -1 to prevent re-triggering
+              updated[configId] = -1;
             }
+          } else if (currentValue === 0) {
+            // If stuck at 0, set to -1 to prevent infinite loop
+            updated[configId] = -1;
           }
         });
 
         // Trigger payout outside of setState
         if (shouldPayout) {
+          console.log('💰 [Hot Sell] Calling handleManualPayout for:', shouldPayout);
           handleManualPayout(shouldPayout);
         }
 
