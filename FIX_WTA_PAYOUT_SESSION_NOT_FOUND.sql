@@ -160,6 +160,47 @@ BEGIN
 
   RAISE NOTICE 'Session marked as completed';
 
+  -- Automatically create a NEW session for the next round
+  DECLARE
+    v_new_session_id UUID;
+    v_config_record RECORD;
+  BEGIN
+    -- Get config details
+    SELECT * INTO v_config_record
+    FROM winner_takes_all_configs
+    WHERE id = config_id_param;
+    
+    -- Create new session
+    v_new_session_id := gen_random_uuid();
+    
+    INSERT INTO winner_takes_all_sessions (
+      id,
+      config_id,
+      prize_pool,
+      base_price,
+      participants_count,
+      status,
+      timer_started_at,
+      timer_duration,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      v_new_session_id,
+      config_id_param,
+      0,
+      v_config_record.base_price,
+      0,
+      'waiting',
+      NULL,
+      COALESCE(v_config_record.timer_duration, 7200),
+      NOW(),
+      NOW()
+    );
+    
+    RAISE NOTICE 'Created new session for next round: %', v_new_session_id;
+  END;
+
   RETURN jsonb_build_object(
     'success', true,
     'message', 'Payout successful',
