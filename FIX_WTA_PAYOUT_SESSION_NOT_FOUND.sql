@@ -164,45 +164,58 @@ BEGIN
   -- Wait 5 seconds before creating new session (gives frontend time to show results)
   PERFORM pg_sleep(5);
 
-  -- Automatically create a NEW session for the next round
+  -- Automatically create a NEW session for the next round (only if one doesn't exist)
   DECLARE
     v_new_session_id UUID;
     v_config_record RECORD;
+    v_existing_session_id UUID;
   BEGIN
-    -- Get config details
-    SELECT * INTO v_config_record
-    FROM winner_takes_all_configs
-    WHERE id = config_id_param;
+    -- Check if a waiting/active session already exists for this config
+    SELECT id INTO v_existing_session_id
+    FROM winner_takes_all_sessions
+    WHERE config_id = config_id_param
+      AND status IN ('waiting', 'active')
+      AND id != session_record.id
+    LIMIT 1;
     
-    -- Create new session
-    v_new_session_id := gen_random_uuid();
-    
-    INSERT INTO winner_takes_all_sessions (
-      id,
-      config_id,
-      prize_pool,
-      base_price,
-      participants_count,
-      status,
-      timer_started_at,
-      timer_duration,
-      created_at,
-      updated_at
-    )
-    VALUES (
-      v_new_session_id,
-      config_id_param,
-      0,
-      v_config_record.base_price,
-      0,
-      'waiting',
-      NULL,
-      COALESCE(v_config_record.timer_duration, 7200),
-      NOW(),
-      NOW()
-    );
-    
-    RAISE NOTICE 'Created new session for next round after 5 second delay: %', v_new_session_id;
+    IF v_existing_session_id IS NOT NULL THEN
+      RAISE NOTICE 'Active session already exists, skipping creation: %', v_existing_session_id;
+    ELSE
+      -- Get config details
+      SELECT * INTO v_config_record
+      FROM winner_takes_all_configs
+      WHERE id = config_id_param;
+      
+      -- Create new session
+      v_new_session_id := gen_random_uuid();
+      
+      INSERT INTO winner_takes_all_sessions (
+        id,
+        config_id,
+        prize_pool,
+        base_price,
+        participants_count,
+        status,
+        timer_started_at,
+        timer_duration,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        v_new_session_id,
+        config_id_param,
+        0,
+        v_config_record.base_price,
+        0,
+        'waiting',
+        NULL,
+        COALESCE(v_config_record.timer_duration, 7200),
+        NOW(),
+        NOW()
+      );
+      
+      RAISE NOTICE 'Created new session for next round after 5 second delay: %', v_new_session_id;
+    END IF;
   END;
 
   RETURN jsonb_build_object(
