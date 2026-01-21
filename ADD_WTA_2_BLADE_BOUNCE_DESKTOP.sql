@@ -13,7 +13,8 @@ INSERT INTO winner_takes_all_configs (
   game_type, 
   title, 
   description, 
-  entry_fee, 
+  entry_fee,
+  prize_pool,
   base_price, 
   game_duration, 
   rng_seed, 
@@ -28,6 +29,7 @@ VALUES (
   '$2 Blade Bounce',
   'Winner takes 85% of the prize pool!',
   1,                    -- Entry fee: $1
+  2,                    -- Prize pool: $2
   2,                    -- Base price: $2
   45,                   -- Game duration: 45 seconds
   100,                  -- RNG seed
@@ -41,6 +43,7 @@ ON CONFLICT (id) DO UPDATE SET
   title = EXCLUDED.title,
   description = EXCLUDED.description,
   entry_fee = EXCLUDED.entry_fee,
+  prize_pool = EXCLUDED.prize_pool,
   base_price = EXCLUDED.base_price,
   game_duration = EXCLUDED.game_duration,
   rng_seed = EXCLUDED.rng_seed,
