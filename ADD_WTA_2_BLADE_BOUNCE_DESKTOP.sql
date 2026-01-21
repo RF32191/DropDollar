@@ -15,7 +15,9 @@ INSERT INTO winner_takes_all_configs (
   description, 
   entry_fee,
   prize_pool,
-  base_price, 
+  base_price,
+  winner_prize,
+  platform_fee,
   game_duration, 
   rng_seed, 
   platform_fee_percent,
@@ -31,9 +33,11 @@ VALUES (
   1,                    -- Entry fee: $1
   2,                    -- Prize pool: $2
   2,                    -- Base price: $2
+  1.70,                 -- Winner prize: $1.70 (85% of $2)
+  0.30,                 -- Platform fee: $0.30 (15% of $2)
   45,                   -- Game duration: 45 seconds
   100,                  -- RNG seed
-  15.0,                 -- Platform fee: 15%
+  15.0,                 -- Platform fee percent: 15%
   7200,                 -- Timer: 2 hours (7200 seconds)
   NOW(),
   NOW()
@@ -45,6 +49,8 @@ ON CONFLICT (id) DO UPDATE SET
   entry_fee = EXCLUDED.entry_fee,
   prize_pool = EXCLUDED.prize_pool,
   base_price = EXCLUDED.base_price,
+  winner_prize = EXCLUDED.winner_prize,
+  platform_fee = EXCLUDED.platform_fee,
   game_duration = EXCLUDED.game_duration,
   rng_seed = EXCLUDED.rng_seed,
   platform_fee_percent = EXCLUDED.platform_fee_percent,
