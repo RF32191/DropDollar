@@ -31,7 +31,6 @@ END $$;
 INSERT INTO public.hot_sell_sessions (
   config_id,
   prize_pool,
-  current_pot,
   base_price,
   max_participants,
   participants_count,
@@ -41,7 +40,6 @@ INSERT INTO public.hot_sell_sessions (
 )
 SELECT 
   c.id,
-  0,
   0,
   c.base_price,
   c.max_participants,
@@ -125,10 +123,10 @@ BEGIN
     WHERE id = config_id_param;
     
     INSERT INTO public.hot_sell_sessions (
-      config_id, prize_pool, current_pot, base_price, max_participants, status
+      config_id, prize_pool, base_price, max_participants, status
     )
     VALUES (
-      config_id_param, 0, 0, v_config_record.base_price, v_config_record.max_participants, 'waiting'
+      config_id_param, 0, v_config_record.base_price, v_config_record.max_participants, 'waiting'
     )
     RETURNING id INTO v_new_session_id;
     
@@ -149,7 +147,7 @@ BEGIN
   END IF;
   
   RAISE NOTICE '📊 [Payout] Session ID: %, Current Pool: $%', 
-    v_session_record.id, COALESCE(v_session_record.current_pot, v_session_record.prize_pool);
+    v_session_record.id, v_session_record.prize_pool;
   
   -- ============================================
   -- STEP 2: Get top 3 winners by score
@@ -203,7 +201,7 @@ BEGIN
   -- STEP 3: Calculate prize pool distribution
   -- ============================================
   
-  v_total_pool := COALESCE(v_session_record.current_pot, v_session_record.prize_pool);
+  v_total_pool := v_session_record.prize_pool;
   
   -- Calculate prizes based on percentages
   v_first_prize := v_total_pool * 0.50;  -- 50%
@@ -326,7 +324,6 @@ BEGIN
   INSERT INTO public.hot_sell_sessions (
     config_id,
     prize_pool,
-    current_pot,
     base_price,
     max_participants,
     participants_count,
@@ -336,7 +333,6 @@ BEGIN
   )
   VALUES (
     config_id_param,
-    0,
     0,
     v_config_record.base_price,
     v_config_record.max_participants,
