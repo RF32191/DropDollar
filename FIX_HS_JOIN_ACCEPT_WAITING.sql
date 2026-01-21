@@ -100,8 +100,20 @@ BEGIN
         updated_at = NOW()
     WHERE id = p_user;
     
-    INSERT INTO public.token_transactions (user_id, transaction_type, amount, description)
-    VALUES (p_user, 'game_entry', -p_fee, 'Hot Sell Entry');
+    INSERT INTO public.token_transactions (
+      user_id, 
+      transaction_type, 
+      amount, 
+      balance_after,
+      description
+    )
+    VALUES (
+      p_user, 
+      'game_entry', 
+      -p_fee, 
+      (v_purchased - p_fee) + v_won,  -- New balance after deduction
+      'Hot Sell Entry'
+    );
   ELSE
     UPDATE public.users
     SET purchased_tokens = 0,
@@ -109,8 +121,20 @@ BEGIN
         updated_at = NOW()
     WHERE id = p_user;
     
-    INSERT INTO public.token_transactions (user_id, transaction_type, amount, description)
-    VALUES (p_user, 'game_entry', -p_fee, 'Hot Sell Entry (mixed)');
+    INSERT INTO public.token_transactions (
+      user_id, 
+      transaction_type, 
+      amount, 
+      balance_after,
+      description
+    )
+    VALUES (
+      p_user, 
+      'game_entry', 
+      -p_fee, 
+      v_won - (p_fee - v_purchased),  -- New balance after mixed deduction
+      'Hot Sell Entry (mixed)'
+    );
   END IF;
   
   -- Add participant
