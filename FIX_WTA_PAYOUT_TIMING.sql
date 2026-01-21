@@ -316,7 +316,7 @@ BEGIN
   RAISE NOTICE '2. Frontend waits 20 seconds (shows countdown)';
   RAISE NOTICE '3. Payout triggered → Compares ALL scores';
   RAISE NOTICE '4. Winner announced with animation';
-  RAISE NOTICE '5. Winner paid $1.70 (85%)';
+  RAISE NOTICE '5. Winner paid $1.70 (85%%)';
   RAISE NOTICE '6. Listing resets automatically';
   RAISE NOTICE ' ';
   RAISE NOTICE '📋 Current Sessions:';
