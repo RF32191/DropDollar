@@ -882,8 +882,26 @@ export default function HotSellPage() {
       
       console.log('✅ [Hot Sell] Payout confirmed successful!', data);
       
-      // Silent success - don't show message since listing resets automatically
-      // setMessage({ type: 'success', text: '🎉 Payout complete! Listing reset!' });
+      // Show winner announcement with all 3 winners
+      if (data.winners && data.winners.length > 0) {
+        const config = configs.find(c => c.id === configId);
+        const announcementText = `
+🏆 ${config?.title || 'Hot Sell'} - WINNERS! 🏆
+
+🥇 1st Place: ${data.winners[0].username} 
+   Score: ${data.winners[0].score} | Prize: $${data.winners[0].prize.toFixed(2)}
+
+🥈 2nd Place: ${data.winners[1]?.username || 'N/A'}
+   Score: ${data.winners[1]?.score || 0} | Prize: $${data.winners[1]?.prize.toFixed(2)}
+
+🥉 3rd Place: ${data.winners[2]?.username || 'N/A'}
+   Score: ${data.winners[2]?.score || 0} | Prize: $${data.winners[2]?.prize.toFixed(2)}
+
+💰 Total Pool: $${data.pool.toFixed(2)}
+        `.trim();
+        
+        setMessage({ type: 'success', text: announcementText });
+      }
       
       // Force another refresh after 1 second
       setTimeout(() => {
