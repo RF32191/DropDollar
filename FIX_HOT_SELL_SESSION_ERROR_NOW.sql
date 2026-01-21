@@ -48,13 +48,12 @@ SELECT
   NOW(),
   NOW()
 FROM public.hot_sell_configs c
-WHERE c.is_active = true
-  AND NOT EXISTS (
-    SELECT 1 
-    FROM public.hot_sell_sessions s 
-    WHERE s.config_id = c.id 
-      AND s.status IN ('waiting', 'active')
-  );
+WHERE NOT EXISTS (
+  SELECT 1 
+  FROM public.hot_sell_sessions s 
+  WHERE s.config_id = c.id 
+    AND s.status IN ('waiting', 'active')
+);
 
 DO $$ 
 BEGIN
@@ -415,6 +414,5 @@ SELECT
   END as payout_status
 FROM public.hot_sell_sessions s
 INNER JOIN public.hot_sell_configs c ON s.config_id = c.id
-WHERE c.is_active = true
 ORDER BY c.base_price, s.created_at DESC;
 
