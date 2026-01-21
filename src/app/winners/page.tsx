@@ -42,12 +42,44 @@ interface HotSellWinner {
   completed_at: string;
 }
 
+interface CoinPlayWinner {
+  session_id: string;
+  config_id: string;
+  game_title: string;
+  game_type: string;
+  winner_user_id: string;
+  winner_username: string;
+  winner_score: number;
+  winner_prize: number;
+  platform_fee: number;
+  total_pot: number;
+  completed_at: string;
+}
+
+interface OneVOneWinner {
+  match_id: string;
+  config_id: string;
+  game_title: string;
+  game_type: string;
+  winner_user_id: string;
+  winner_username: string;
+  loser_username: string;
+  winner_score: number;
+  loser_score: number;
+  winner_prize: number;
+  platform_fee: number;
+  total_pot: number;
+  completed_at: string;
+}
+
 type Category = 'all' | 'wta' | 'hot-sell' | 'coin-play' | '1v1';
 
 export default function WinnersPage() {
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
   const [wtaWinners, setWtaWinners] = useState<WTAWinner[]>([]);
   const [hotSellWinners, setHotSellWinners] = useState<HotSellWinner[]>([]);
+  const [coinPlayWinners, setCoinPlayWinners] = useState<CoinPlayWinner[]>([]);
+  const [oneVOneWinners, setOneVOneWinners] = useState<OneVOneWinner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +101,7 @@ export default function WinnersPage() {
         if (wtaError) {
           console.error('Error fetching WTA winners:', wtaError);
           if (wtaError.message.includes('function') && wtaError.message.includes('does not exist')) {
-            setError('SQL functions not set up. Please run SETUP_WINNERS_PAGE.sql in Supabase.');
+            setError('SQL functions not set up. Please run WINNERS_PAGE_COMPLETE_FIX.sql in Supabase.');
             setIsLoading(false);
             return;
           }
@@ -90,7 +122,7 @@ export default function WinnersPage() {
         if (hotSellError) {
           console.error('Error fetching Hot Sell winners:', hotSellError);
           if (hotSellError.message.includes('function') && hotSellError.message.includes('does not exist')) {
-            setError('SQL functions not set up. Please run SETUP_WINNERS_PAGE.sql in Supabase.');
+            setError('SQL functions not set up. Please run WINNERS_PAGE_COMPLETE_FIX.sql in Supabase.');
             setIsLoading(false);
             return;
           }
@@ -100,6 +132,36 @@ export default function WinnersPage() {
         }
       } catch (hsErr) {
         console.error('Hot Sell fetch failed:', hsErr);
+      }
+
+      // Fetch Coin Play winners
+      try {
+        const { data: cpData, error: cpError } = await supabase.rpc('get_coin_play_winners', {
+          limit_count: 100
+        });
+
+        if (cpError) {
+          console.error('Error fetching Coin Play winners:', cpError);
+        } else {
+          setCoinPlayWinners(cpData || []);
+        }
+      } catch (cpErr) {
+        console.error('Coin Play fetch failed:', cpErr);
+      }
+
+      // Fetch 1v1 winners
+      try {
+        const { data: v1Data, error: v1Error } = await supabase.rpc('get_1v1_winners', {
+          limit_count: 100
+        });
+
+        if (v1Error) {
+          console.error('Error fetching 1v1 winners:', v1Error);
+        } else {
+          setOneVOneWinners(v1Data || []);
+        }
+      } catch (v1Err) {
+        console.error('1v1 fetch failed:', v1Err);
       }
     } catch (error) {
       console.error('Error fetching winners:', error);
@@ -171,11 +233,11 @@ export default function WinnersPage() {
         {/* Category Filter Tabs */}
         <div className="flex flex-wrap justify-center gap-4 mb-8">
           {[
-            { id: 'all' as Category, label: 'All Winners', count: wtaWinners.length + hotSellWinners.length },
+            { id: 'all' as Category, label: 'All Winners', count: wtaWinners.length + hotSellWinners.length + coinPlayWinners.length + oneVOneWinners.length },
             { id: 'wta' as Category, label: 'Winner Takes All', count: wtaWinners.length },
             { id: 'hot-sell' as Category, label: 'Hot Sell', count: hotSellWinners.length },
-            { id: 'coin-play' as Category, label: 'Coin Play', count: 0 },
-            { id: '1v1' as Category, label: '1v1 Battles', count: 0 }
+            { id: 'coin-play' as Category, label: 'Coin Play', count: coinPlayWinners.length },
+            { id: '1v1' as Category, label: '1v1 Battles', count: oneVOneWinners.length }
           ].map((category) => (
             <button
               key={category.id}
@@ -212,7 +274,7 @@ export default function WinnersPage() {
               <p className="text-yellow-200 font-semibold mb-2">To fix this:</p>
               <ol className="text-purple-200 space-y-2">
                 <li>1. Open Supabase SQL Editor</li>
-                <li>2. Run <code className="bg-white/10 px-2 py-1 rounded">WINNERS_PAGE_SQL.sql</code></li>
+                <li>2. Run <code className="bg-white/10 px-2 py-1 rounded">WINNERS_PAGE_COMPLETE_FIX.sql</code></li>
                 <li>3. Refresh this page</li>
               </ol>
             </div>
@@ -359,29 +421,121 @@ export default function WinnersPage() {
               </div>
             )}
 
-            {/* Coin Play Section (Coming Soon) */}
-            {selectedCategory === 'coin-play' && (
-              <div className="bg-white/10 rounded-xl p-12 text-center">
-                <BanknotesIcon className="w-16 h-16 text-purple-300 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-purple-200 mb-2">
-                  Coin Play Winners Coming Soon
-                </h3>
-                <p className="text-purple-300">
-                  This category will be available once Coin Play games are launched
-                </p>
+            {/* Coin Play Section */}
+            {(selectedCategory === 'all' || selectedCategory === 'coin-play') && (
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <BanknotesIcon className="w-8 h-8 text-green-400" />
+                  <h2 className="text-3xl font-bold text-green-400">
+                    Coin Play Champions
+                  </h2>
+                </div>
+                
+                {coinPlayWinners.length === 0 ? (
+                  <div className="bg-white/10 rounded-xl p-8 text-center">
+                    <p className="text-xl text-purple-200">No winners yet in this category</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {coinPlayWinners.map((winner, index) => (
+                      <div
+                        key={`${winner.session_id}-${index}`}
+                        className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/30 rounded-xl p-6 hover:border-green-400/50 transition-all hover:scale-[1.02]"
+                      >
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-green-400 rounded-full p-3">
+                              <BanknotesIcon className="w-8 h-8 text-gray-900" />
+                            </div>
+                            <div>
+                              <h3 className="text-2xl font-bold text-green-400">
+                                {winner.winner_username}
+                              </h3>
+                              <p className="text-purple-200">{winner.game_title}</p>
+                              <p className="text-green-300 text-sm font-semibold">
+                                <ClockIcon className="w-4 h-4 inline mr-1" />
+                                Victory: {formatDate(winner.completed_at)}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            <div className="text-3xl font-bold text-green-400">
+                              {formatMoney(winner.winner_prize)}
+                            </div>
+                            <div className="text-purple-200 text-sm">
+                              Score: {winner.winner_score}
+                            </div>
+                            <div className="text-purple-300 text-xs">
+                              Pool: {formatMoney(winner.total_pot)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* 1v1 Section (Coming Soon) */}
-            {selectedCategory === '1v1' && (
-              <div className="bg-white/10 rounded-xl p-12 text-center">
-                <ChartBarIcon className="w-16 h-16 text-purple-300 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-purple-200 mb-2">
-                  1v1 Battle Winners Coming Soon
-                </h3>
-                <p className="text-purple-300">
-                  This category will be available once 1v1 battles are launched
-                </p>
+            {/* 1v1 Section */}
+            {(selectedCategory === 'all' || selectedCategory === '1v1') && (
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <ChartBarIcon className="w-8 h-8 text-red-400" />
+                  <h2 className="text-3xl font-bold text-red-400">
+                    1v1 Battle Champions
+                  </h2>
+                </div>
+                
+                {oneVOneWinners.length === 0 ? (
+                  <div className="bg-white/10 rounded-xl p-8 text-center">
+                    <p className="text-xl text-purple-200">No winners yet in this category</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {oneVOneWinners.map((winner, index) => (
+                      <div
+                        key={`${winner.match_id}-${index}`}
+                        className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-400/30 rounded-xl p-6 hover:border-red-400/50 transition-all hover:scale-[1.02]"
+                      >
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-red-400 rounded-full p-3">
+                              <ChartBarIcon className="w-8 h-8 text-gray-900" />
+                            </div>
+                            <div>
+                              <h3 className="text-2xl font-bold text-red-400">
+                                {winner.winner_username}
+                              </h3>
+                              <p className="text-purple-200 flex items-center gap-2">
+                                {winner.game_title}
+                                <span className="text-xs text-purple-300">vs</span>
+                                <span className="text-purple-300">{winner.loser_username}</span>
+                              </p>
+                              <p className="text-red-300 text-sm font-semibold">
+                                <ClockIcon className="w-4 h-4 inline mr-1" />
+                                Victory: {formatDate(winner.completed_at)}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            <div className="text-3xl font-bold text-green-400">
+                              {formatMoney(winner.winner_prize)}
+                            </div>
+                            <div className="text-purple-200 text-sm">
+                              Score: {winner.winner_score} - {winner.loser_score}
+                            </div>
+                            <div className="text-purple-300 text-xs">
+                              Pool: {formatMoney(winner.total_pot)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
