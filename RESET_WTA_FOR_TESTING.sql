@@ -26,7 +26,6 @@ END $$;
 UPDATE winner_takes_all_sessions
 SET 
   prize_pool = 0,
-  current_pool = 0,
   participants_count = 0,
   status = 'waiting',
   winner_user_id = NULL,
