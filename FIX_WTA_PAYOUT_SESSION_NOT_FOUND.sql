@@ -126,14 +126,12 @@ BEGIN
   -- Record transaction
   INSERT INTO public.token_transactions (
     user_id, 
-    type, 
     transaction_type, 
     amount, 
     description
   )
   VALUES (
     winner_record.user_id,
-    'credit',
     'game_win',
     v_winner_payout,
     'Winner Takes All - ' || config_id_param
