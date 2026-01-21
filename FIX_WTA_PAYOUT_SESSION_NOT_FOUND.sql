@@ -22,18 +22,19 @@ DECLARE
 BEGIN
   RAISE NOTICE 'Starting payout for config: %', config_id_param;
   
-  -- Find the most recent session for this config (any status)
+  -- Find the most recent ACTIVE session for this config
   SELECT * INTO session_record
   FROM public.winner_takes_all_sessions
   WHERE config_id = config_id_param
+    AND status IN ('waiting', 'active')
   ORDER BY created_at DESC
   LIMIT 1;
 
   IF NOT FOUND THEN
-    RAISE WARNING 'No session found for config: %', config_id_param;
+    RAISE WARNING 'No active session found for config: %', config_id_param;
     RETURN jsonb_build_object(
       'success', false, 
-      'message', 'No session found for this game',
+      'message', 'No active session found for this game',
       'config_id', config_id_param
     );
   END IF;
@@ -160,6 +161,9 @@ BEGIN
 
   RAISE NOTICE 'Session marked as completed';
 
+  -- Wait 5 seconds before creating new session (gives frontend time to show results)
+  PERFORM pg_sleep(5);
+
   -- Automatically create a NEW session for the next round
   DECLARE
     v_new_session_id UUID;
@@ -198,7 +202,7 @@ BEGIN
       NOW()
     );
     
-    RAISE NOTICE 'Created new session for next round: %', v_new_session_id;
+    RAISE NOTICE 'Created new session for next round after 5 second delay: %', v_new_session_id;
   END;
 
   RETURN jsonb_build_object(
