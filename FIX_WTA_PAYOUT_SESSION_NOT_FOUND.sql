@@ -115,29 +115,37 @@ BEGIN
   RAISE NOTICE 'Payout calculation - Total: $%, Winner: $%, Platform: $%', 
     total_pot, v_winner_payout, v_platform_fee;
 
-  -- Pay winner to won_tokens wallet
-  UPDATE public.users
-  SET won_tokens = COALESCE(won_tokens, 0) + v_winner_payout,
-      updated_at = NOW()
-  WHERE id = winner_record.user_id;
+  -- Pay winner to won_tokens wallet and get new balance
+  DECLARE
+    v_balance_after NUMERIC;
+  BEGIN
+    UPDATE public.users
+    SET won_tokens = COALESCE(won_tokens, 0) + v_winner_payout,
+        updated_at = NOW()
+    WHERE id = winner_record.user_id
+    RETURNING (COALESCE(purchased_tokens, 0) + COALESCE(won_tokens, 0)) INTO v_balance_after;
 
-  RAISE NOTICE 'Winner paid: $% to user: %', v_winner_payout, winner_record.user_id;
+    RAISE NOTICE 'Winner paid: $% to user: %, new balance: $%', 
+      v_winner_payout, winner_record.user_id, v_balance_after;
 
-  -- Record transaction
-  INSERT INTO public.token_transactions (
-    user_id, 
-    transaction_type, 
-    amount, 
-    description
-  )
-  VALUES (
-    winner_record.user_id,
-    'game_win',
-    v_winner_payout,
-    'Winner Takes All - ' || config_id_param
-  );
+    -- Record transaction with balance_after
+    INSERT INTO public.token_transactions (
+      user_id, 
+      transaction_type, 
+      amount,
+      balance_after,
+      description
+    )
+    VALUES (
+      winner_record.user_id,
+      'game_win',
+      v_winner_payout,
+      v_balance_after,
+      'Winner Takes All - ' || config_id_param
+    );
 
-  RAISE NOTICE 'Transaction recorded';
+    RAISE NOTICE 'Transaction recorded';
+  END;
 
   -- Mark session as completed
   UPDATE public.winner_takes_all_sessions
