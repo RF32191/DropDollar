@@ -19,7 +19,10 @@ SET status = 'completed'
 WHERE first_place_user_id IS NOT NULL
   AND status != 'completed';
 
-RAISE NOTICE '✅ Marked paid sessions as completed';
+DO $$ 
+BEGIN
+  RAISE NOTICE '✅ Marked paid sessions as completed';
+END $$;
 
 -- ============================================================================
 -- STEP 2: Create missing 'waiting' sessions for all active configs
@@ -55,7 +58,10 @@ WHERE c.is_active = true
       AND s.status IN ('waiting', 'active')
   );
 
-RAISE NOTICE '✅ Created missing waiting sessions';
+DO $$ 
+BEGIN
+  RAISE NOTICE '✅ Created missing waiting sessions';
+END $$;
 
 -- ============================================================================
 -- STEP 3: Verify payout function creates new sessions
