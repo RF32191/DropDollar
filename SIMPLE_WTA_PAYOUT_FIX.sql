@@ -92,7 +92,7 @@ BEGIN
   v_platform_fee := total_pot * 0.15;
   v_winner_payout := total_pot * 0.85;
 
-  RAISE NOTICE '💰 Payout: Total=$%%, Winner=$%%, Platform=$%%', 
+  RAISE NOTICE '💰 Payout: Total=$%, Winner=$%, Platform=$%', 
     total_pot, v_winner_payout, v_platform_fee;
 
   -- PAY THE WINNER
@@ -103,7 +103,7 @@ BEGIN
   WHERE id = winner_record.user_id
   RETURNING (COALESCE(purchased_tokens, 0) + COALESCE(won_tokens, 0)) INTO v_balance_after;
 
-  RAISE NOTICE '✅ Winner paid: $%% (new balance: $%%)', v_winner_payout, v_balance_after;
+  RAISE NOTICE '✅ Winner paid: $% (new balance: $%)', v_winner_payout, v_balance_after;
 
   -- Record transaction
   INSERT INTO public.token_transactions (
