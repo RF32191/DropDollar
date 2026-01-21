@@ -1,14 +1,15 @@
 -- ============================================================================
 -- FIX WTA PAYOUT WITH 30 SECOND WINNER ANIMATION
 -- ============================================================================
--- Two-step process:
--- 1. Payout function: Pays winner, marks complete, but DOESN'T create new session
--- 2. Frontend shows 30 second animation
--- 3. Reset function: Creates new session after animation finishes
+-- Flow:
+-- 1. Payout function: Pays winner, marks complete, creates NEW session immediately
+-- 2. Frontend shows 30 second animation (completed session shows winner)
+-- 3. New session is ready for players to join during animation
+-- 4. No "Session not found" errors!
 -- ============================================================================
 
 -- ============================================================================
--- STEP 1: PAYOUT FUNCTION - Pays winner, NO auto-reset
+-- STEP 1: PAYOUT FUNCTION - Pays winner, creates new session immediately
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.process_payout_by_config(config_id_param TEXT)
 RETURNS JSONB
@@ -164,7 +165,6 @@ BEGIN
   RAISE NOTICE '💳 Transaction recorded';
 
   -- MARK SESSION COMPLETED with winner info
-  -- DO NOT CREATE NEW SESSION YET - Frontend will show 30s animation first
   UPDATE public.winner_takes_all_sessions
   SET 
     status = 'completed',
@@ -175,7 +175,54 @@ BEGIN
     updated_at = NOW()
   WHERE id = session_record.id;
 
-  RAISE NOTICE '✅ Session marked completed - waiting for 30s animation before reset';
+  RAISE NOTICE '✅ Session marked completed';
+
+  -- CREATE NEW SESSION IMMEDIATELY so players can join right away
+  DECLARE
+    v_new_session_id UUID;
+    v_config_record RECORD;
+  BEGIN
+    -- Get config details
+    SELECT * INTO v_config_record
+    FROM winner_takes_all_configs
+    WHERE id = config_id_param;
+    
+    -- Delete any leftover waiting/active sessions
+    DELETE FROM winner_takes_all_sessions
+    WHERE config_id = config_id_param
+      AND status IN ('waiting', 'active')
+      AND id != session_record.id;
+    
+    -- Create brand new session
+    v_new_session_id := gen_random_uuid();
+    
+    INSERT INTO winner_takes_all_sessions (
+      id,
+      config_id,
+      prize_pool,
+      base_price,
+      participants_count,
+      status,
+      timer_started_at,
+      timer_duration,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      v_new_session_id,
+      config_id_param,
+      0,
+      v_config_record.base_price,
+      0,
+      'waiting',
+      NULL,
+      COALESCE(v_config_record.timer_duration, 7200),
+      NOW(),
+      NOW()
+    );
+    
+    RAISE NOTICE '🎮 Created new session immediately: %', v_new_session_id;
+  END;
 
   -- Return success with ALL winner info for frontend animation
   RETURN jsonb_build_object(
@@ -204,11 +251,14 @@ GRANT EXECUTE ON FUNCTION public.process_payout_by_config(TEXT) TO authenticated
 
 DO $$ 
 BEGIN
-  RAISE NOTICE '✅ Payout function updated - no auto-reset';
+  RAISE NOTICE '✅ Payout function updated - creates new session immediately';
 END $$;
 
 -- ============================================================================
--- STEP 2: RESET FUNCTION - Creates new session AFTER animation
+-- STEP 2: RESET FUNCTION (OPTIONAL - for manual resets only)
+-- ============================================================================
+-- Note: This is only needed if you want to manually reset a listing
+-- The payout function already creates the new session automatically
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.reset_winner_takes_all_listing(config_id_param TEXT)
 RETURNS JSONB
@@ -387,14 +437,14 @@ BEGIN
   RAISE NOTICE 'Frontend Flow:';
   RAISE NOTICE '1. All players finish → Scores saved';
   RAISE NOTICE '2. Call payout function → Winner paid';
-  RAISE NOTICE '3. Show 30 SECOND COUNTDOWN with animation';
-  RAISE NOTICE '4. Display winner name + prize money ($1.70)';
-  RAISE NOTICE '5. After 30 seconds → Call reset function';
-  RAISE NOTICE '6. Listing resets → Ready for next game';
+  RAISE NOTICE '3. New session created IMMEDIATELY';
+  RAISE NOTICE '4. Show 30 SECOND COUNTDOWN with animation';
+  RAISE NOTICE '5. Players can join new game during animation';
+  RAISE NOTICE '6. No "Session not found" errors!';
   RAISE NOTICE ' ';
   RAISE NOTICE 'Functions:';
-  RAISE NOTICE '- process_payout_by_config(config_id) → Pays winner';
-  RAISE NOTICE '- reset_winner_takes_all_listing(config_id) → Resets listing';
+  RAISE NOTICE '- process_payout_by_config(config_id) → Pays winner + creates new session';
+  RAISE NOTICE '- reset_winner_takes_all_listing(config_id) → Manual reset (optional)';
   RAISE NOTICE ' ';
   RAISE NOTICE '📋 Current Sessions:';
 END $$;
@@ -413,7 +463,7 @@ ORDER BY c.base_price;
 DO $$ 
 BEGIN
   RAISE NOTICE ' ';
-  RAISE NOTICE '🎮 Ready! 30 second animation will show before reset!';
+  RAISE NOTICE '🎮 Ready! New session created immediately - no waiting!';
   RAISE NOTICE ' ';
 END $$;
 
