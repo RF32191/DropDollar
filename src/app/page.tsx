@@ -377,29 +377,55 @@ export default function HomePage() {
             </p>
           </div>
           
-          <Link
-            href="/mog-me"
-            className="block group relative max-w-4xl mx-auto px-8 py-10 bg-gradient-to-br from-green-700/90 to-green-800/90 rounded-3xl hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-[1.02] shadow-2xl border-4 border-yellow-400/60 hover:border-yellow-400 hover:shadow-yellow-400/30"
-          >
-            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
-              {/* Mog Me Icon */}
-              <div className="w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-br from-green-700 to-green-800 rounded-2xl flex items-center justify-center border-4 border-yellow-400/70 shadow-xl flex-shrink-0">
-                <span className="text-6xl sm:text-7xl font-serif text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.9)]">M</span>
+          <div className="space-y-6 max-w-4xl mx-auto">
+            <Link
+              href="/mog-me"
+              className="block group relative px-8 py-10 bg-gradient-to-br from-green-700/90 to-green-800/90 rounded-3xl hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-[1.02] shadow-2xl border-4 border-yellow-400/60 hover:border-yellow-400 hover:shadow-yellow-400/30"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+                {/* Mog Me Icon */}
+                <div className="w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-br from-green-700 to-green-800 rounded-2xl flex items-center justify-center border-4 border-yellow-400/70 shadow-xl flex-shrink-0">
+                  <span className="text-6xl sm:text-7xl font-serif text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.9)]">M</span>
+                </div>
+                
+                <div className="flex-1 text-center sm:text-left">
+                  <h3 className="text-3xl sm:text-4xl font-bold text-yellow-300 mb-3">Mog Me</h3>
+                  <p className="text-green-100 text-lg sm:text-xl mb-2">Your Ultimate Look Improvement & Lifestyle App</p>
+                  <p className="text-green-200 text-sm sm:text-base">
+                    Transform your appearance and enhance your lifestyle with cutting-edge tools and expert guidance
+                  </p>
+                </div>
+                
+                <div className="text-yellow-400 text-3xl sm:text-4xl group-hover:translate-x-2 transition-transform flex-shrink-0">
+                  →
+                </div>
               </div>
-              
-              <div className="flex-1 text-center sm:text-left">
-                <h3 className="text-3xl sm:text-4xl font-bold text-yellow-300 mb-3">Mog Me</h3>
-                <p className="text-green-100 text-lg sm:text-xl mb-2">Your Ultimate Look Improvement & Lifestyle App</p>
-                <p className="text-green-200 text-sm sm:text-base">
-                  Transform your appearance and enhance your lifestyle with cutting-edge tools and expert guidance
-                </p>
+            </Link>
+
+            <Link
+              href="/purion"
+              className="block group relative px-8 py-10 bg-gradient-to-br from-blue-600/90 to-blue-800/90 rounded-3xl hover:from-blue-500 hover:to-blue-700 transition-all duration-300 transform hover:scale-[1.02] shadow-2xl border-4 border-blue-400/60 hover:border-blue-300 hover:shadow-blue-400/30"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+                {/* Purion Icon - Medical Blue */}
+                <div className="w-24 h-24 sm:w-28 sm:h-28 bg-white/20 rounded-2xl flex items-center justify-center border-4 border-blue-300/70 shadow-xl flex-shrink-0">
+                  <span className="text-5xl sm:text-6xl">🧪</span>
+                </div>
+                
+                <div className="flex-1 text-center sm:text-left">
+                  <h3 className="text-3xl sm:text-4xl font-bold text-blue-100 mb-3">Purion</h3>
+                  <p className="text-blue-50 text-lg sm:text-xl mb-2">Bioprocess Training & Execution Companion</p>
+                  <p className="text-blue-200/90 text-sm sm:text-base">
+                    Simulations, setup games, virtual labs, and smart OCR for upstream, downstream, MSAT, and analytical teams
+                  </p>
+                </div>
+                
+                <div className="text-blue-200 text-3xl sm:text-4xl group-hover:translate-x-2 transition-transform flex-shrink-0">
+                  →
+                </div>
               </div>
-              
-              <div className="text-yellow-400 text-3xl sm:text-4xl group-hover:translate-x-2 transition-transform flex-shrink-0">
-                →
-              </div>
-            </div>
-          </Link>
+            </Link>
+          </div>
         </div>
       </section>
 
