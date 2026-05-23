@@ -3,7 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { Box, Layers, Cpu, Printer, Shield, ExternalLink, FileText } from 'lucide-react';
+import { OPEN_DESIGN_HUB_URL } from '@/lib/opendesign-public-urls';
+import { Box, Layers, Cpu, Printer, Shield, ExternalLink, FileText, HelpCircle } from 'lucide-react';
 
 export default function OpenDesignPage() {
   return (
@@ -80,12 +81,12 @@ export default function OpenDesignPage() {
 
           <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center items-center">
             <a
-              href="https://opendesign.app"
+              href={OPEN_DESIGN_HUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-10 py-4 rounded-xl font-bold text-slate-900 bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 transition-all shadow-[0_0_40px_rgba(34,211,238,0.35)] hover:shadow-[0_0_52px_rgba(34,211,238,0.5)] hover:scale-[1.03]"
             >
-              Visit opendesign.app
+              OpenDesign on Drop Dollar
               <ExternalLink className="w-5 h-5" />
             </a>
             <Link
@@ -101,6 +102,13 @@ export default function OpenDesignPage() {
             >
               <FileText className="w-5 h-5" />
               Terms of Service
+            </Link>
+            <Link
+              href="/opendesign/support"
+              className="inline-flex items-center gap-2 px-10 py-4 rounded-xl font-semibold border-2 border-slate-500/50 text-slate-200 hover:bg-slate-500/15 hover:border-slate-400 transition-all"
+            >
+              <HelpCircle className="w-5 h-5" />
+              Support
             </Link>
           </div>
         </section>
@@ -210,13 +218,17 @@ export default function OpenDesignPage() {
               Terms of Service
             </Link>
             <span className="text-slate-600">•</span>
+            <Link href="/opendesign/support" className="text-slate-300 hover:text-white font-semibold">
+              Support
+            </Link>
+            <span className="text-slate-600">•</span>
             <a
-              href="https://opendesign.app"
+              href={OPEN_DESIGN_HUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-violet-400 hover:text-violet-300 font-semibold inline-flex items-center gap-1"
             >
-              opendesign.app
+              drop-dollar.com/opendesign
               <ExternalLink className="w-3 h-3" />
             </a>
             <span className="text-slate-600">•</span>

@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { OPEN_DESIGN_HUB_URL } from '@/lib/opendesign-public-urls';
 import { ArrowLeft } from 'lucide-react';
 
 const CONTACT_EMAIL = 'ryanfermoselle@outlook.com';
@@ -310,8 +311,8 @@ export default function OpenDesignPrivacyPolicyPage() {
             </li>
             <li>
               Website:{' '}
-              <a href="https://opendesign.app" target="_blank" rel="noopener noreferrer">
-                https://opendesign.app
+              <a href={OPEN_DESIGN_HUB_URL} target="_blank" rel="noopener noreferrer">
+                {OPEN_DESIGN_HUB_URL}
               </a>
             </li>
           </ul>
@@ -347,6 +348,10 @@ export default function OpenDesignPrivacyPolicyPage() {
             <span className="text-slate-600">•</span>
             <Link href="/opendesign/privacy-policy" className="text-cyan-400 hover:text-cyan-300 font-semibold">
               Privacy Policy
+            </Link>
+            <span className="text-slate-600">•</span>
+            <Link href="/opendesign/support" className="text-slate-400 hover:text-white font-semibold">
+              Support
             </Link>
           </div>
           <a

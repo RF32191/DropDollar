@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { OPEN_DESIGN_HUB_URL } from '@/lib/opendesign-public-urls';
 import { ArrowLeft } from 'lucide-react';
 
 /** Contact for legal notices (§18). */
@@ -339,8 +340,8 @@ export default function OpenDesignTermsOfServicePage() {
             </li>
             <li>
               Website:{' '}
-              <a href="https://opendesign.app" target="_blank" rel="noopener noreferrer">
-                https://opendesign.app
+              <a href={OPEN_DESIGN_HUB_URL} target="_blank" rel="noopener noreferrer">
+                {OPEN_DESIGN_HUB_URL}
               </a>
             </li>
           </ul>
@@ -361,6 +362,10 @@ export default function OpenDesignTermsOfServicePage() {
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
             <Link href="/opendesign/privacy-policy" className="text-slate-400 hover:text-cyan-300 underline">
               Privacy Policy
+            </Link>
+            <span className="text-slate-600 hidden sm:inline">·</span>
+            <Link href="/opendesign/support" className="text-slate-400 hover:text-white underline">
+              Support
             </Link>
             <span className="text-slate-600 hidden sm:inline">·</span>
             <Link href="/" className="text-slate-400 hover:text-cyan-300 underline">
