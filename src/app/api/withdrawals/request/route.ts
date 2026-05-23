@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { stripe } from '@/lib/stripe/server';
 import { recordEarning } from '@/lib/tax/earnings';
 
 const getServiceClient = () => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { stripe, getBaseUrl } from '@/lib/stripe/server';
+import { getStripe, getBaseUrl } from '@/lib/stripe/server';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe Connect Express account
-    const account = await stripe.accounts.create({
+    const account = await getStripe().accounts.create({
       type: 'express',
       country: 'US',
       email: user.email,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { stripe } from '@/lib/stripe/server';
+import { getStripe } from '@/lib/stripe/server';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Create Stripe transfer
-      const transfer = await stripe.transfers.create({
+      const transfer = await getStripe().transfers.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: 'usd',
         destination: sellerProfile.stripe_account_id,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { stripe } from '@/lib/stripe/server';
+import { getStripe } from '@/lib/stripe/server';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get account details from Stripe
-    const account = await stripe.accounts.retrieve(sellerProfile.stripe_account_id);
+    const account = await getStripe().accounts.retrieve(sellerProfile.stripe_account_id);
 
     // Determine account status
     const accountStatus = account.details_submitted ? 'connected' : 'pending';

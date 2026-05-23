@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { stripe, getBaseUrl } from '@/lib/stripe/server';
+import { getStripe, getBaseUrl } from '@/lib/stripe/server';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const baseUrl = getBaseUrl();
 
     // Create account link for onboarding
-    const accountLink = await stripe.accountLinks.create({
+    const accountLink = await getStripe().accountLinks.create({
       account: sellerProfile.stripe_account_id,
       refresh_url: `${baseUrl}/dashboard?stripe_refresh=true`,
       return_url: `${baseUrl}/dashboard?stripe_connected=true`,

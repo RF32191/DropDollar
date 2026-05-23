@@ -1,21 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getStripe } from '@/lib/stripe/server';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
-});
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSyncSupabase(): SupabaseClient {
+  const g = globalThis as unknown as { __stripeSyncSupabase?: SupabaseClient };
+  if (g.__stripeSyncSupabase) return g.__stripeSyncSupabase;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured for purchase sync.'
+    );
+  }
+  g.__stripeSyncSupabase = createClient(url, key);
+  return g.__stripeSyncSupabase;
+}
 
 /**
  * Sync Stripe payment intents to user_transactions table
  * This ensures all purchases from Stripe are tracked in our database
  */
 export async function POST(request: NextRequest) {
+  const stripe = getStripe();
+  const supabase = getSyncSupabase();
+
   try {
     const { userId, userEmail } = await request.json();
 
@@ -194,6 +202,9 @@ export async function POST(request: NextRequest) {
  * GET endpoint to check sync status without making changes
  */
 export async function GET(request: NextRequest) {
+  const stripe = getStripe();
+  const supabase = getSyncSupabase();
+
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
