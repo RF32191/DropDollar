@@ -425,6 +425,51 @@ export default function HomePage() {
                 </div>
               </div>
             </Link>
+
+            <Link
+              href="/opendesign"
+              className="block group relative px-8 py-10 bg-gradient-to-br from-slate-900/95 via-cyan-950/90 to-indigo-950/95 rounded-3xl hover:from-slate-800 hover:via-cyan-900 hover:to-indigo-900 transition-all duration-300 transform hover:scale-[1.02] shadow-2xl border-4 border-cyan-400/50 hover:border-cyan-300 hover:shadow-cyan-500/20 overflow-hidden"
+            >
+              {/* Subtle 3D grid overlay */}
+              <div
+                className="pointer-events-none absolute inset-0 opacity-[0.12]"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(rgba(34,211,238,0.35) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(34,211,238,0.35) 1px, transparent 1px)
+                  `,
+                  backgroundSize: '28px 28px',
+                  transform: 'perspective(400px) rotateX(12deg)',
+                  transformOrigin: 'center top',
+                }}
+              />
+              <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 relative z-10">
+                <div
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl flex items-center justify-center border-4 border-cyan-400/60 shadow-xl flex-shrink-0 bg-slate-900/80 backdrop-blur-sm"
+                  style={{ transform: 'perspective(600px) rotateY(-14deg) rotateX(8deg)', boxShadow: '0 20px 40px rgba(6,182,212,0.25), inset 0 0 0 1px rgba(34,211,238,0.3)' }}
+                >
+                  <span className="text-5xl sm:text-6xl select-none" aria-hidden>
+                    ◈
+                  </span>
+                </div>
+
+                <div className="flex-1 text-center sm:text-left">
+                  <h3 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-200 via-white to-violet-200 bg-clip-text text-transparent mb-3">
+                    OpenDesign
+                  </h3>
+                  <p className="text-cyan-100 text-lg sm:text-xl mb-2">
+                    Creative 3D modeling, scans & design on iPhone & iPad
+                  </p>
+                  <p className="text-slate-300 text-sm sm:text-base">
+                    Local-first workflows: LiDAR &amp; capture, meshes, circuits, streaming to OBS, printers, and exports — built for makers who sculpt in space.
+                  </p>
+                </div>
+
+                <div className="text-cyan-300 text-3xl sm:text-4xl group-hover:translate-x-2 transition-transform flex-shrink-0">
+                  →
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
       </section>
