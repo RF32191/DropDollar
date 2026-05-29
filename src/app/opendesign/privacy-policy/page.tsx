@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { OPEN_DESIGN_HUB_URL } from '@/lib/opendesign-public-urls';
 import { ArrowLeft } from 'lucide-react';
 
 const CONTACT_EMAIL = 'ryanfermoselle@outlook.com';
@@ -109,16 +108,14 @@ export default function OpenDesignPrivacyPolicyPage() {
         <div className="privacy-content">
           <h1>OpenDesignAI Privacy Policy</h1>
           <p>
-            <strong>Effective date: May 27, 2026</strong>
-            <br />
-            <strong>Last updated: May 27, 2026</strong>
+            <strong>Effective date: May 29, 2026</strong>
           </p>
           <ul className="!mt-4 !mb-6">
             <li>
               <strong>App:</strong> OpenDesignAI (OpenDesign)
             </li>
             <li>
-              <strong>Developer:</strong> Ryan Joshua Fermoselle
+              <strong>Developer:</strong> Ryan Fermoselle
             </li>
             <li>
               <strong>Contact:</strong>{' '}
@@ -129,7 +126,7 @@ export default function OpenDesignPrivacyPolicyPage() {
           <p>
             This Privacy Policy describes how OpenDesignAI (&quot;OpenDesign,&quot; &quot;we,&quot; &quot;us,&quot; or
             &quot;the app&quot;) handles information when you use our iOS and iPadOS application. OpenDesign is a creative
-            design app (3D modeling, architecture, animation, avatar creation, audio/video studio, and related tools). Most
+            design app for 3D modeling, architecture, animation, avatar creation, audio/video studio, and related tools. Most
             processing happens on your device. We do not operate a backend that collects the content you create unless you
             explicitly choose to share or upload it through a third-party service (for example, YouTube).
           </p>
@@ -153,7 +150,7 @@ export default function OpenDesignPrivacyPolicyPage() {
 
           <h2>2. Information We Process</h2>
 
-          <h3>2.1 Information you provide</h3>
+          <h3>2.1 Information You Provide</h3>
           <ul>
             <li>
               <strong>Projects and creative content:</strong> 3D models, sketches, circuits, house plans, audio/video edits,
@@ -207,7 +204,7 @@ export default function OpenDesignPrivacyPolicyPage() {
           <p>We do not access these sensors in the background for unrelated purposes.</p>
 
           <h3>2.3 Face Data and TrueDepth Camera</h3>
-          <p>This section describes how OpenDesign uses Apple&apos;s TrueDepth camera and ARKit face tracking.</p>
+          <p>This section explains how OpenDesign uses Apple&apos;s TrueDepth camera and ARKit face tracking.</p>
 
           <p>
             <strong>What information is collected using the TrueDepth API?</strong>
@@ -250,14 +247,9 @@ export default function OpenDesignPrivacyPolicyPage() {
             </li>
           </ul>
           <p>
-            <strong>Face data is not used for:</strong>
+            Face data is not used for user identification or authentication, advertising or marketing profiles, analytics
+            or tracking, sale to data brokers, or any purpose unrelated to avatar and animation tooling.
           </p>
-          <ul>
-            <li>User identification or authentication</li>
-            <li>Advertising or marketing profiles</li>
-            <li>Analytics, tracking, or sale to data brokers</li>
-            <li>Any purpose unrelated to avatar/animation tooling</li>
-          </ul>
 
           <p>
             <strong>Will the data be shared with third parties? Where will this information be stored?</strong>
@@ -290,6 +282,15 @@ export default function OpenDesignPrivacyPolicyPage() {
               projects and exports you create remain under your control on your device or in your personal cloud storage.
             </p>
           </div>
+
+          <h3>2.4 Subscriptions and Payments</h3>
+          <p>
+            OpenDesign Pro is offered as auto-renewable subscriptions through the Apple App Store (product IDs:{' '}
+            <code className="text-cyan-200">OpenDesign.Month</code> and <code className="text-cyan-200">OpenDesign.Annual</code>
+            ). Apple collects and processes payment information. We receive only subscription entitlement status from Apple to
+            unlock Pro features. We do not receive or store your credit card number. You can manage or cancel subscriptions in
+            Settings → Apple ID → Subscriptions on your device.
+          </p>
 
           <div className="section-divider" />
 
@@ -384,33 +385,27 @@ export default function OpenDesignPrivacyPolicyPage() {
 
           <h2>9. Changes to This Policy</h2>
           <p>
-            We may update this policy. We will post the revised version with a new effective date. Continued use after changes
-            constitutes acceptance.
+            We may update this policy. We will post the revised version with a new effective date on this page. Continued use
+            of the app after changes constitutes acceptance of the updated policy.
           </p>
 
           <div className="section-divider" />
 
           <h2>10. Contact Us</h2>
           <p>
-            <strong>Ryan Joshua Fermoselle</strong>
+            <strong>Ryan Fermoselle</strong>
           </p>
           <ul>
             <li>
               Email: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
             </li>
             <li>App: OpenDesignAI on the App Store</li>
-            <li>
-              Website:{' '}
-              <a href={OPEN_DESIGN_HUB_URL} target="_blank" rel="noopener noreferrer">
-                {OPEN_DESIGN_HUB_URL}
-              </a>
-            </li>
           </ul>
           <p>For App Store subscription or refund questions, contact Apple Support.</p>
 
           <div className="footer">
-            <p>© {new Date().getFullYear()} Ryan Joshua Fermoselle. OpenDesignAI Privacy Policy.</p>
-            <p>Last updated: May 27, 2026.</p>
+            <p>© {new Date().getFullYear()} Ryan Fermoselle. OpenDesignAI Privacy Policy.</p>
+            <p>Effective date: May 29, 2026.</p>
           </div>
         </div>
 
