@@ -97,218 +97,308 @@ export default function OpenDesignPrivacyPolicyPage() {
             font-size: 0.92em;
             color: #94a3b8;
           }
+          .privacy-content .highlight {
+            background: rgba(34, 211, 238, 0.08);
+            padding: 20px;
+            border-left: 4px solid rgba(34, 211, 238, 0.6);
+            border-radius: 8px;
+            margin: 20px 0;
+          }
         `}</style>
 
         <div className="privacy-content">
-          <h1>OpenDesign</h1>
+          <h1>OpenDesignAI Privacy Policy</h1>
           <p>
-            <strong>Last updated: May 22, 2026</strong>
+            <strong>Effective date: May 27, 2026</strong>
+            <br />
+            <strong>Last updated: May 27, 2026</strong>
           </p>
+          <ul className="!mt-4 !mb-6">
+            <li>
+              <strong>App:</strong> OpenDesignAI (OpenDesign)
+            </li>
+            <li>
+              <strong>Developer:</strong> Ryan Joshua Fermoselle
+            </li>
+            <li>
+              <strong>Contact:</strong>{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+            </li>
+          </ul>
 
           <p>
-            Ryan Joshua Fermoselle (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the OpenDesign mobile application
-            (the &quot;App&quot;). This Privacy Policy explains how we handle information when you use OpenDesign on iPhone
-            and iPad.
-          </p>
-          <p>
-            By using the App, you agree to this Privacy Policy. If you do not agree, please do not use the App.
+            This Privacy Policy describes how OpenDesignAI (&quot;OpenDesign,&quot; &quot;we,&quot; &quot;us,&quot; or
+            &quot;the app&quot;) handles information when you use our iOS and iPadOS application. OpenDesign is a creative
+            design app (3D modeling, architecture, animation, avatar creation, audio/video studio, and related tools). Most
+            processing happens on your device. We do not operate a backend that collects the content you create unless you
+            explicitly choose to share or upload it through a third-party service (for example, YouTube).
           </p>
 
           <div className="section-divider" />
 
           <h2>1. Summary</h2>
-          <p>
-            OpenDesign is designed to keep your creative work on your device. Most project files, scans, recordings, and
-            exports are stored locally on your iPhone or iPad. We do not sell your personal information.
-          </p>
-          <p>
-            We may process certain data only when you use specific features — for example, when you grant camera access for
-            LiDAR scanning, microphone access for audio recording, or local network access to connect to a 3D printer or
-            stream an avatar to OBS on your Wi-Fi network.
-          </p>
+          <ul>
+            <li>We do not sell your personal information.</li>
+            <li>We do not use face data for identity recognition, advertising, or tracking.</li>
+            <li>
+              Face and camera data used for avatar and animation features are processed on-device during active sessions.
+            </li>
+            <li>
+              Project files you save stay on your device and/or in your iCloud / Files storage when you enable those services.
+            </li>
+            <li>Subscriptions are processed by Apple; we do not receive your full payment card details.</li>
+          </ul>
 
           <div className="section-divider" />
 
-          <h2>2. Information We Collect</h2>
+          <h2>2. Information We Process</h2>
 
-          <h3>A. Information you provide</h3>
+          <h3>2.1 Information you provide</h3>
           <ul>
             <li>
-              Project names, folders, and creative content you create inside the App (3D models, sketches, circuits, floor
-              plans, audio, video, chemistry data, game assets, avatars, and related files)
+              <strong>Projects and creative content:</strong> 3D models, sketches, circuits, house plans, audio/video edits,
+              avatar designs, and exports you create and save.
             </li>
-            <li>Optional text you enter in export, sharing, or upload forms (such as video titles or descriptions)</li>
-            <li>Support messages you send us by email</li>
-          </ul>
-
-          <h3>B. Information collected automatically on your device</h3>
-          <ul>
-            <li>App settings and preferences stored on your device</li>
-            <li>Subscription status related to OpenDesign Pro (processed by Apple through In-App Purchase)</li>
             <li>
-              Diagnostic logs generated on your device for debugging (we do not operate third-party analytics or advertising
-              trackers in the App)
+              <strong>Account / access:</strong> If you subscribe to OpenDesign Pro, Apple processes payment; we receive
+              subscription status through StoreKit (entitlement), not your full payment credentials.
+            </li>
+            <li>
+              <strong>Optional credentials for third-party sharing:</strong> If you connect YouTube or similar services to
+              upload content, you provide credentials or authorization through that service&apos;s flow; we do not store your
+              YouTube password.
             </li>
           </ul>
 
-          <h3>C. Information from device permissions (only if you grant access)</h3>
+          <h3>2.2 Information from device sensors and permissions</h3>
+          <p>
+            OpenDesign may request access to device features only when you use related tools. You can deny permission; those
+            features will not work.
+          </p>
           <ul>
-            <li>Camera: photogrammetry, object capture, AR features, avatar face tracking, and related scanning</li>
             <li>
-              Microphone: Audio Studio, voice-over, screen recording with audio, and avatar lip-sync during streaming
+              <strong>Camera</strong> — 3D scanning, photogrammetry, AR features, and (on supported devices) TrueDepth face
+              tracking for avatars and animation
             </li>
-            <li>Photo Library (read): importing photos and videos for editing or 3D workflows</li>
-            <li>Photo Library (add): saving exports, recordings, mixes, and rendered videos to your library</li>
             <li>
-              Apple Music / Media Library: attaching downloaded or local music to audio or video timelines (not Apple Music
-              streaming-only tracks)
+              <strong>Microphone</strong> — Audio Studio, voice-over, in-app recording, and microphone-driven lip-sync for
+              avatars
             </li>
-            <li>World Sensing / LiDAR / AR: room and object scanning, spatial tracking, and AR design tools on supported devices</li>
             <li>
-              Local Network: discovering 3D printers on your Wi-Fi and broadcasting avatar or screen streams to apps such as
-              OBS, Streamlabs, or browsers on the same network
+              <strong>Photo Library</strong> — Importing media for editing; saving exports, mixes, and recordings you choose
+              to save
             </li>
-            <li>Screen Recording / Broadcast Extension: capturing in-app or system screen content when you start a recording or broadcast</li>
+            <li>
+              <strong>Apple Music / Media Library</strong> — Attaching downloaded/local songs to timelines in Audio or Video
+              Studio
+            </li>
+            <li>
+              <strong>Local Network</strong> — Discovering 3D printers on your Wi-Fi and streaming avatar preview to devices
+              on your local network (e.g. OBS, browsers)
+            </li>
+            <li>
+              <strong>LiDAR / World Sensing</strong> — Room and object 3D scanning on supported hardware
+            </li>
+            <li>
+              <strong>Screen Recording (ReplayKit)</strong> — Capturing in-app or device screen content when you start a
+              recording
+            </li>
           </ul>
+          <p>We do not access these sensors in the background for unrelated purposes.</p>
 
-          <h3>D. Information sent to third parties only when you choose to use those features</h3>
+          <h3>2.3 Face Data and TrueDepth Camera</h3>
+          <p>This section describes how OpenDesign uses Apple&apos;s TrueDepth camera and ARKit face tracking.</p>
+
+          <p>
+            <strong>What information is collected using the TrueDepth API?</strong>
+          </p>
+          <p>
+            On iPhone and iPad models with a TrueDepth front camera, OpenDesign uses Apple&apos;s ARKit{' '}
+            <code className="text-cyan-200">ARFaceTrackingConfiguration</code> when you open Avatar Creator, face motion
+            capture, or related animation features. During an active session, the app may process:
+          </p>
           <ul>
-            <li>Apple (App Store, In-App Purchases, iCloud if you enable iCloud sync, and system services)</li>
-            <li>TikTok, when you use share actions that open the TikTok app</li>
             <li>
-              Streaming platforms (Twitch, YouTube Live, TikTok Live, or custom RTMP destinations) when you enter stream
-              credentials and start a live broadcast — stream keys and URLs are used to connect and are not sold by us
+              Facial blendshape coefficients (approximately 52 animation weights describing mouth, jaw, brows, eyes, and
+              similar expressions)
+            </li>
+            <li>Head pose (pitch, yaw, roll) and small head translation for preview alignment</li>
+            <li>Face anchor transform data used to position the avatar relative to your face in real time</li>
+          </ul>
+          <p>
+            On devices without TrueDepth, the app may use Apple Vision 2D face landmarks as a fallback. That fallback does not
+            use a depth map.
+          </p>
+          <p>
+            <strong>We do not upload raw face meshes, depth maps, or live camera frames of your face to our servers.</strong>
+          </p>
+
+          <p>
+            <strong>For what purposes is this information collected?</strong>
+          </p>
+          <p>Face data is used only for creative features you initiate:</p>
+          <ul>
+            <li>
+              <strong>Avatar Creator</strong> — animate 2D/3D avatars (mouth, expressions, head movement) in real time
             </li>
             <li>
-              Google / YouTube, if and when YouTube upload is enabled with your own OAuth credentials — authentication tokens may
-              be stored in the iOS Keychain on your device
+              <strong>Animation / motion capture</strong> — record performance keyframes you choose to save in a project
             </li>
             <li>
-              Local or network 3D printers (OctoPrint, Moonraker, Klipper, IPP, and similar) when you connect to a printer on
-              your network
+              <strong>Live avatar preview / streaming</strong> — drive lip-sync and expressions during local preview or streams
+              you start (e.g. on your local network)
             </li>
-            <li>
-              Other devices nearby, when you use local multiplayer features built on Apple&apos;s MultipeerConnectivity framework
-              on the same Wi-Fi or Bluetooth range
-            </li>
+          </ul>
+          <p>
+            <strong>Face data is not used for:</strong>
+          </p>
+          <ul>
+            <li>User identification or authentication</li>
+            <li>Advertising or marketing profiles</li>
+            <li>Analytics, tracking, or sale to data brokers</li>
+            <li>Any purpose unrelated to avatar/animation tooling</li>
           </ul>
 
           <p>
-            <strong>We do not require you to create an OpenDesign account to use the App.</strong>
+            <strong>Will the data be shared with third parties? Where will this information be stored?</strong>
           </p>
+          <ul>
+            <li>
+              <strong>Third parties:</strong> We do not share TrueDepth or face tracking data with third parties. If you export
+              a video, project file, or recording that includes your likeness, you control where that file is sent (AirDrop,
+              Files, Photos, YouTube, etc.).
+            </li>
+            <li>
+              <strong>Storage:</strong> Live face tracking exists in app memory only while the feature is active. If you save
+              a project, mocap recording, or exported video, that file is stored locally on your device and/or in your iCloud
+              Drive / Cloud Documents container if you use those Apple services—under your Apple ID, not on OpenDesign-operated
+              servers.
+            </li>
+            <li>
+              <strong>Retention:</strong> We do not retain face tracking data on our servers. Saved project data remains until
+              you delete it from your device or cloud storage.
+            </li>
+          </ul>
+
+          <div className="highlight">
+            <p className="!mb-0">
+              <strong>Face Data and TrueDepth Camera (summary):</strong> OpenDesign uses the TrueDepth camera and ARKit face
+              tracking only when you open Avatar Creator, face motion capture, or related animation features. We process
+              facial geometry and expression parameters (blendshapes and head pose) solely to animate avatars and record
+              performances you choose to save. Processing occurs on your device. We do not upload face scans to our servers,
+              do not use face data for identity recognition, and do not sell or share face data with third parties. Saved
+              projects and exports you create remain under your control on your device or in your personal cloud storage.
+            </p>
+          </div>
 
           <div className="section-divider" />
 
           <h2>3. How We Use Information</h2>
           <p>We use information to:</p>
           <ul>
-            <li>Provide App features you request</li>
-            <li>Save, open, export, and sync your projects</li>
-            <li>Process subscriptions through Apple</li>
-            <li>Improve stability and fix bugs</li>
-            <li>Respond to support requests</li>
-            <li>Comply with law</li>
-          </ul>
-          <p>
-            <strong>We do not use your content to train AI models.</strong> Face and body data used for avatar animation and AR
-            features are processed on your device for real-time rendering unless you explicitly export or share that content.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>4. Where Data Is Stored</h2>
-          <ul>
-            <li>On your device: project files, scans, media, and most App data</li>
-            <li>iOS Keychain: optional third-party auth tokens (such as YouTube, when configured)</li>
+            <li>Provide app functionality (editing, saving, exporting, printing prep, games, etc.)</li>
+            <li>Validate OpenDesign Pro subscription status via Apple StoreKit</li>
             <li>
-              App Group container: shared data between the main App and the Screen Broadcast extension for recording workflows
+              Improve stability (e.g. on-device error logs via Apple&apos;s unified logging; not linked to face data)
             </li>
-            <li>iCloud Drive (optional): if you enable iCloud Documents sync, project copies may be stored in your personal iCloud account under Apple&apos;s terms</li>
-            <li>Your chosen third-party services: when you stream, share, or upload</li>
           </ul>
+          <p>We do not use your content or face data for targeted advertising.</p>
 
           <div className="section-divider" />
 
-          <h2>5. Data Retention</h2>
-          <p>
-            We retain support emails as long as needed to respond and maintain records. Content on your device remains until you
-            delete it or uninstall the App. iCloud copies remain until you remove them from iCloud. Subscription records are
-            retained by Apple.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>6. Sharing of Information</h2>
-          <p>
-            <strong>We do not sell personal information.</strong>
-          </p>
-          <p>We may share information:</p>
+          <h2>4. Data Storage and Security</h2>
           <ul>
-            <li>With Apple for payments, subscriptions, and platform services</li>
-            <li>With service providers you direct the App to use (printers, streaming platforms, social apps)</li>
-            <li>If required by law, court order, or to protect rights, safety, and security</li>
-            <li>In connection with a merger, acquisition, or sale of assets, with notice where required</li>
+            <li>
+              <strong>On-device:</strong> Projects and exports are stored in the app&apos;s sandbox and locations you select in
+              Files.
+            </li>
+            <li>
+              <strong>iCloud / Cloud Documents:</strong> If enabled, Apple syncs your documents per your iCloud settings.
+            </li>
+            <li>
+              <strong>No OpenDesign cloud:</strong> We do not maintain a central server that stores your 3D models, face
+              scans, or recordings by default.
+            </li>
+            <li>You are responsible for securing your device and Apple ID.</li>
           </ul>
 
           <div className="section-divider" />
 
-          <h2>7. Children&apos;s Privacy</h2>
-          <p>
-            OpenDesign is not directed to children under 13. We do not knowingly collect personal information from children
-            under 13. If you believe a child has provided us information, contact us and we will delete it.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>8. Your Choices and Rights</h2>
-          <p>You can:</p>
+          <h2>5. Third-Party Services</h2>
+          <p>When you choose to use these, their policies apply:</p>
           <ul>
-            <li>Deny or revoke permissions in iOS Settings → Privacy &amp; Security</li>
-            <li>Delete projects inside the App</li>
-            <li>Delete the App to remove local data</li>
-            <li>Manage subscriptions in Settings → Apple ID → Subscriptions</li>
-            <li>Request access, correction, or deletion of support-related data by emailing us</li>
+            <li>
+              Apple (App Store, StoreKit, iCloud):{' '}
+              <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener noreferrer">
+                https://www.apple.com/legal/privacy/
+              </a>
+            </li>
+            <li>
+              YouTube (optional upload):{' '}
+              <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">
+                https://policies.google.com/privacy
+              </a>
+            </li>
+            <li>TikTok share (optional, if installed): TikTok&apos;s privacy policy</li>
+          </ul>
+          <p>We do not control third-party services.</p>
+
+          <div className="section-divider" />
+
+          <h2>6. Children&apos;s Privacy</h2>
+          <p>
+            OpenDesign is not directed at children under 13. We do not knowingly collect personal information from children.
+            If you believe a child has provided information, contact us and we will assist with deletion of locally stored
+            content on your device.
+          </p>
+
+          <div className="section-divider" />
+
+          <h2>7. Your Choices and Rights</h2>
+          <ul>
+            <li>
+              <strong>Permissions:</strong> Revoke Camera, Microphone, Photos, etc. in Settings → OpenDesignAI.
+            </li>
+            <li>
+              <strong>Subscriptions:</strong> Manage or cancel in Settings → Apple ID → Subscriptions.
+            </li>
+            <li>
+              <strong>Delete data:</strong> Delete projects in the app or remove the app from your device; remove iCloud
+              copies via Files or iCloud settings.
+            </li>
           </ul>
           <p>
-            Depending on where you live, you may have additional rights under laws such as GDPR, UK GDPR, or CCPA/CPRA. We will
-            honor valid requests as required by law.
+            Depending on your region, you may have additional privacy rights. Contact us to request information about data we
+            process (primarily subscription entitlement via Apple).
           </p>
 
           <div className="section-divider" />
 
-          <h2>9. Security</h2>
+          <h2>8. International Users</h2>
           <p>
-            We use reasonable technical and organizational measures appropriate to a local-first creative app. No method of
-            storage or transmission is 100% secure.
+            If you use the app outside the United States, your information may be processed on your device and through
+            Apple&apos;s infrastructure in accordance with Apple&apos;s policies.
           </p>
 
           <div className="section-divider" />
 
-          <h2>10. International Users</h2>
+          <h2>9. Changes to This Policy</h2>
           <p>
-            If you use the App outside the United States, your information may be processed in the United States and other
-            countries where our service providers operate.
+            We may update this policy. We will post the revised version with a new effective date. Continued use after changes
+            constitutes acceptance.
           </p>
 
           <div className="section-divider" />
 
-          <h2>11. Changes to This Policy</h2>
-          <p>
-            We may update this Privacy Policy from time to time. We will post the updated version at the same URL and change
-            the &quot;Last updated&quot; date. Continued use after changes means you accept the updated policy.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>12. Contact Us</h2>
+          <h2>10. Contact Us</h2>
           <p>
             <strong>Ryan Joshua Fermoselle</strong>
           </p>
           <ul>
             <li>
-              Email:{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+              Email: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
             </li>
+            <li>App: OpenDesignAI on the App Store</li>
             <li>
               Website:{' '}
               <a href={OPEN_DESIGN_HUB_URL} target="_blank" rel="noopener noreferrer">
@@ -316,9 +406,11 @@ export default function OpenDesignPrivacyPolicyPage() {
               </a>
             </li>
           </ul>
+          <p>For App Store subscription or refund questions, contact Apple Support.</p>
 
           <div className="footer">
-            <p>© {new Date().getFullYear()} Ryan Joshua Fermoselle. OpenDesign Privacy Policy.</p>
+            <p>© {new Date().getFullYear()} Ryan Joshua Fermoselle. OpenDesignAI Privacy Policy.</p>
+            <p>Last updated: May 27, 2026.</p>
           </div>
         </div>
 
