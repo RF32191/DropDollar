@@ -6,7 +6,7 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { OPEN_DESIGN_PRIVACY_URL, OPEN_DESIGN_TERMS_URL } from '@/lib/opendesign-public-urls';
 import { ArrowLeft } from 'lucide-react';
 
-const CONTACT_EMAIL = 'support@drop-dollar.com';
+const CONTACT_EMAIL = 'ryanfermoselle@outlook.com';
 const APPLE_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const APPLE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
 

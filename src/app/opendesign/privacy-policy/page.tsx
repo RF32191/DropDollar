@@ -6,7 +6,7 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { OPEN_DESIGN_PRIVACY_URL } from '@/lib/opendesign-public-urls';
 import { ArrowLeft } from 'lucide-react';
 
-const CONTACT_EMAIL = 'support@drop-dollar.com';
+const CONTACT_EMAIL = 'ryanfermoselle@outlook.com';
 
 export default function OpenDesignPrivacyPolicyPage() {
   return (
