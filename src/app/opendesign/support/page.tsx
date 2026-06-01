@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { OPEN_DESIGN_HUB_URL, OPEN_DESIGN_PRIVACY_URL, OPEN_DESIGN_TERMS_URL } from '@/lib/opendesign-public-urls';
 
-const CONTACT_EMAIL = 'ryanfermoselle@outlook.com';
+const CONTACT_EMAIL = 'support@drop-dollar.com';
 
 interface FAQEntry {
   q: string;

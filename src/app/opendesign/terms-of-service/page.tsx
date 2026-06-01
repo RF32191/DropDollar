@@ -3,14 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { OPEN_DESIGN_HUB_URL } from '@/lib/opendesign-public-urls';
+import { OPEN_DESIGN_PRIVACY_URL, OPEN_DESIGN_TERMS_URL } from '@/lib/opendesign-public-urls';
 import { ArrowLeft } from 'lucide-react';
 
-/** Contact for legal notices (§18). */
-const CONTACT_EMAIL = 'ryanfermoselle@outlook.com';
-
-/** U.S. state for governing law (§16). Update if a different state applies. */
-const GOVERNING_STATE = 'California';
+const CONTACT_EMAIL = 'support@drop-dollar.com';
+const APPLE_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+const APPLE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
 
 export default function OpenDesignTermsOfServicePage() {
   return (
@@ -49,7 +47,6 @@ export default function OpenDesignTermsOfServicePage() {
             padding-bottom: 12px;
             font-size: 2.5rem;
             margin-bottom: 8px;
-            text-shadow: 0 2px 20px rgba(139, 92, 246, 0.2);
           }
           .terms-content h2 {
             color: #a5b4fc;
@@ -60,14 +57,7 @@ export default function OpenDesignTermsOfServicePage() {
             font-size: 1.65rem;
             font-weight: 700;
           }
-          .terms-content h3 {
-            color: #67e8f9;
-            margin-top: 20px;
-            font-weight: 600;
-            font-size: 1.1rem;
-          }
-          .terms-content ul,
-          .terms-content ol {
+          .terms-content ul {
             padding-left: 22px;
             margin: 12px 0;
           }
@@ -89,10 +79,6 @@ export default function OpenDesignTermsOfServicePage() {
           .terms-content a {
             color: #67e8f9;
             text-decoration: underline;
-            transition: color 0.2s;
-          }
-          .terms-content a:hover {
-            color: #a5f3fc;
           }
           .terms-content .section-divider {
             border-top: 1px solid rgba(99, 102, 241, 0.35);
@@ -108,229 +94,192 @@ export default function OpenDesignTermsOfServicePage() {
         `}</style>
 
         <div className="terms-content">
-          <h1>Terms of Service</h1>
-          <p className="text-violet-300/90 font-medium">OpenDesign</p>
+          <h1>OpenDesignAI Terms of Use (EULA)</h1>
           <p>
-            <strong>Last updated: May 22, 2026</strong>
+            <strong>Effective date: June 1, 2026</strong>
           </p>
-
-          <p>
-            These Terms of Service (&quot;Terms&quot;) govern your use of the OpenDesign mobile application (&quot;App&quot;)
-            provided by Ryan Joshua Fermoselle (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;).
-          </p>
-          <p>By downloading or using OpenDesign, you agree to these Terms. If you do not agree, do not use the App.</p>
-
-          <p className="text-slate-400 text-sm">
-            Our{' '}
-            <Link href="/opendesign/privacy-policy">Privacy Policy</Link> describes how we handle information and is
-            incorporated by reference where applicable.
-          </p>
+          <ul className="!mt-4 !mb-6">
+            <li>
+              <strong>App:</strong> OpenDesignAI (OpenDesign)
+            </li>
+            <li>
+              <strong>Developer:</strong> Ryan Joshua Fermoselle
+            </li>
+            <li>
+              <strong>Contact:</strong>{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+            </li>
+          </ul>
 
           <div className="section-divider" />
 
-          <h2>1. Eligibility</h2>
+          <h2>1. Agreement</h2>
           <p>
-            You must be at least 13 years old to use the App. If you are under 18, you may use the App only with permission
-            from a parent or legal guardian who accepts these Terms on your behalf.
+            By downloading or using OpenDesignAI, you agree to these Terms of Use and to Apple&apos;s Licensed Application End
+            User License Agreement (Standard EULA) where applicable:{' '}
+            <a href={APPLE_EULA_URL} target="_blank" rel="noopener noreferrer">
+              {APPLE_EULA_URL}
+            </a>
           </p>
 
           <div className="section-divider" />
 
           <h2>2. License</h2>
           <p>
-            We grant you a personal, limited, non-exclusive, non-transferable, revocable license to install and use the App on
-            Apple devices you own or control, subject to these Terms and Apple&apos;s App Store rules.
+            We grant you a personal, non-exclusive, non-transferable license to use the app on Apple-branded devices you own or
+            control, as permitted by the App Store Terms of Service.
           </p>
+
+          <div className="section-divider" />
+
+          <h2>3. OpenDesign Pro Subscriptions</h2>
           <p>
-            <strong>You may not:</strong>
+            OpenDesign Pro is an auto-renewable subscription that unlocks premium features, including but not limited to:
           </p>
           <ul>
-            <li>Copy, modify, reverse engineer, or redistribute the App except as allowed by law</li>
-            <li>Use the App for unlawful purposes</li>
-            <li>Interfere with the App&apos;s security or operation</li>
-            <li>Remove copyright or proprietary notices</li>
-          </ul>
-
-          <div className="section-divider" />
-
-          <h2>3. Your Content</h2>
-          <p>
-            You retain ownership of content you create, import, scan, record, or export in the App (&quot;User Content&quot;).
-          </p>
-          <p>
-            You are solely responsible for User Content and for ensuring you have the rights to use, share, export, stream, or
-            publish it. Do not upload or share content that infringes others&apos; rights or violates law.
-          </p>
-          <p>
-            You grant us only the limited rights needed to operate the App on your device and to process actions you request
-            (such as exporting a file or connecting to a printer you choose).
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>4. OpenDesign Pro Subscriptions</h2>
-          <p>Some features require an active OpenDesign Pro subscription.</p>
-          <ul>
-            <li>Payment is charged to your Apple ID account</li>
-            <li>Subscriptions automatically renew unless canceled at least 24 hours before the end of the current period</li>
-            <li>Your account will be charged for renewal within 24 hours prior to the end of the current period</li>
-            <li>You can manage or cancel subscriptions in Settings → Apple ID → Subscriptions</li>
-            <li>Any free trial, if offered, converts to a paid subscription unless canceled before the trial ends</li>
-            <li>Prices may change with notice as allowed by Apple and applicable law</li>
-          </ul>
-          <p>Refunds are handled by Apple under Apple Media Services Terms and Conditions.</p>
-
-          <div className="section-divider" />
-
-          <h2>5. Free Tier</h2>
-          <p>
-            Without a Pro subscription, certain features and project limits may apply. We may change free-tier limits or
-            features with reasonable notice where required.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>6. Third-Party Services</h2>
-          <p>The App may interact with third-party services, including:</p>
-          <ul>
-            <li>Apple services (App Store, iCloud, ReplayKit, ARKit)</li>
-            <li>3D printers and local network tools</li>
-            <li>Streaming platforms and RTMP services</li>
-            <li>TikTok and other share destinations</li>
-            <li>YouTube, when upload is enabled</li>
+            <li>All export formats (STL, OBJ, USDZ, GLTF, and more)</li>
+            <li>Unlimited projects (no per-category free limits)</li>
+            <li>3D printing, slicing, and animation workspace tools</li>
+            <li>3D model import</li>
+            <li>Game customization and premium game modes</li>
+            <li>Architecture 3D view and exploration modes</li>
+            <li>Cloud AI 3D (subject to monthly usage limits below)</li>
           </ul>
           <p>
-            Your use of third-party services is governed by their own terms and privacy policies. We are not responsible for
-            third-party services.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>7. Educational and Professional Disclaimer</h2>
-          <p>
-            OpenDesign includes tools for design, engineering, architecture, chemistry, electronics, and related fields.
-            Outputs are for creative, educational, and prototyping purposes unless you independently verify them.
-          </p>
-          <p>
-            <strong>We do not guarantee that:</strong>
+            <strong>Available plans (App Store product IDs):</strong>
           </p>
           <ul>
             <li>
-              3D prints, circuits, floor plans, structural models, chemical simulations, or other outputs are safe,
-              code-compliant, manufacturable, or fit for any particular use
+              <strong>OpenDesign Pro Monthly</strong> — <code className="text-cyan-200">Monthly.OpenDesign</code> — billed every
+              1 month
             </li>
             <li>
-              Measurements, BOMs, Gerber files, G-code, building-code checks, or simulations are accurate or complete
+              <strong>OpenDesign Pro Annual</strong> — <code className="text-cyan-200">Annual.OpenDesign</code> — billed every
+              1 year
             </li>
           </ul>
           <p>
-            You are solely responsible for professional review, testing, compliance, and safety before real-world use.
+            Payment is charged to your Apple ID account at confirmation of purchase. Subscriptions automatically renew unless
+            canceled at least 24 hours before the end of the current period. Your account may be charged for renewal within 24
+            hours prior to the end of the current period.
+          </p>
+          <p>
+            <strong>Manage or cancel:</strong> Settings → Apple ID → Subscriptions, or{' '}
+            <a href={APPLE_SUBSCRIPTIONS_URL} target="_blank" rel="noopener noreferrer">
+              {APPLE_SUBSCRIPTIONS_URL}
+            </a>
+          </p>
+          <p>
+            Any free trial, if offered in App Store Connect, converts to a paid subscription unless canceled before the trial
+            ends.
+          </p>
+          <p>
+            <strong>Restore Purchases:</strong> If you reinstall the app or change devices, use Restore Purchases on the paywall
+            while signed in with the same Apple ID used to subscribe.
           </p>
 
           <div className="section-divider" />
 
-          <h2>8. AR, Camera, LiDAR, and Biometric-Like Features</h2>
-          <p>
-            Some features use the camera, LiDAR, or ARKit face and body tracking for scanning, animation, and avatar control.
-            These features process data on your device in real time. You are responsible for obtaining consent from people who
-            appear in scans, recordings, streams, or avatars.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>9. Local Network, Streaming, and Multiplayer</h2>
-          <p>
-            Features that connect to local printers, stream video/audio, or join nearby multiplayer sessions operate on your
-            network or with nearby devices. You are responsible for securing your network credentials, stream keys, and shared
-            sessions.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>10. Acceptable Use</h2>
-          <p>
-            <strong>You agree not to:</strong>
-          </p>
+          <h2>4. Cloud AI 3D (Pro feature)</h2>
+          <p>Cloud AI 3D is included with OpenDesign Pro but subject to fair-use limits:</p>
           <ul>
-            <li>Harass, abuse, or harm others</li>
-            <li>Distribute malware or attempt unauthorized access</li>
-            <li>Use the App to create illegal content</li>
-            <li>Misrepresent your identity or affiliation</li>
-            <li>Circumvent subscription or security controls except as allowed by law</li>
+            <li>25 photo → 3D generations per calendar month (UTC)</li>
+            <li>6 text prompt → 3D generations per calendar month (UTC)</li>
           </ul>
-          <p>We may suspend or terminate access for violations.</p>
-
-          <div className="section-divider" />
-
-          <h2>11. Intellectual Property</h2>
           <p>
-            The App, branding, UI, and underlying software are owned by us or our licensors and are protected by intellectual
-            property laws. These Terms do not grant you ownership of the App.
+            Credits reset on the 1st of each month (UTC). Usage is tracked on our server using your Apple subscription account
+            identifier from StoreKit.
+          </p>
+          <p>By using Cloud AI 3D you agree that:</p>
+          <ul>
+            <li>
+              Photos and prompts you submit will be transmitted to our server and processed by third-party AI providers
+              (including Replicate).
+            </li>
+            <li>Results are provided &quot;as is&quot;; meshes may require cleanup before printing or production use.</li>
+            <li>You will not submit unlawful, infringing, or explicit content.</li>
+            <li>Service may be unavailable during outages, maintenance, or provider rate limits.</li>
+          </ul>
+          <p>
+            On-device Photo3D and LiDAR tools may remain available without Cloud AI depending on your device and settings.
           </p>
 
           <div className="section-divider" />
 
-          <h2>12. Disclaimer of Warranties</h2>
+          <h2>5. LiDAR and device requirements</h2>
+          <p>
+            LiDAR scanning, room mesh reconstruction, and related AR features require compatible Apple hardware (LiDAR Scanner
+            and ARKit scene reconstruction support). If your device is not supported, the app will show a notice instead of
+            starting the scanner. Scan quality and availability depend on your device, lighting, and environment.
+          </p>
+
+          <div className="section-divider" />
+
+          <h2>6. Local multiplayer and collaboration</h2>
+          <p>
+            Local multiplayer, collaborative sketch rooms, and similar features connect devices peer-to-peer on your Wi-Fi or
+            Bluetooth. We do not guarantee session stability, latency, or compatibility with all networks. You are responsible
+            for who you invite to local sessions and for content shared in those sessions.
+          </p>
+
+          <div className="section-divider" />
+
+          <h2>7. User content</h2>
+          <p>
+            You retain ownership of projects and exports you create. You are responsible for the content you create, export,
+            share, or upload (including to YouTube or other services). You represent that you have the rights to any photos,
+            prompts, or media you submit to Cloud AI 3D or share from the app.
+          </p>
+
+          <div className="section-divider" />
+
+          <h2>8. Acceptable use</h2>
+          <p>You may not:</p>
+          <ul>
+            <li>Reverse engineer or redistribute the app except as allowed by law</li>
+            <li>Circumvent subscription or Cloud AI credit limits</li>
+            <li>Use the app for unlawful purposes or to generate illegal content</li>
+            <li>Abuse our API or third-party AI providers</li>
+          </ul>
+
+          <div className="section-divider" />
+
+          <h2>9. Disclaimer</h2>
           <p className="caps-disclaimer">
-            THE APP IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE.&quot; TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE
-            DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
-            NON-INFRINGEMENT.
+            THE APP IS PROVIDED &quot;AS IS&quot; WITHOUT WARRANTIES OF ANY KIND. Design, engineering, architectural, game, and
+            export outputs are for creative and educational use. They are not professional engineering, architectural, legal,
+            medical, or safety certification. 3D prints, structures, and games you build with OpenDesign are your responsibility.
           </p>
-          <p>We do not warrant that the App will be uninterrupted, error-free, or secure.</p>
 
           <div className="section-divider" />
 
-          <h2>13. Limitation of Liability</h2>
-          <p className="caps-disclaimer">
-            TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
-            CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, DATA, GOODWILL, OR OTHER INTANGIBLE LOSSES, ARISING
-            FROM YOUR USE OF THE APP.
-          </p>
-          <p className="caps-disclaimer">
-            OUR TOTAL LIABILITY FOR ANY CLAIM RELATING TO THE APP WILL NOT EXCEED THE GREATER OF (A) THE AMOUNT YOU PAID US
-            FOR THE APP OR SUBSCRIPTIONS IN THE 12 MONTHS BEFORE THE CLAIM OR (B) USD $50.
-          </p>
-          <p>Some jurisdictions do not allow certain limitations, so some of the above may not apply to you.</p>
-
-          <div className="section-divider" />
-
-          <h2>14. Indemnity</h2>
+          <h2>10. Limitation of liability</h2>
           <p>
-            You agree to defend, indemnify, and hold us harmless from claims arising out of your User Content, your use of the
-            App, or your violation of these Terms or applicable law.
+            To the maximum extent permitted by law, Ryan Joshua Fermoselle is not liable for indirect, incidental, special, or
+            consequential damages arising from use of the app, Cloud AI results, local multiplayer, or third-party services.
           </p>
 
           <div className="section-divider" />
 
-          <h2>15. Termination</h2>
+          <h2>11. Privacy</h2>
           <p>
-            You may stop using the App at any time by deleting it. We may terminate or suspend your access if you violate
-            these Terms or if required for legal or security reasons.
-          </p>
-          <p>
-            Sections that by nature should survive termination will survive, including ownership, disclaimers, limitations of
-            liability, and indemnity.
+            Our Privacy Policy explains how we handle information, including TrueDepth face data, Cloud AI uploads, and
+            subscription identifiers:{' '}
+            <a href={OPEN_DESIGN_PRIVACY_URL}>{OPEN_DESIGN_PRIVACY_URL}</a>
           </p>
 
           <div className="section-divider" />
 
-          <h2>16. Governing Law</h2>
+          <h2>12. Changes</h2>
           <p>
-            These Terms are governed by the laws of the State of {GOVERNING_STATE}, United States, without regard to
-            conflict-of-law rules, except where mandatory consumer protection laws in your country require otherwise.
+            We may update these Terms. We will post the revised version with a new effective date at{' '}
+            <a href={OPEN_DESIGN_TERMS_URL}>{OPEN_DESIGN_TERMS_URL}</a> (or the URL listed on the App Store). Continued use after
+            changes constitutes acceptance.
           </p>
 
           <div className="section-divider" />
 
-          <h2>17. Changes</h2>
-          <p>
-            We may update these Terms from time to time. Continued use after the updated Terms are posted constitutes
-            acceptance.
-          </p>
-
-          <div className="section-divider" />
-
-          <h2>18. Contact</h2>
+          <h2>13. Contact</h2>
           <p>
             <strong>Ryan Joshua Fermoselle</strong>
           </p>
@@ -338,16 +287,17 @@ export default function OpenDesignTermsOfServicePage() {
             <li>
               Email: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
             </li>
-            <li>
-              Website:{' '}
-              <a href={OPEN_DESIGN_HUB_URL} target="_blank" rel="noopener noreferrer">
-                {OPEN_DESIGN_HUB_URL}
-              </a>
-            </li>
           </ul>
+          <p>
+            Apple Standard EULA:{' '}
+            <a href={APPLE_EULA_URL} target="_blank" rel="noopener noreferrer">
+              {APPLE_EULA_URL}
+            </a>
+          </p>
 
           <div className="footer">
-            <p>© {new Date().getFullYear()} Ryan Joshua Fermoselle. OpenDesign Terms of Service.</p>
+            <p>© {new Date().getFullYear()} Ryan Joshua Fermoselle. OpenDesignAI Terms of Use.</p>
+            <p>Last updated: June 1, 2026.</p>
           </div>
         </div>
 
