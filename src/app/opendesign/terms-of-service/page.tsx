@@ -102,7 +102,7 @@ export default function OpenDesignTermsOfServicePage() {
         <div className="terms-content">
           <h1>OpenDesignAI Terms of Use (EULA)</h1>
           <p>
-            <strong>Effective date: June 1, 2026</strong>
+            <strong>Effective date: January 6, 2026</strong>
           </p>
           <ul className="!mt-4 !mb-6">
             <li>
@@ -336,7 +336,7 @@ export default function OpenDesignTermsOfServicePage() {
 
           <div className="footer">
             <p>© {new Date().getFullYear()} Ryan Joshua Fermoselle. OpenDesignAI Terms of Use.</p>
-            <p>Last updated: June 6, 2026.</p>
+            <p>Last updated: January 6, 2026.</p>
           </div>
         </div>
 
