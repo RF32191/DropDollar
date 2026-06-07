@@ -57,6 +57,12 @@ export default function OpenDesignTermsOfServicePage() {
             font-size: 1.65rem;
             font-weight: 700;
           }
+          .terms-content h3 {
+            color: #67e8f9;
+            margin-top: 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+          }
           .terms-content ul {
             padding-left: 22px;
             margin: 12px 0;
@@ -231,6 +237,39 @@ export default function OpenDesignTermsOfServicePage() {
             prompts, or media you submit to Cloud AI 3D or share from the app.
           </p>
 
+          <h3>7.1 Document Suite (Open Doc, Open Spreadsheet, Open PDF Editor)</h3>
+          <p>OpenDesign includes on-device document editing tools. By using them you agree that:</p>
+          <ul>
+            <li>
+              You are solely responsible for the accuracy, legality, and completeness of documents you create, import, edit,
+              sign, or distribute.
+            </li>
+            <li>
+              OpenDesign is a general-purpose creative and productivity tool, not legal counsel, not a certified electronic
+              signature platform, and not a substitute for professional document review, notarization, or compliance programs
+              required in your jurisdiction.
+            </li>
+            <li>
+              Signatures, checkboxes, form fields, stamps, and redactions applied in Open PDF Editor are convenience features.
+              Whether an edited or signed PDF is legally binding, admissible, or acceptable for a given contract, government
+              filing, medical form, or financial record depends on applicable law and the policies of the receiving party — not
+              on OpenDesign.
+            </li>
+            <li>
+              You must obtain consent and rights before placing another person&apos;s signature, likeness, or confidential
+              information in a document.
+            </li>
+            <li>
+              Redaction and whiteout tools may not remove all hidden or recoverable data from an imported PDF. For highly
+              sensitive material, verify redaction with appropriate professional tools before distribution.
+            </li>
+            <li>Document scanning uses your device camera; do not scan others&apos; private documents without permission.</li>
+            <li>
+              Exports may flatten annotations and images into page content for printing and sharing; keep original project files
+              if you need to edit placements later.
+            </li>
+          </ul>
+
           <div className="section-divider" />
 
           <h2>8. Acceptable use</h2>
@@ -297,7 +336,7 @@ export default function OpenDesignTermsOfServicePage() {
 
           <div className="footer">
             <p>© {new Date().getFullYear()} Ryan Joshua Fermoselle. OpenDesignAI Terms of Use.</p>
-            <p>Last updated: June 1, 2026.</p>
+            <p>Last updated: June 6, 2026.</p>
           </div>
         </div>
 

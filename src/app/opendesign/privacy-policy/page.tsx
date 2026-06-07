@@ -131,7 +131,7 @@ export default function OpenDesignPrivacyPolicyPage() {
         <div className="privacy-content">
           <h1>OpenDesignAI Privacy Policy</h1>
           <p>
-            <strong>Effective date: June 1, 2026</strong>
+            <strong>Effective date: June 6, 2026</strong>
           </p>
           <ul className="!mt-4 !mb-6">
             <li>
@@ -149,8 +149,8 @@ export default function OpenDesignPrivacyPolicyPage() {
           <p>
             This Privacy Policy describes how OpenDesignAI (&quot;OpenDesign,&quot; &quot;we,&quot; &quot;us,&quot; or
             &quot;the app&quot;) handles information when you use our iOS and iPadOS application. OpenDesign is a creative
-            design app (3D modeling, architecture, animation, avatar creation, LiDAR scanning, audio/video studio, games, and
-            related tools). Most processing happens on your device. We only send data to our servers when you explicitly use
+            design app (3D modeling, architecture, animation, avatar creation, LiDAR scanning, audio/video studio, games,
+            document editing, and related tools). Most processing happens on your device. We only send data to our servers when you explicitly use
             optional Cloud AI 3D features while subscribed to OpenDesign Pro.
           </p>
 
@@ -182,7 +182,8 @@ export default function OpenDesignPrivacyPolicyPage() {
           <ul>
             <li>
               <strong>Projects and creative content:</strong> 3D models, sketches, circuits, house plans, audio/video edits,
-              avatar designs, LiDAR scans, game content, and exports you create and save.
+              avatar designs, LiDAR scans, game content, word-processing documents (Open Doc), spreadsheets (Open Spreadsheet),
+              PDF projects (Open PDF Editor), and exports you create and save.
             </li>
             <li>
               <strong>Account / access:</strong> If you subscribe to OpenDesign Pro, Apple processes payment; we receive
@@ -216,8 +217,8 @@ export default function OpenDesignPrivacyPolicyPage() {
                 <tr>
                   <td>Camera</td>
                   <td>
-                    3D scanning, photogrammetry, AR features, Cloud AI photo input, and (on supported devices) TrueDepth face
-                    tracking for avatars and animation
+                    3D scanning, photogrammetry, AR features, Cloud AI photo input, document scanning to PDF, and (on supported
+                    devices) TrueDepth face tracking for avatars and animation
                   </td>
                 </tr>
                 <tr>
@@ -355,6 +356,31 @@ export default function OpenDesignPrivacyPolicyPage() {
             Some features let nearby devices connect over local Wi-Fi or Bluetooth (peer-to-peer). Session data is exchanged
             directly between devices on your network. We do not operate a central matchmaking server for these features. Other
             users on your network may see a display name or session title you choose when hosting.
+          </p>
+
+          <h3>2.6 Document Suite (Open Doc, Open Spreadsheet, Open PDF Editor)</h3>
+          <p>When you use our document tools:</p>
+          <ul>
+            <li>
+              <strong>Open Doc and Open Spreadsheet:</strong> Your text, formatting, tables, and embedded images are stored
+              locally in your project bundle on your device (and in iCloud if you use Cloud Documents). We do not upload
+              document contents to our servers.
+            </li>
+            <li>
+              <strong>Open PDF Editor:</strong> PDFs you import, scans you capture, signatures you draw or type, form fields,
+              text boxes, images, highlights, and other edits are processed and stored on your device. Document scanning uses
+              the device camera only when you start a scan. We do not upload your PDFs or signatures to our servers unless you
+              explicitly share or email an export through a system share sheet you initiate.
+            </li>
+            <li>
+              <strong>Exports:</strong> When you export or share a PDF, Word-compatible file, spreadsheet, or plain text, the
+              file is written locally and handed to iOS share/print services you choose (Mail, AirDrop, Files, etc.). We do not
+              receive copies of those exports.
+            </li>
+          </ul>
+          <p>
+            You are responsible for the documents you create, edit, sign, or distribute. OpenDesign does not provide legal, tax,
+            or records-management advice.
           </p>
 
           <div className="section-divider" />
@@ -561,7 +587,7 @@ export default function OpenDesignPrivacyPolicyPage() {
 
           <div className="footer">
             <p>© {new Date().getFullYear()} Ryan Joshua Fermoselle. OpenDesignAI Privacy Policy.</p>
-            <p>Last updated: June 1, 2026.</p>
+            <p>Last updated: June 6, 2026.</p>
           </div>
         </div>
 
