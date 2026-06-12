@@ -69,6 +69,8 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
           return 'bg-gradient-to-r from-blue-600 via-blue-500 to-blue-700 shadow-2xl animate-gradient-x'; // Purion medical blue
         case '/opendesign':
           return 'bg-gradient-to-r from-cyan-600 via-indigo-600 to-violet-700 shadow-2xl animate-gradient-x'; // OpenDesign 3D / CAD theme
+        case '/lifeinc':
+          return 'bg-gradient-to-r from-emerald-700 via-teal-600 to-lime-700 shadow-2xl animate-gradient-x'; // Life Inc. evolution / terraforming theme
         default:
           return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x'; // Default to purple-pink animated
       }

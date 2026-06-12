@@ -427,6 +427,48 @@ export default function HomePage() {
             </Link>
 
             <Link
+              href="/lifeinc"
+              className="block group relative px-8 py-10 bg-gradient-to-br from-emerald-950/95 via-teal-950/90 to-slate-950/95 rounded-3xl hover:from-emerald-900 hover:via-teal-900 hover:to-slate-900 transition-all duration-300 transform hover:scale-[1.02] shadow-2xl border-4 border-emerald-400/50 hover:border-emerald-300 hover:shadow-emerald-500/20 overflow-hidden"
+            >
+              <div
+                className="pointer-events-none absolute inset-0 opacity-[0.14]"
+                style={{
+                  backgroundImage: `
+                    radial-gradient(circle at 25% 35%, rgba(52,211,153,0.5) 1px, transparent 1px),
+                    radial-gradient(circle at 75% 65%, rgba(74,222,128,0.35) 1px, transparent 1px)
+                  `,
+                  backgroundSize: '48px 48px, 72px 72px',
+                }}
+              />
+              <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 relative z-10">
+                <div
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center border-4 border-emerald-400/60 shadow-xl flex-shrink-0 bg-emerald-950/80 backdrop-blur-sm"
+                  style={{ boxShadow: '0 20px 40px rgba(52,211,153,0.25), inset 0 0 0 1px rgba(52,211,153,0.3)' }}
+                >
+                  <span className="text-5xl sm:text-6xl select-none" aria-hidden>
+                    🌍
+                  </span>
+                </div>
+
+                <div className="flex-1 text-center sm:text-left">
+                  <h3 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-emerald-200 via-lime-200 to-teal-200 bg-clip-text text-transparent mb-3">
+                    Life Inc.
+                  </h3>
+                  <p className="text-emerald-100 text-lg sm:text-xl mb-2">
+                    Evolve species &amp; terraform planets — life, not plague
+                  </p>
+                  <p className="text-slate-300 text-sm sm:text-base">
+                    A strategy sim flipped on its head: nurture evolution, survive alien biomes, and green dead worlds. Privacy-friendly — progress stays on your device.
+                  </p>
+                </div>
+
+                <div className="text-emerald-300 text-3xl sm:text-4xl group-hover:translate-x-2 transition-transform flex-shrink-0">
+                  →
+                </div>
+              </div>
+            </Link>
+
+            <Link
               href="/opendesign"
               className="block group relative px-8 py-10 bg-gradient-to-br from-slate-900/95 via-cyan-950/90 to-indigo-950/95 rounded-3xl hover:from-slate-800 hover:via-cyan-900 hover:to-indigo-900 transition-all duration-300 transform hover:scale-[1.02] shadow-2xl border-4 border-cyan-400/50 hover:border-cyan-300 hover:shadow-cyan-500/20 overflow-hidden"
             >
