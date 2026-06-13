@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { LIFE_INC_HUB_URL } from '@/lib/lifeinc-public-urls';
-import { Dna, Globe2, Sparkles, Shield, ExternalLink, FileText, Leaf } from 'lucide-react';
+import { Dna, Globe2, Sparkles, Shield, ExternalLink, FileText, Leaf, HelpCircle } from 'lucide-react';
 
 export default function LifeIncPage() {
   return (
@@ -92,6 +92,13 @@ export default function LifeIncPage() {
             >
               <FileText className="w-5 h-5" />
               Terms &amp; Conditions
+            </Link>
+            <Link
+              href="/lifeinc/support"
+              className="inline-flex items-center gap-2 px-10 py-4 rounded-xl font-semibold border-2 border-slate-500/50 text-slate-200 hover:bg-slate-500/15 hover:border-slate-400 transition-all"
+            >
+              <HelpCircle className="w-5 h-5" />
+              Support
             </Link>
           </div>
         </section>
@@ -184,6 +191,10 @@ export default function LifeIncPage() {
             <span className="text-slate-600">•</span>
             <Link href="/lifeinc/terms-and-conditions" className="text-teal-400 hover:text-teal-300 font-semibold">
               Terms &amp; Conditions
+            </Link>
+            <span className="text-slate-600">•</span>
+            <Link href="/lifeinc/support" className="text-slate-300 hover:text-white font-semibold">
+              Support
             </Link>
             <span className="text-slate-600">•</span>
             <a
