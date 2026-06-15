@@ -5,7 +5,7 @@ import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { FileText, ArrowLeft } from 'lucide-react';
 
-const CONTACT_EMAIL = 'support@mogmeai.com';
+const CONTACT_EMAIL = 'ryanfermoselle@outlook.com';
 const APPLE_REPORT_URL = 'https://reportaproblem.apple.com';
 
 export default function TermsOfServicePage() {
