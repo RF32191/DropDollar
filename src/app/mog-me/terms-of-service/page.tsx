@@ -3,425 +3,338 @@
 import React from 'react';
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { FileText, ArrowLeft, AlertTriangle, Shield } from 'lucide-react';
+import { FileText, ArrowLeft } from 'lucide-react';
+
+const CONTACT_EMAIL = 'support@mogmeai.com';
+const APPLE_REPORT_URL = 'https://reportaproblem.apple.com';
 
 export default function TermsOfServicePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-yellow-900">
       <CleanNavigation variant="gradient" currentPage="/mog-me" />
-      
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
+
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 z-10">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
           <div className="flex items-center justify-center mb-8">
             <FileText className="w-12 h-12 text-yellow-400 mr-4" />
-            <h1 className="text-5xl sm:text-6xl font-black text-center">
+            <h1 className="text-4xl sm:text-5xl font-black text-center">
               <span className="bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-500 bg-clip-text text-transparent">
-                Terms of Service
+                MogME AI - Terms of Service
               </span>
             </h1>
           </div>
 
-          <p className="text-xl text-green-200 text-center mb-4">
-            <strong>Last Updated: January 13, 2026</strong>
+          <p className="text-xl text-green-200 text-center mb-6">
+            <strong>Last Updated: June 15, 2026</strong>
           </p>
 
-          {/* Agreement Notice */}
           <div className="bg-yellow-400/20 backdrop-blur-xl p-6 rounded-2xl border-2 border-yellow-400/50 mb-8">
             <p className="text-green-100 text-lg font-semibold">
-              <strong className="text-yellow-300">Agreement:</strong> By downloading, installing, or using MogME AI ("the App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the App.
+              <strong className="text-yellow-300">Agreement:</strong> By downloading, installing, or using MogME AI
+              (&quot;the App&quot;), you agree to be bound by these Terms of Service. If you do not agree, do not use the App.
             </p>
           </div>
 
-          {/* Terms Content */}
           <div className="bg-green-800/40 backdrop-blur-xl p-10 rounded-3xl border-2 border-yellow-400/40 space-y-8 text-green-100">
-            
-            {/* Section 1 */}
             <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">1. Acceptance of Terms</h2>
-              <p className="text-lg leading-relaxed mb-4">
-                These Terms of Service ("Terms") govern your use of MogME AI, a personal aesthetics and fitness analysis application. By accessing or using the App, you agree to:
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">1. Acceptance of Terms</h2>
+              <p className="mb-3">By accessing or using the App, you agree to:</p>
+              <ul className="space-y-2 list-disc list-inside">
+                <li>Comply with these Terms and all applicable laws.</li>
+                <li>Be at least 18 years of age (or the age of majority in your jurisdiction).</li>
+                <li>
+                  Accept our{' '}
+                  <Link href="/mog-me/privacy-policy" className="text-yellow-400 hover:underline">
+                    Privacy Policy
+                  </Link>{' '}
+                  (incorporated by reference).
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">2. Description of Service</h2>
+              <p className="mb-3">
+                <strong>MogME AI provides:</strong>
               </p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>Comply with these Terms and all applicable laws</li>
-                <li>Be at least 18 years of age or the age of majority in your jurisdiction</li>
-                <li>Accept our Privacy Policy (incorporated by reference)</li>
+              <ul className="space-y-2 list-disc list-inside">
+                <li>
+                  <strong>Facial &amp; Body Analysis:</strong> On-device AI analysis of facial/physique features (PSL scoring)
+                  using Apple&apos;s Vision Framework.
+                </li>
+                <li>
+                  <strong>Fitness &amp; GPS Workout Tracking:</strong> Workout planning plus GPS-based tracking of pace,
+                  distance, route, and elevation for cardio/walking workouts, with Apple Watch support and HealthKit integration.
+                </li>
+                <li>
+                  <strong>Nutrition &amp; Diet Tracking:</strong> Meal logging, food image recognition, and personalized
+                  calorie/macro targets (estimates only, not medical/dietetic advice).
+                </li>
+                <li>
+                  <strong>Mental &amp; Physical Games:</strong> Cognitive training and AR-based physical games.
+                </li>
+                <li>
+                  <strong>Leaderboards &amp; Public Username:</strong> Optional global leaderboards where a chosen public
+                  handle and your scores are displayed to other users.
+                </li>
+                <li>
+                  <strong>AI Companion &amp; AI Chat:</strong> AI Companion (&quot;Meet-Cute&quot;) and AI Rizz chat features
+                  whose replies are generated by a third-party AI provider, for entertainment.
+                </li>
+                <li>
+                  <strong>Social Sharing:</strong> Optionally share a generated image card of your results to other apps/social
+                  media that you choose.
+                </li>
+                <li>
+                  <strong>Mog-Off (Optional, 18+):</strong> An opt-in head-to-head competitive mode (Face, Cognition, AI Rizz).
+                  In the Face round, your photo is analyzed on-device and only a numeric score and a deliberately distorted,
+                  watermarked outline image are uploaded and shown to your opponent.
+                </li>
+                <li>
+                  <strong>Premium Features:</strong> Advanced analysis, unlimited scans, detailed reports.
+                </li>
               </ul>
             </section>
 
-            {/* Section 2 */}
             <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">2. Description of Service</h2>
-              <p className="text-lg leading-relaxed mb-4"><strong>MogME AI provides:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li><strong>Facial Analysis:</strong> On-device AI analysis of facial features and aesthetics (PSL scoring system)</li>
-                <li><strong>Fitness Tracking:</strong> Workout planning, exercise guides, and activity tracking</li>
-                <li><strong>Mental Training:</strong> Cognitive games and training exercises</li>
-                <li><strong>Physical Games:</strong> AR-based physical training and testing</li>
-                <li><strong>Premium Features:</strong> Advanced analysis, unlimited scans, detailed reports</li>
-              </ul>
-            </section>
-
-            {/* Section 3 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">3. Free vs. Premium Features</h2>
-              
-              <div className="bg-green-900/40 p-6 rounded-xl border border-yellow-400/20 mb-4">
-                <h3 className="text-xl font-bold text-yellow-300 mb-3">Free Features:</h3>
-                <ul className="space-y-2 text-green-100 list-disc list-inside">
-                  <li>Basic PSL score calculation</li>
-                  <li>Overview tab with key metrics</li>
-                  <li>Camera and photo capture</li>
-                  <li>Limited analysis history</li>
-                  <li>Basic fitness tracking</li>
-                </ul>
-              </div>
-
-              <div className="bg-green-900/40 p-6 rounded-xl border border-yellow-400/20">
-                <h3 className="text-xl font-bold text-yellow-300 mb-3">Premium Features (Subscription Required):</h3>
-                <ul className="space-y-2 text-green-100 list-disc list-inside">
-                  <li>Detailed facial analysis (eyes, proportions, jaw)</li>
-                  <li>Unlimited scans and analysis</li>
-                  <li>Advanced fitness programs</li>
-                  <li>Physical games and AR training</li>
-                  <li>Export and sharing capabilities</li>
-                  <li>Comprehensive analytics</li>
-                </ul>
-              </div>
-            </section>
-
-            {/* Section 4 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">4. Subscription Terms</h2>
-              
-              <div className="bg-green-900/40 p-6 rounded-xl border border-yellow-400/20 mb-4">
-                <h3 className="text-xl font-bold text-yellow-300 mb-3">Subscription Options:</h3>
-                <ul className="space-y-2 text-green-100 list-disc list-inside">
-                  <li><strong>Monthly Premium:</strong> $4.99 per month</li>
-                  <li><strong>Yearly Premium:</strong> $29.99 per year (save 50%)</li>
-                  <li><strong>Lifetime Premium:</strong> $49.99 one-time payment (permanent access)</li>
-                </ul>
-              </div>
-
-              <div className="bg-red-900/30 p-6 rounded-xl border-2 border-red-400/50 mb-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="text-xl font-bold text-red-300 mb-2">Auto-Renewal:</h3>
-                    <p className="text-green-100 mb-3">
-                      <strong>IMPORTANT:</strong> Monthly and yearly subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period.
-                    </p>
-                    <ul className="space-y-2 text-green-100 list-disc list-inside">
-                      <li>Your Apple ID account will be charged for renewal within 24 hours prior to the end of the current period</li>
-                      <li>You can turn off auto-renewal at any time in your Apple ID Account Settings</li>
-                      <li>Go to Settings → [Your Name] → Subscriptions → MogME AI → Cancel Subscription</li>
-                      <li>If you cancel, your subscription will remain active until the end of the current billing period</li>
-                      <li>No refunds will be provided for the unused portion of the current subscription period</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-green-900/40 p-6 rounded-xl border border-yellow-400/20 mb-4">
-                <h3 className="text-xl font-bold text-yellow-300 mb-3">Managing Subscriptions:</h3>
-                <ul className="space-y-2 text-green-100 list-disc list-inside">
-                  <li>Manage via iOS Settings → [Your Name] → Subscriptions</li>
-                  <li>Cancel anytime without penalty</li>
-                  <li>Cancellation takes effect at the end of the current billing period</li>
-                  <li>No refunds for partial periods</li>
-                </ul>
-              </div>
-
-              <div className="bg-green-900/40 p-6 rounded-xl border border-yellow-400/20">
-                <h3 className="text-xl font-bold text-yellow-300 mb-3">Free Trial (If Offered):</h3>
-                <ul className="space-y-2 text-green-100 list-disc list-inside">
-                  <li>Free trial periods (if offered) provide full access to premium features</li>
-                  <li>After trial ends, subscription begins automatically unless cancelled</li>
-                  <li>Cancel during trial period to avoid charges</li>
-                  <li>One free trial per user</li>
-                </ul>
-              </div>
-            </section>
-
-            {/* Section 5 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">5. Payment and Billing</h2>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>All payments are processed through Apple's App Store (StoreKit)</li>
-                <li>Prices are in USD and may vary by region</li>
-                <li>Apple handles all payment processing and billing</li>
-                <li>We do not store or process credit card information</li>
-                <li>Taxes may apply based on your location</li>
-                <li>By purchasing, you agree to Apple's Payment Terms and Conditions</li>
-                <li>Your purchase is subject to Apple's App Store Terms of Service</li>
-              </ul>
-            </section>
-
-            {/* Section 6 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">6. Refund Policy</h2>
-              <p className="text-lg leading-relaxed mb-4">Refunds are handled by Apple according to their standard refund policies:</p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>Request refunds through the App Store</li>
-                <li>Go to <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:underline">reportaproblem.apple.com</a></li>
-                <li>Refunds are subject to Apple's discretion</li>
-                <li>We cannot process refunds directly</li>
-              </ul>
-              <div className="bg-red-900/30 p-4 rounded-lg border border-red-400/50 mt-4">
-                <p className="text-green-100">
-                  <strong className="text-red-300">Note:</strong> Subscriptions cannot be cancelled mid-cycle for a pro-rated refund. Cancellation prevents future charges but does not refund the current period.
-                </p>
-              </div>
-            </section>
-
-            {/* Section 7 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">7. User Responsibilities</h2>
-              <p className="text-lg leading-relaxed mb-4"><strong>You agree to:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>Use the App for personal, non-commercial purposes only</li>
-                <li>Provide accurate information when required</li>
-                <li>Not reverse engineer, decompile, or modify the App</li>
-                <li>Not use the App for any illegal or unauthorized purpose</li>
-                <li>Not share your subscription with others</li>
-                <li>Not attempt to access premium features without payment</li>
-              </ul>
-            </section>
-
-            {/* Section 8 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">8. Disclaimer of Results</h2>
-              <div className="bg-red-900/30 p-6 rounded-xl border-2 border-red-400/50 mb-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
-                  <p className="text-green-100">
-                    <strong className="text-red-300">IMPORTANT DISCLAIMER:</strong> MogME AI provides aesthetic analysis and fitness guidance for entertainment and informational purposes only. Results are not medical advice or professional consultation.
-                  </p>
-                </div>
-              </div>
-              
-              <p className="text-lg leading-relaxed mb-4"><strong>We do not guarantee:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg mb-4">
-                <li>Accuracy of PSL scores or aesthetic assessments</li>
-                <li>Fitness results or health improvements</li>
-                <li>Specific outcomes from following recommendations</li>
-                <li>That analysis reflects professional medical opinion</li>
-              </ul>
-
-              <p className="text-lg leading-relaxed mb-4"><strong>You acknowledge that:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>PSL scores are algorithmic estimates, not objective truth</li>
-                <li>Aesthetic standards are subjective and culturally variable</li>
-                <li>Fitness advice should be supplemented with professional guidance</li>
-                <li>You should consult healthcare professionals before starting new fitness routines</li>
-              </ul>
-            </section>
-
-            {/* Section 9 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">9. Medical Disclaimer</h2>
-              <div className="bg-red-900/30 p-6 rounded-xl border-2 border-red-400/50 mb-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
-                  <p className="text-green-100">
-                    <strong className="text-red-300">NOT MEDICAL ADVICE:</strong> MogME AI is NOT a medical device. Do not use the App to diagnose, treat, or prevent any medical condition.
-                  </p>
-                </div>
-              </div>
-              
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>Consult a doctor before starting any fitness program</li>
-                <li>The App cannot detect health conditions</li>
-                <li>Fitness tracking is for informational purposes only</li>
-                <li>Stop exercise immediately if you experience pain or discomfort</li>
-                <li>HealthKit integration does not constitute medical monitoring</li>
-              </ul>
-            </section>
-
-            {/* Section 10 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">10. Intellectual Property</h2>
-              <p className="text-lg leading-relaxed mb-4"><strong>App Ownership:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg mb-4">
-                <li>MogME AI, including all code, design, and content, is owned by Ryan Joshua Fermoselle</li>
-                <li>The App is licensed to you, not sold</li>
-                <li>You may not copy, modify, distribute, or reverse engineer the App</li>
-                <li>App name, logo, and branding are protected trademarks</li>
-              </ul>
-
-              <p className="text-lg leading-relaxed mb-4"><strong>Your Content:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>You retain all rights to photos you upload or capture</li>
-                <li>Since analysis is on-device, we do not access or claim rights to your photos</li>
-                <li>You are responsible for the content you process through the App</li>
-              </ul>
-            </section>
-
-            {/* Section 11 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">11. Acceptable Use Policy</h2>
-              <p className="text-lg leading-relaxed mb-4"><strong>You may NOT use the App to:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>Analyze photos of other people without their consent</li>
-                <li>Harass, bully, or discriminate against others</li>
-                <li>Share analysis results to shame or harm others</li>
-                <li>Violate anyone's privacy or intellectual property rights</li>
-                <li>Engage in any illegal activity</li>
-                <li>Attempt to hack, exploit, or disrupt the App</li>
-              </ul>
-            </section>
-
-            {/* Section 12 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">12. Limitation of Liability</h2>
-              <p className="text-lg leading-relaxed mb-4"><strong>TO THE FULLEST EXTENT PERMITTED BY LAW:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>The App is provided "AS IS" without warranties of any kind</li>
-                <li>We are not liable for any damages arising from use of the App</li>
-                <li>We do not guarantee uninterrupted or error-free operation</li>
-                <li>Maximum liability is limited to the amount you paid for subscription</li>
-                <li>We are not responsible for third-party content or services</li>
-              </ul>
-            </section>
-
-            {/* Section 13 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">13. Indemnification</h2>
-              <p className="text-lg leading-relaxed mb-4">You agree to indemnify and hold harmless Ryan Joshua Fermoselle and MogME AI from any claims, damages, or expenses arising from:</p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>Your use of the App</li>
-                <li>Your violation of these Terms</li>
-                <li>Your violation of any rights of another party</li>
-                <li>Any content you process or share through the App</li>
-              </ul>
-            </section>
-
-            {/* Section 14 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">14. App Updates and Changes</h2>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>We may update the App to add features, fix bugs, or improve performance</li>
-                <li>Updates may be required for continued use</li>
-                <li>We may discontinue features or the entire App at any time</li>
-                <li>Active subscriptions will receive appropriate refunds if App is discontinued</li>
-              </ul>
-            </section>
-
-            {/* Section 15 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">15. Account Termination</h2>
-              <p className="text-lg leading-relaxed mb-4"><strong>We may terminate your access if you:</strong></p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg mb-4">
-                <li>Violate these Terms</li>
-                <li>Engage in fraudulent activity</li>
-                <li>Abuse or exploit the App</li>
-                <li>Use the App for illegal purposes</li>
-              </ul>
-              <p className="text-lg leading-relaxed">Termination does not entitle you to a refund for current subscription period.</p>
-            </section>
-
-            {/* Section 16 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">16. Privacy and Data Use</h2>
-              <p className="text-lg leading-relaxed mb-4">Your use of the App is subject to our Privacy Policy, which explains:</p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg mb-4">
-                <li>What data we access (only on-device)</li>
-                <li>How we protect your privacy</li>
-                <li>Your rights regarding your data</li>
-              </ul>
-              <p className="text-lg leading-relaxed">
-                Read our full Privacy Policy at: <Link href="/mog-me/privacy-policy" className="text-yellow-400 hover:underline">Privacy Policy</Link>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">3. Free vs. Premium Features</h2>
+              <p>
+                <strong>Free:</strong> basic PSL score, key metrics, camera/photo capture, limited history, basic fitness
+                tracking.
+              </p>
+              <p className="mt-3">
+                <strong>Premium (subscription):</strong> detailed analysis, unlimited scans, advanced fitness and nutrition
+                programs, physical/AR games, export and sharing, full analytics.
               </p>
             </section>
 
-            {/* Section 17 */}
             <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">17. Governing Law</h2>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>These Terms are governed by the laws of the State of California, United States of America</li>
-                <li>Any disputes will be resolved in the courts of California, United States</li>
-                <li>If any provision is found invalid, the remaining provisions remain in effect</li>
-                <li>For users outside the United States, these Terms are governed by California law, but local consumer protection laws may apply</li>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">4. Subscription Terms</h2>
+              <ul className="space-y-2 list-disc list-inside">
+                <li>
+                  <strong>Monthly Premium:</strong> $4.99 / month
+                </li>
+                <li>
+                  <strong>Yearly Premium:</strong> $29.99 / year
+                </li>
+                <li>
+                  <strong>Lifetime Premium:</strong> $49.99 one-time
+                </li>
               </ul>
-            </section>
-
-            {/* Section 18 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">18. Changes to Terms</h2>
-              <p className="text-lg leading-relaxed mb-4">We may update these Terms from time to time. Changes will be effective:</p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>Upon posting the updated Terms in the App</li>
-                <li>With an updated "Last Updated" date</li>
-                <li>Continued use constitutes acceptance of new Terms</li>
-                <li>Material changes may be communicated via in-app notification</li>
-              </ul>
-            </section>
-
-            {/* Section 19 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">19. Contact Information</h2>
-              <p className="text-lg leading-relaxed mb-4">For questions, concerns, or support regarding these Terms:</p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li><strong>Email:</strong> <a href="mailto:ryanfermoselle@outlook.com" className="text-yellow-400 hover:underline">ryanfermoselle@outlook.com</a></li>
-                <li><strong>Developer:</strong> Ryan Joshua Fermoselle</li>
-                <li><strong>Response Time:</strong> Within 14 business days</li>
-              </ul>
-            </section>
-
-            {/* Section 20 */}
-            <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">20. Apple App Store Terms</h2>
-              <p className="text-lg leading-relaxed mb-4">As a user of the App Store, you also agree to:</p>
-              <ul className="space-y-2 text-green-100 list-disc list-inside text-lg">
-                <li>Apple's App Store Terms of Service</li>
-                <li>Apple's Media Services Terms and Conditions</li>
-                <li>Apple's Privacy Policy</li>
-              </ul>
-              <p className="text-lg leading-relaxed mt-4">
-                If there is a conflict between these Terms and Apple's terms, Apple's terms will govern with respect to App Store-related matters.
+              <p className="mt-4">
+                <strong>Auto-Renewal:</strong> Monthly and yearly subscriptions renew automatically unless cancelled at least
+                24 hours before the period ends. Your Apple ID is charged within 24 hours before renewal. Manage or cancel in
+                iOS Settings → [Your Name] → Subscriptions → MogME AI. Cancellation stops future charges but does not refund
+                the current period. Free trials (if offered) convert to a paid subscription unless cancelled before the trial
+                ends.
               </p>
             </section>
 
-            {/* Section 21 */}
             <section>
-              <h2 className="text-3xl font-bold text-yellow-300 mb-4">21. Entire Agreement</h2>
-              <p className="text-lg leading-relaxed">
-                These Terms, together with our Privacy Policy, constitute the entire agreement between you and MogME AI regarding use of the App, superseding any prior agreements.
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">5. Payment and Billing</h2>
+              <p>
+                All payments are processed by Apple&apos;s App Store (StoreKit). Prices are in USD and may vary by region; taxes
+                may apply. We do not store payment information. Your purchase is subject to Apple&apos;s terms.
               </p>
             </section>
 
-            {/* Final Agreement Notice */}
-            <div className="bg-yellow-400/20 p-6 rounded-xl border-2 border-yellow-400/50 mt-8">
-              <p className="text-green-100 text-lg font-semibold text-center">
-                <strong className="text-yellow-300">By using MogME AI, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.</strong>
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">6. Refund Policy</h2>
+              <p>
+                Refunds are handled by Apple via{' '}
+                <a href={APPLE_REPORT_URL} target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:underline">
+                  reportaproblem.apple.com
+                </a>{' '}
+                at Apple&apos;s discretion. We cannot process refunds directly. Subscriptions are not pro-rated.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">7. User Responsibilities</h2>
+              <p className="mb-3">You agree to:</p>
+              <ul className="space-y-2 list-disc list-inside">
+                <li>Use the App for personal, non-commercial purposes only.</li>
+                <li>Not reverse engineer, decompile, or modify the App.</li>
+                <li>Not use the App for any illegal or unauthorized purpose.</li>
+                <li>Not share your subscription or attempt to access premium features without payment.</li>
+                <li>
+                  Choose a username/handle that is not offensive, impersonating, infringing, or unlawful. We may reclaim,
+                  change, or remove handles that violate these Terms.
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">8. Online Features, Leaderboards &amp; User Conduct</h2>
+              <ul className="space-y-2 list-disc list-inside">
+                <li>
+                  Leaderboards, AI chat, and Mog-Off are optional online features. Information you submit through them (e.g.,
+                  your public handle, scores, chat messages) may be transmitted to our servers and, for AI features, a
+                  third-party AI provider.
+                </li>
+                <li>Your public handle and scores may be displayed publicly on leaderboards.</li>
+                <li>
+                  You agree not to cheat, manipulate, automate, or falsify scores or rankings, and not to harass, threaten, or
+                  abuse other users.
+                </li>
+                <li>
+                  AI chat features are for entertainment and are not professional, medical, legal, or relationship advice. Do
+                  not share sensitive personal information.
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">9. Social Sharing</h2>
+              <p>
+                When you choose to share results, the App generates an image/text card on your device and passes it to the iOS
+                share sheet. You are solely responsible for what you share and where. We do not post on your behalf. Shared
+                content is governed by the terms of the destination platform.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">10. Mog-Off Content and Consent (18+)</h2>
+              <ul className="space-y-2 list-disc list-inside">
+                <li>Mog-Off is restricted to users 18+ and requires explicit image-sharing consent before the Face round.</li>
+                <li>
+                  Your true face photo is never uploaded. Only a numeric PSL score and a deliberately distorted, watermarked
+                  outline image (generated on your device) are sent to our match server and relayed to your opponent.
+                </li>
+                <li>
+                  You grant us a limited license to transmit, moderate, briefly store, and relay your distorted outline image,
+                  trivia answers, and AI chat messages solely to operate the match. Distorted images are deleted when the round
+                  resolves, the match ends, or a player disconnects.
+                </li>
+                <li>
+                  You agree not to reconstruct, de-anonymize, capture, screenshot, redistribute, or harass others using an
+                  opponent&apos;s distorted image, and not to submit any unlawful, infringing, or non-consensual content.
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">11. Disclaimer of Results</h2>
+              <p>
+                MogME AI provides aesthetic analysis, fitness, and nutrition guidance for entertainment and informational
+                purposes only. PSL scores, body scores, GPS metrics, and calorie/macro estimates are algorithmic estimates, not
+                objective truth or professional advice. We do not guarantee accuracy or specific outcomes.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">12. Medical Disclaimer</h2>
+              <p>
+                MogME AI is NOT a medical device. Do not use it to diagnose, treat, or prevent any condition. Consult a doctor
+                before starting any fitness or diet program. GPS and HealthKit tracking are informational only and not medical
+                monitoring.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">13. Intellectual Property</h2>
+              <p>
+                MogME AI, including all code, design, and content, is owned by Ryan Joshua Fermoselle and licensed (not sold) to
+                you. You retain rights to photos you capture; for standard analysis, processing is on-device and we do not claim
+                rights to them.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">14. Acceptable Use</h2>
+              <p>You may NOT use the App to analyze photos of other people without consent; harass, bully, or shame others; violate privacy or IP rights; engage in illegal activity; or hack, exploit, or disrupt the App or its servers.</p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">15. Limitation of Liability</h2>
+              <p>
+                To the fullest extent permitted by law, the App is provided &quot;AS IS&quot; without warranties. We are not
+                liable for damages arising from use of the App, do not guarantee uninterrupted or error-free operation, and our
+                maximum liability is limited to the amount you paid for your subscription.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">16. Indemnification</h2>
+              <p>
+                You agree to indemnify and hold harmless Ryan Joshua Fermoselle and MogME AI from claims arising from your use
+                of the App, your violation of these Terms, or your violation of another party&apos;s rights.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">17. App Updates, Termination &amp; Changes</h2>
+              <p>
+                We may update, change, or discontinue features or the App at any time, and may terminate access for violations of
+                these Terms. Termination does not entitle you to a refund for the current period.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">18. Privacy</h2>
+              <p>
+                Your use of the App is subject to our{' '}
+                <Link href="/mog-me/privacy-policy" className="text-yellow-400 hover:underline">
+                  Privacy Policy
+                </Link>
+                , which explains what data is processed on-device versus sent to our servers and AI provider, and your rights.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">19. Governing Law</h2>
+              <p>
+                These Terms are governed by the laws of the State of California, USA. Disputes will be resolved in California
+                courts. Local consumer-protection laws may also apply outside the United States.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">20. Apple App Store Terms</h2>
+              <p>
+                You also agree to Apple&apos;s App Store Terms of Service and Media Services Terms. Apple is not a party to these
+                Terms and is not responsible for the App.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-yellow-300 mb-4">21. Contact</h2>
+              <ul className="space-y-2 list-disc list-inside">
+                <li>
+                  <strong>Email:</strong>{' '}
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="text-yellow-400 hover:underline">
+                    {CONTACT_EMAIL}
+                  </a>
+                </li>
+                <li>
+                  <strong>Developer:</strong> Ryan Joshua Fermoselle
+                </li>
+              </ul>
+            </section>
+
+            <div className="bg-yellow-400/20 p-6 rounded-xl border-2 border-yellow-400/50 mt-4">
+              <p className="text-green-100 font-semibold text-center">
+                By using MogME AI, you acknowledge that you have read, understood, and agree to be bound by these Terms of
+                Service.
               </p>
             </div>
           </div>
 
-          {/* Footer */}
           <div className="text-center py-8 border-t border-yellow-400/30 mt-8">
             <p className="text-green-200 text-xl font-bold mb-2">MogME AI - Terms of Service</p>
             <p className="text-green-300 mb-4">© 2026 Ryan Joshua Fermoselle. All rights reserved.</p>
-            <p className="text-green-300 mb-4">These Terms are effective as of January 13, 2026.</p>
+            <p className="text-green-300 mb-4">Last Updated: June 15, 2026.</p>
             <div className="flex flex-wrap items-center justify-center gap-4 text-lg mb-4">
-              <Link href="/mog-me/privacy-policy" className="text-yellow-400 hover:text-yellow-300 font-semibold underline transition-colors">
+              <Link href="/mog-me/privacy-policy" className="text-yellow-400 hover:text-yellow-300 font-semibold underline">
                 Privacy Policy
               </Link>
               <span className="text-green-300">|</span>
-              <Link href="/mog-me/support" className="text-yellow-400 hover:text-yellow-300 font-semibold underline transition-colors">
+              <Link href="/mog-me/support" className="text-yellow-400 hover:text-yellow-300 font-semibold underline">
                 Support
               </Link>
-              <span className="text-green-300">|</span>
-              <a href="mailto:ryanfermoselle@outlook.com" className="text-yellow-400 hover:text-yellow-300 font-semibold underline transition-colors">
-                Contact Support
-              </a>
             </div>
-            <p className="text-green-400 text-sm mt-4">
-              MogME AI is an independent application. Apple Inc. is not a party to these Terms and is not responsible for the App or its content.
-            </p>
           </div>
 
-          {/* Back to Mog Me */}
           <div className="text-center mt-8">
             <Link
               href="/mog-me"
@@ -434,13 +347,13 @@ export default function TermsOfServicePage() {
         </div>
       </section>
 
-      {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-400/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/2 right-1/4 w-80 h-80 bg-green-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute bottom-1/4 left-1/2 w-72 h-72 bg-yellow-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-400/20 rounded-full blur-3xl animate-pulse" />
+        <div
+          className="absolute top-1/2 right-1/4 w-80 h-80 bg-green-500/20 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: '1s' }}
+        />
       </div>
     </div>
   );
 }
-
